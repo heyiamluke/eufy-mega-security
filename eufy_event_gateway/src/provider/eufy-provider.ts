@@ -33,6 +33,8 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #pushOnlyCameraSerials = new Set<string>();
   readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
   #captchaChallenge: CaptchaChallenge | null = null;
+  #megaOnlyActive = false;
+  #megaOnlyActivation: Promise<boolean> | null = null;
 
   constructor(private readonly config: EufyProviderConfig) {}
 
@@ -94,15 +96,29 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
 
   #wireEvents(client: EufySecurity, events: ProviderEvents): void {
     client.on("connect", () => {
+      this.#megaOnlyActive = false;
       events.connection("connected", null);
       void this.#discoverCameras(client, events);
     });
-    client.on("close", () => events.connection("disconnected", null));
-    client.on("connection error", (error) => events.connection("error", safeError(error)));
-    client.on("tfa request", () => events.connection("authentication-required", "Eufy requested an email verification code"));
+    client.on("close", () => {
+      if (!this.#megaOnlyActive) events.connection("disconnected", null);
+    });
+    client.on("connection error", (error) => {
+      void this.#activateMegaOnly(client, events).then((active) => {
+        if (!active) events.connection("error", safeError(error));
+      });
+    });
+    client.on("tfa request", () => {
+      void this.#activateMegaOnly(client, events).then((active) => {
+        if (!active) events.connection("authentication-required", "Eufy requested an email verification code");
+      });
+    });
     client.on("captcha request", (id, image) => {
-      this.#captchaChallenge = { id, image };
-      events.connection("authentication-required", "Open the app web interface to complete Eufy's CAPTCHA");
+      void this.#activateMegaOnly(client, events).then((active) => {
+        if (active) return;
+        this.#captchaChallenge = { id, image };
+        events.connection("authentication-required", "Open the app web interface to complete Eufy's CAPTCHA");
+      });
     });
     client.on("push message", (message: PushMessage) => {
       const derivedPersonName = personNameFromPush(message);
@@ -153,6 +169,30 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       (_station, device, _metadata: StreamMetadata, video: Readable) => events.streamStarted(device.getSerial(), video),
     );
     client.on("station livestream stop", (_station, device) => events.streamStopped(device.getSerial()));
+  }
+
+  async #activateMegaOnly(client: EufySecurity, events: ProviderEvents): Promise<boolean> {
+    if (this.#megaOnlyActive) return true;
+    if (this.#megaOnlyActivation) return this.#megaOnlyActivation;
+
+    this.#megaOnlyActivation = (async () => {
+      if (!await hasValidMegaSession(client as unknown as MegaSessionClient)) return false;
+
+      this.#megaOnlyActive = true;
+      this.#captchaChallenge = null;
+      events.connection("connected", "Connected through Eufy's current API; legacy login is unavailable");
+      await this.#discoverCameras(client, events);
+      await client.registerPushNotifications(undefined, client.getPushPersistentIds());
+      return true;
+    })().catch((error: unknown) => {
+      this.#megaOnlyActive = false;
+      console.warn(`Eufy Mega-only startup failed: ${safeError(ensureError(error))}`);
+      return false;
+    }).finally(() => {
+      this.#megaOnlyActivation = null;
+    });
+
+    return this.#megaOnlyActivation;
   }
 
   #queuePushSnapshot(client: EufySecurity, events: ProviderEvents, message: PushMessage): void {
@@ -298,6 +338,18 @@ interface MegaEnabledClient {
   readonly megaTransition?: {
     getMegaApi(): Promise<MegaHTTPApi>;
   };
+}
+
+interface MegaSessionClient {
+  readonly megaTransition?: {
+    getMegaApi(): Promise<Pick<MegaHTTPApi, "hasValidSession">>;
+  };
+}
+
+export async function hasValidMegaSession(client: MegaSessionClient): Promise<boolean> {
+  const transition = client.megaTransition;
+  if (!transition) return false;
+  return (await transition.getMegaApi()).hasValidSession();
 }
 
 export interface MegaInventoryDevice {

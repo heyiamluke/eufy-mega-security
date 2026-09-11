@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Continue through Eufy's current API when its obsolete legacy login requests CAPTCHA after Mega authentication has already succeeded.
+
 ## 0.1.7
 
 - Keep CAPTCHA results inside the app web interface and show a fresh challenge when Eufy rejects an answer.

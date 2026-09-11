@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Use an authenticated Mega session for camera discovery and push notifications without requiring the failed legacy login.
+
 ## 0.1.7
 
 - Keep CAPTCHA results inside the app web interface and show a fresh challenge when Eufy rejects an answer.

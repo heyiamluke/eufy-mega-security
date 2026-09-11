@@ -2,10 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  hasValidMegaSession,
   mergeInventoryDiagnostics,
   parseMegaInventory,
   personNameFromPush,
 } from "../src/provider/eufy-provider.js";
+
+test("uses a valid Mega session without requiring the failed legacy login", async () => {
+  assert.equal(await hasValidMegaSession({
+    megaTransition: { getMegaApi: async () => ({ hasValidSession: () => true }) },
+  }), true);
+  assert.equal(await hasValidMegaSession({}), false);
+});
 
 test("uses a structured person name when Eufy supplies one", () => {
   assert.equal(personNameFromPush({ event_type: 3111, person_name: "Alex" }), "Alex");
