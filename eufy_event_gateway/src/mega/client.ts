@@ -20,6 +20,7 @@ import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaMqtt
 const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
 const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
+const AUTH_SESSION_INVALID = 26884;
 
 export interface MegaClientOptions {
   readonly email: string;
@@ -65,9 +66,10 @@ export class MegaClient {
       this.#session.userId.length > 0 && this.#now() / 1_000 < this.#session.tokenExpiresAt - 60;
   }
 
-  async connect(verificationCode?: string, captchaAnswer?: string): Promise<MegaAuthResult> {
-    if (!this.#session) await this.#restore();
-    if (this.isAuthenticated && !verificationCode && !captchaAnswer) {
+  async connect(verificationCode?: string, captchaAnswer?: string, forceLogin = false): Promise<MegaAuthResult> {
+    if (forceLogin) this.#session = null;
+    if (!this.#session && !forceLogin) await this.#restore();
+    if (!forceLogin && this.isAuthenticated && !verificationCode && !captchaAnswer) {
       if (this.#session) await this.#store.save(this.#session);
       return { state: "authenticated" };
     }
@@ -124,6 +126,10 @@ export class MegaClient {
       devices: value.devices.filter(isMegaDevice),
       groups: Array.isArray(value.groups) ? value.groups : [],
     };
+  }
+
+  isSessionInvalidError(error: unknown): boolean {
+    return error instanceof Error && error.message.includes(`Mega request failed (${AUTH_SESSION_INVALID}:`);
   }
 
   /**

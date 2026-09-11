@@ -172,7 +172,21 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   }
 
   async #completeStartup(events: ProviderEvents): Promise<void> {
-    const inventory = await this.#client.inventory();
+    let inventory;
+    try {
+      inventory = await this.#client.inventory();
+    } catch (error) {
+      if (!this.#client.isSessionInvalidError(error)) throw error;
+      console.warn("Mega session was invalidated; signing in again");
+      const auth = await this.#client.connect(undefined, undefined, true);
+      if (auth.state !== "authenticated") {
+        this.#captchaChallenge = auth.captcha ?? null;
+        this.#captchaTarget = "mega";
+        events.connection("authentication-required", "Eufy requires authentication before camera discovery can continue");
+        return;
+      }
+      inventory = await this.#client.inventory();
+    }
     const devices = parseMegaInventory(inventory);
     this.#devices.clear();
     for (const device of devices) {
