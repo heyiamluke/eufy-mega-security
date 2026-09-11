@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Fix the project icon in HACS's rendered README.
+- Add one-click HACS installation and licence badges.
+
 ## 0.1.1
 
 - Add the local integration brand icon required by HACS.

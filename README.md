@@ -1,7 +1,10 @@
 # Eufy Event Gateway for Home Assistant
 
+[![My Home Assistant](https://img.shields.io/badge/Home%20Assistant-%2341BDF5.svg?style=flat&logo=home-assistant&label=My)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mscodemonkey&repository=eufy-event-gateway&category=integration)
+[![MIT licence](https://img.shields.io/github/license/mscodemonkey/eufy-event-gateway)](LICENSE)
+
 <p align="center">
-  <img src="custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Event Gateway icon">
+  <img src="https://raw.githubusercontent.com/mscodemonkey/eufy-event-gateway/main/custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Event Gateway icon">
 </p>
 
 Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.

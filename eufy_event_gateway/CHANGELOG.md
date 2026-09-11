@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Keep the app and companion integration release versions aligned.
+
 ## 0.1.1
 
 - Include the companion integration's HACS brand asset in the repository release.
