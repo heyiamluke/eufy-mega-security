@@ -270,10 +270,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       if (!transition) return [];
       const mega = await transition.getMegaApi();
       if (!mega.hasValidSession()) return [];
-      const response = await mega.callDecrypted("house", "/app/house/get_devs_list", {
-        house_id: "",
-        device_sns: {},
-      });
+      const response = await mega.getDevsListDecrypted();
       return parseMegaInventory(response);
     } catch (error) {
       console.warn(`Eufy Mega inventory unavailable; continuing with legacy inventory: ${safeError(ensureError(error))}`);

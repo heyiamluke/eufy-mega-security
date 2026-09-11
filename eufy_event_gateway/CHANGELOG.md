@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- Use the Mega client's supported device-list request instead of an incompatible low-level payload.
+
 ## 0.1.9
 
 - Avoid the legacy device list while operating through an authenticated Mega-only session.

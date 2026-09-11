@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- Fetch the complete Mega camera inventory using the current API's supported device-list request.
+
 ## 0.1.9
 
 - Load Mega camera inventory directly when the legacy Eufy service is unavailable.
