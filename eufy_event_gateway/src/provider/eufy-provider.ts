@@ -181,7 +181,9 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       this.#megaOnlyActive = true;
       this.#captchaChallenge = null;
       events.connection("connected", "Connected through Eufy's current API; legacy login is unavailable");
-      await this.#discoverCameras(client, events);
+      const megaDevices = await this.#getMegaInventory(client);
+      events.inventory(mergeInventoryDiagnostics([], megaDevices));
+      this.#registerMegaCameras(megaDevices, events);
       await client.registerPushNotifications(undefined, client.getPushPersistentIds());
       return true;
     })().catch((error: unknown) => {
@@ -227,6 +229,10 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
 
     const megaDevices = await this.#getMegaInventory(client);
     events.inventory(mergeInventoryDiagnostics(legacyDiagnostics, megaDevices));
+    this.#registerMegaCameras(megaDevices, events);
+  }
+
+  #registerMegaCameras(megaDevices: readonly MegaInventoryDevice[], events: ProviderEvents): void {
     for (const device of megaDevices) {
       if (this.#knownCameraSerials.has(device.serial) || !isSupportedMegaCamera(device)) continue;
       this.#knownCameraSerials.add(device.serial);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+
+- Avoid the legacy device list while operating through an authenticated Mega-only session.
+
 ## 0.1.8
 
 - Use an authenticated Mega session for camera discovery and push notifications without requiring the failed legacy login.

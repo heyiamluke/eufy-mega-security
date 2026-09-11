@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+
+- Load Mega camera inventory directly when the legacy Eufy service is unavailable.
+
 ## 0.1.8
 
 - Continue through Eufy's current API when its obsolete legacy login requests CAPTCHA after Mega authentication has already succeeded.
