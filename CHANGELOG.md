@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Remove internal development notes from the public release.
+
 ## 0.1.3
 
 - Use a HACS-compatible static MIT licence badge.

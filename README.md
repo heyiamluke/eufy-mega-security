@@ -168,8 +168,6 @@ npm run build
 docker build -t eufy-event-gateway:test .
 ```
 
-See [`docs/project-memory`](docs/project-memory/README.md) for architecture decisions, hardware evidence, and current delivery status.
-
 ## Licence
 
 [MIT](LICENSE)

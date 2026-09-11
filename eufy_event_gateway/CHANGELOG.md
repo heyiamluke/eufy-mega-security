@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Keep the app and companion integration release versions aligned.
+
 ## 0.1.3
 
 - Keep the app and companion integration release versions aligned.
