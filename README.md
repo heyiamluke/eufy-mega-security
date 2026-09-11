@@ -1,5 +1,9 @@
 # Eufy Event Gateway for Home Assistant
 
+<p align="center">
+  <img src="custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Event Gateway icon">
+</p>
+
 Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.
 
 Battery cameras stay asleep until they are needed. Motion and person detections arrive as Home Assistant entities, HomeBase 3 familiar-person names are exposed when Eufy actually supplies one, and the last good frame remains visible while the camera is idle. Opening live view or asking for a snapshot or clip wakes only the selected camera and releases it afterwards.
