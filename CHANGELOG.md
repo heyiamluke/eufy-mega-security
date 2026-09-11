@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Add the local integration brand icon required by HACS.
+- Publish a versioned update to validate the HACS upgrade path.
+
 ## 0.1.0
 
 - Initial public hardware-validation release.

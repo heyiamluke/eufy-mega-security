@@ -4,6 +4,8 @@
 
 Initial public release candidate. The full Home Assistant OS installation and real-hardware path have been validated locally.
 
+Version 0.1.1 is the first update-path validation release. It adds the packaged integration brand icon and is used to verify HACS discovery, download, restart, and rendered integration-card behaviour against the public GitHub repository.
+
 ## Implemented locally
 
 - Normalized camera, connection, detection, snapshot, and stream state.

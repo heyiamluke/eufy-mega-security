@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Include the companion integration's HACS brand asset in the repository release.
+
 ## 0.1.0
 
 - Initial event-first gateway release.
