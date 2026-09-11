@@ -72,6 +72,8 @@ If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/confi
 
 If the log says Eufy requested email verification, enter the temporary code in **Verification code**, restart the app once, and remove the code after it connects. Never post credentials, verification codes, or app logs containing private account details in a GitHub issue.
 
+If Eufy requests a CAPTCHA, open the app's **Web UI**, enter the characters shown, and submit the form. The challenge and answer are kept in memory only and are not written to the app configuration or logs.
+
 ## Connect it to Home Assistant
 
 After the app connects:

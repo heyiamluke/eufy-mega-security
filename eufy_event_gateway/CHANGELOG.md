@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Add an authenticated Home Assistant app web interface for completing Eufy CAPTCHA challenges.
+
 ## 0.1.5
 
 - Download and retain event thumbnails for push-only HomeBase 3 cameras.

@@ -4,6 +4,7 @@ import { loadConfig } from "./config.js";
 import { GatewayState } from "./domain/gateway-state.js";
 import { EufyProvider } from "./provider/eufy-provider.js";
 import type { CameraProvider, ProviderEvents } from "./provider/provider.js";
+import type { CaptchaProvider } from "./provider/provider.js";
 import { SimulatedProvider } from "./provider/simulated-provider.js";
 import { GatewayServer } from "./server.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
@@ -16,6 +17,7 @@ await snapshots.initialize();
 
 let simulatedProvider: SimulatedProvider | null = null;
 let provider: CameraProvider;
+let captchaProvider: CaptchaProvider | null = null;
 if (config.provider === "simulated") {
   simulatedProvider = new SimulatedProvider();
   provider = simulatedProvider;
@@ -23,7 +25,7 @@ if (config.provider === "simulated") {
   if (!config.eufy.username || !config.eufy.password) {
     throw new Error("EUFY_USERNAME and EUFY_PASSWORD are required when EUFY_GATEWAY_PROVIDER=eufy");
   }
-  provider = new EufyProvider({
+  const eufyProvider = new EufyProvider({
     username: config.eufy.username,
     password: config.eufy.password,
     country: config.eufy.country,
@@ -31,6 +33,8 @@ if (config.provider === "simulated") {
     maxStreamSeconds: config.maxStreamSeconds,
     ...(config.eufy.verifyCode ? { verifyCode: config.eufy.verifyCode } : {}),
   });
+  provider = eufyProvider;
+  captchaProvider = eufyProvider;
 }
 
 const streams = new LiveStreamManager(state, snapshots, provider, config.streamGraceMilliseconds);
@@ -70,7 +74,7 @@ const providerEvents: ProviderEvents = {
   },
 };
 
-const server = new GatewayServer(config, state, snapshots, streams, simulatedProvider);
+const server = new GatewayServer(config, state, snapshots, streams, simulatedProvider, captchaProvider);
 await server.listen();
 console.log(`Eufy gateway listening on http://${config.host}:${config.port} (${config.provider} provider)`);
 

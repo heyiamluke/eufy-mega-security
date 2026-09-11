@@ -20,3 +20,13 @@ export interface CameraProvider {
   stopStream(serial: string): Promise<void>;
   close(): Promise<void>;
 }
+
+export interface CaptchaChallenge {
+  readonly id: string;
+  readonly image: string;
+}
+
+export interface CaptchaProvider {
+  getCaptchaChallenge(): CaptchaChallenge | null;
+  submitCaptcha(answer: string): Promise<void>;
+}

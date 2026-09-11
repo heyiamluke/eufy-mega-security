@@ -5,6 +5,7 @@ import type { GatewayConfig } from "./config.js";
 import { GatewayState } from "./domain/gateway-state.js";
 import type { GatewayEvent } from "./domain/types.js";
 import { SimulatedProvider } from "./provider/simulated-provider.js";
+import type { CaptchaProvider } from "./provider/provider.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
 import { LiveStreamManager } from "./stream/live-stream-manager.js";
 
@@ -17,6 +18,7 @@ export class GatewayServer {
     private readonly snapshots: SnapshotStore,
     private readonly streams: LiveStreamManager,
     private readonly simulatedProvider: SimulatedProvider | null,
+    private readonly captchaProvider: CaptchaProvider | null = null,
   ) {}
 
   async listen(): Promise<void> {
@@ -53,6 +55,10 @@ export class GatewayServer {
 
       if (request.method === "GET" && url.pathname === "/live") {
         return json(response, 200, { status: "ok" });
+      }
+      if (request.method === "GET" && url.pathname === "/") return this.#authenticationPage(response);
+      if (request.method === "POST" && url.pathname === "/auth/captcha") {
+        return await this.#submitCaptcha(request, response);
       }
       if (request.method === "GET" && url.pathname === "/health") {
         const connection = this.state.getConnection();
@@ -114,6 +120,29 @@ export class GatewayServer {
     } catch (error) {
       const status = error instanceof SyntaxError ? 400 : 500;
       return json(response, status, { error: safeError(error) });
+    }
+  }
+
+  #authenticationPage(response: ServerResponse, message = ""): void {
+    const challenge = this.captchaProvider?.getCaptchaChallenge() ?? null;
+    const connection = this.state.getConnection();
+    const content = challenge
+      ? `<p>Eufy needs you to solve this one-time challenge.</p><img src="${captchaDataUri(challenge.image)}" alt="Eufy CAPTCHA"><form method="post" action="auth/captcha"><label for="answer">Characters shown</label><input id="answer" name="answer" required maxlength="32" autocomplete="off" autocapitalize="none"><button type="submit">Connect to Eufy</button></form>`
+      : `<p>No CAPTCHA is waiting. Current connection: <strong>${escapeHtml(connection.state)}</strong>.</p><p>If authentication was just completed, you can close this page.</p>`;
+    return html(response, 200, `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Eufy Event Gateway</title><style>body{font:16px system-ui,sans-serif;max-width:34rem;margin:4rem auto;padding:0 1.25rem;color:#202124}main{border:1px solid #ddd;border-radius:12px;padding:1.5rem}img{display:block;max-width:100%;margin:1rem 0;border:1px solid #ddd}label,input,button{display:block;width:100%;box-sizing:border-box}input,button{font:inherit;padding:.75rem;margin:.4rem 0 1rem}button{cursor:pointer}</style><main><h1>Eufy Event Gateway</h1>${message ? `<p role="status">${escapeHtml(message)}</p>` : ""}${content}</main></html>`);
+  }
+
+  async #submitCaptcha(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    if (!this.captchaProvider) return this.#authenticationPage(response, "CAPTCHA authentication is unavailable.");
+    const body = await readBody(request);
+    const answer = new URLSearchParams(body).get("answer")?.trim() ?? "";
+    if (!answer || answer.length > 32) return this.#authenticationPage(response, "Enter the characters shown in the image.");
+    try {
+      await this.captchaProvider.submitCaptcha(answer);
+      response.writeHead(303, { Location: "./" });
+      response.end();
+    } catch (error) {
+      return this.#authenticationPage(response, `Eufy did not accept the answer: ${safeError(error)}`);
     }
   }
 
@@ -206,6 +235,33 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   const data = Buffer.from(JSON.stringify(body));
   response.writeHead(status, { "Content-Type": "application/json", "Content-Length": data.length });
   response.end(data);
+}
+
+function html(response: ServerResponse, status: number, body: string): void {
+  const data = Buffer.from(body);
+  response.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Length": data.length, "Cache-Control": "no-store" });
+  response.end(data);
+}
+
+async function readBody(request: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  let length = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    length += buffer.length;
+    if (length > 16_384) throw new Error("Request body is too large");
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+export function captchaDataUri(image: string): string {
+  if (image.startsWith("data:image/")) return escapeHtml(image);
+  return `data:image/jpeg;base64,${escapeHtml(image)}`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {

@@ -1,5 +1,5 @@
 name: Eufy Event Gateway
-version: "0.1.5"
+version: "0.1.6"
 slug: eufy_event_gateway
 description: Event-first Eufy camera bridge for Home Assistant
 url: https://github.com/mscodemonkey/eufy-event-gateway
@@ -14,6 +14,9 @@ ports:
 ports_description:
   3218/tcp: Gateway API
 watchdog: http://[HOST]:[PORT:3218]/live
+ingress: true
+ingress_port: 3218
+panel_icon: mdi:cctv
 hassio_api: true
 discovery:
   - eufy_event_gateway

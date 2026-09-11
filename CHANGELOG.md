@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Add a Home Assistant app web interface for completing Eufy CAPTCHA challenges during first sign-in.
+
 ## 0.1.5
 
 - Show retained event thumbnails for push-only cameras discovered through HomeBase 3.

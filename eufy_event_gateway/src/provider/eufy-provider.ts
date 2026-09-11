@@ -16,7 +16,7 @@ import {
 } from "eufy-security-client";
 
 import type { InventoryDiagnostic } from "../domain/types.js";
-import type { CameraProvider, ProviderEvents } from "./provider.js";
+import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
 
 export interface EufyProviderConfig {
   readonly username: string;
@@ -27,11 +27,12 @@ export interface EufyProviderConfig {
   readonly maxStreamSeconds: number;
 }
 
-export class EufyProvider implements CameraProvider {
+export class EufyProvider implements CameraProvider, CaptchaProvider {
   #client: EufySecurity | null = null;
   readonly #knownCameraSerials = new Set<string>();
   readonly #pushOnlyCameraSerials = new Set<string>();
   readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
+  #captchaChallenge: CaptchaChallenge | null = null;
 
   constructor(private readonly config: EufyProviderConfig) {}
 
@@ -72,6 +73,25 @@ export class EufyProvider implements CameraProvider {
     this.#client = null;
   }
 
+  getCaptchaChallenge(): CaptchaChallenge | null {
+    return this.#captchaChallenge;
+  }
+
+  async submitCaptcha(answer: string): Promise<void> {
+    if (!this.#client || !this.#captchaChallenge) throw new Error("No Eufy CAPTCHA is waiting for an answer");
+    const challenge = this.#captchaChallenge;
+    this.#captchaChallenge = null;
+    try {
+      await this.#client.connect({
+        captcha: { captchaId: challenge.id, captchaCode: answer },
+        force: true,
+      });
+    } catch (error) {
+      this.#captchaChallenge = challenge;
+      throw error;
+    }
+  }
+
   #wireEvents(client: EufySecurity, events: ProviderEvents): void {
     client.on("connect", () => {
       events.connection("connected", null);
@@ -80,7 +100,10 @@ export class EufyProvider implements CameraProvider {
     client.on("close", () => events.connection("disconnected", null));
     client.on("connection error", (error) => events.connection("error", safeError(error)));
     client.on("tfa request", () => events.connection("authentication-required", "Eufy requested an email verification code"));
-    client.on("captcha request", () => events.connection("authentication-required", "Eufy requested a captcha"));
+    client.on("captcha request", (id, image) => {
+      this.#captchaChallenge = { id, image };
+      events.connection("authentication-required", "Open the app web interface to complete Eufy's CAPTCHA");
+    });
     client.on("push message", (message: PushMessage) => {
       const derivedPersonName = personNameFromPush(message);
       events.pushDiagnostic({
