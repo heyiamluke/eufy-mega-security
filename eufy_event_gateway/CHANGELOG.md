@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Download and retain event thumbnails for push-only HomeBase 3 cameras.
+
 ## 0.1.4
 
 - Keep the app and companion integration release versions aligned.

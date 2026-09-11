@@ -1,5 +1,8 @@
 import { mkdir } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import type { Readable } from "node:stream";
+import { pathToFileURL } from "node:url";
 
 import {
   EufySecurity,
@@ -28,6 +31,7 @@ export class EufyProvider implements CameraProvider {
   #client: EufySecurity | null = null;
   readonly #knownCameraSerials = new Set<string>();
   readonly #pushOnlyCameraSerials = new Set<string>();
+  readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
 
   constructor(private readonly config: EufyProviderConfig) {}
 
@@ -109,6 +113,7 @@ export class EufyProvider implements CameraProvider {
       if (this.#pushOnlyCameraSerials.has(message.device_sn) && isDetection) {
         if (message.event_type === 3101) events.motion(message.device_sn, true);
         else events.person(message.device_sn, true, derivedPersonName);
+        if (message.pic_url) this.#queuePushSnapshot(client, events, message);
       }
     });
     client.on("device added", (device) => this.#registerIfCamera(device, events));
@@ -125,6 +130,22 @@ export class EufyProvider implements CameraProvider {
       (_station, device, _metadata: StreamMetadata, video: Readable) => events.streamStarted(device.getSerial(), video),
     );
     client.on("station livestream stop", (_station, device) => events.streamStopped(device.getSerial()));
+  }
+
+  #queuePushSnapshot(client: EufySecurity, events: ProviderEvents, message: PushMessage): void {
+    const serial = message.device_sn;
+    const previous = this.#pushSnapshotQueues.get(serial) ?? Promise.resolve();
+    const current = previous.then(async () => {
+      const picture = await downloadPushSnapshot(client, message);
+      if (picture) events.snapshot(serial, picture.data, picture.type.mime);
+    }).catch((error: unknown) => {
+      // Do not include the signed media URL or raw notification in logs.
+      console.warn(`Eufy push snapshot unavailable for ${serial}: ${safeError(ensureError(error))}`);
+    });
+    this.#pushSnapshotQueues.set(serial, current);
+    void current.then(() => {
+      if (this.#pushSnapshotQueues.get(serial) === current) this.#pushSnapshotQueues.delete(serial);
+    });
   }
 
   async #discoverCameras(client: EufySecurity, events: ProviderEvents): Promise<void> {
@@ -190,6 +211,64 @@ export class EufyProvider implements CameraProvider {
       return [];
     }
   }
+}
+
+interface PushImageClient {
+  getApi(): {
+    request(
+      request: { method: "GET"; endpoint: string; responseType: "buffer" },
+      withoutUrlPrefix: boolean,
+    ): Promise<{ status: number; data: unknown }>;
+  };
+  getStation(stationSerial: string): Promise<{ getRawStation(): { p2p_did: string } }>;
+}
+
+type ImageDecoder = (p2pDid: string, data: Buffer) => Promise<Buffer>;
+
+/** Download and decode the signed event image for a camera absent from legacy inventory. */
+export async function downloadPushSnapshot(
+  client: PushImageClient,
+  message: Pick<PushMessage, "device_sn" | "station_sn" | "pic_url">,
+  decoder: ImageDecoder = loadUpstreamImageDecoder,
+): Promise<Picture | null> {
+  const mediaUrl = message.pic_url;
+  if (!mediaUrl) return null;
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(mediaUrl);
+  } catch {
+    return null;
+  }
+  if (parsedUrl.protocol !== "https:") return null;
+
+  const response = await client.getApi().request(
+    { method: "GET", endpoint: mediaUrl, responseType: "buffer" },
+    true,
+  );
+  if (response.status !== 200 || !Buffer.isBuffer(response.data) || response.data.length === 0) return null;
+  if (response.data.length > 20 * 1024 * 1024) throw new Error("event image exceeds the 20 MB safety limit");
+
+  let image = response.data;
+  if (!isJpeg(image)) {
+    const station = await client.getStation(message.station_sn);
+    image = await decoder(station.getRawStation().p2p_did, image);
+  }
+  if (!isJpeg(image)) throw new Error("event image is not a valid JPEG");
+  return { data: image, type: { ext: "jpg", mime: "image/jpeg" } };
+}
+
+async function loadUpstreamImageDecoder(p2pDid: string, data: Buffer): Promise<Buffer> {
+  // The pinned client exposes its decoder internally but not from its public package entrypoint.
+  const require = createRequire(import.meta.url);
+  const packageDirectory = dirname(require.resolve("eufy-security-client/package.json"));
+  const moduleUrl = pathToFileURL(join(packageDirectory, "build/http/utils.js")).href;
+  const decoderModule = await import(moduleUrl) as { decodeImageAsync?: ImageDecoder };
+  if (!decoderModule.decodeImageAsync) throw new Error("Eufy image decoder is unavailable");
+  return decoderModule.decodeImageAsync(p2pDid, data);
+}
+
+function isJpeg(data: Buffer): boolean {
+  return data.length >= 4 && data[0] === 0xff && data[1] === 0xd8 && data.at(-2) === 0xff && data.at(-1) === 0xd9;
 }
 
 interface MegaEnabledClient {

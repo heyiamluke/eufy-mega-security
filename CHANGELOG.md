@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Show retained event thumbnails for push-only cameras discovered through HomeBase 3.
+
 ## 0.1.4
 
 - Remove internal development notes from the public release.
