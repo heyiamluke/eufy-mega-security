@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Use a HACS-compatible static MIT licence badge.
+
 ## 0.1.2
 
 - Fix the project icon in HACS's rendered README.

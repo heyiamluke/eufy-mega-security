@@ -4,7 +4,7 @@
 
 Initial public release candidate. The full Home Assistant OS installation and real-hardware path have been validated locally.
 
-Version 0.1.2 fixes the project icon in HACS's rendered README and adds one-click HACS installation and licence badges. Version 0.1.1 proved the HACS discovery, download, restart, and integration-card update path against the public GitHub repository.
+Version 0.1.3 uses a HACS-compatible static MIT licence badge. Version 0.1.2 fixed the project icon in HACS's rendered README and added a one-click HACS installation button. Version 0.1.1 proved the HACS discovery, download, restart, and integration-card update path against the public GitHub repository.
 
 ## Implemented locally
 
