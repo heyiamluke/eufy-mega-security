@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { captchaDataUri, createStreamToken, isBearerAuthorized, validateStreamToken } from "../src/server.js";
+import { captchaDataUri, captchaResultMessage, createStreamToken, isBearerAuthorized, validateStreamToken } from "../src/server.js";
 
 test("compares bearer credentials without accepting malformed values", () => {
   assert.equal(isBearerAuthorized("Bearer long-random-token", "long-random-token"), true);
@@ -23,4 +23,9 @@ test("renders Eufy CAPTCHA image data without allowing attribute injection", () 
     captchaDataUri('data:image/png;base64,YWJj\" onerror=\"alert(1)'),
     "data:image/png;base64,YWJj&quot; onerror=&quot;alert(1)",
   );
+});
+
+test("keeps CAPTCHA results in the app with clear retry and success messages", () => {
+  assert.match(captchaResultMessage(true), /Try the new challenge/);
+  assert.match(captchaResultMessage(false), /accepted/);
 });

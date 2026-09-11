@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Keep CAPTCHA results inside the app web interface and show a fresh challenge when Eufy rejects an answer.
+
 ## 0.1.6
 
 - Add an authenticated Home Assistant app web interface for completing Eufy CAPTCHA challenges.

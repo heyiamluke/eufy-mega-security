@@ -139,8 +139,11 @@ export class GatewayServer {
     if (!answer || answer.length > 32) return this.#authenticationPage(response, "Enter the characters shown in the image.");
     try {
       await this.captchaProvider.submitCaptcha(answer);
-      response.writeHead(303, { Location: "./" });
-      response.end();
+      const nextChallenge = this.captchaProvider.getCaptchaChallenge();
+      return this.#authenticationPage(
+        response,
+        captchaResultMessage(nextChallenge !== null),
+      );
     } catch (error) {
       return this.#authenticationPage(response, `Eufy did not accept the answer: ${safeError(error)}`);
     }
@@ -258,6 +261,12 @@ async function readBody(request: IncomingMessage): Promise<string> {
 export function captchaDataUri(image: string): string {
   if (image.startsWith("data:image/")) return escapeHtml(image);
   return `data:image/jpeg;base64,${escapeHtml(image)}`;
+}
+
+export function captchaResultMessage(hasNextChallenge: boolean): string {
+  return hasNextChallenge
+    ? "Eufy did not accept that answer. Try the new challenge below."
+    : "CAPTCHA accepted. Eufy is connecting; you can close this page.";
 }
 
 function escapeHtml(value: string): string {

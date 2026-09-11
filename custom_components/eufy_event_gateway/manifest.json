@@ -8,5 +8,5 @@
   "integration_type": "hub",
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/mscodemonkey/eufy-event-gateway/issues",
-  "version": "0.1.6"
+  "version": "0.1.7"
 }
