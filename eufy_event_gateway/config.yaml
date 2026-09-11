@@ -1,0 +1,28 @@
+name: Eufy Event Gateway
+version: "0.1.0"
+slug: eufy_event_gateway
+description: Event-first Eufy camera bridge for Home Assistant
+url: https://github.com/mscodemonkey/eufy-event-gateway
+startup: application
+boot: auto
+init: false
+arch:
+  - aarch64
+  - amd64
+ports:
+  3218/tcp: null
+ports_description:
+  3218/tcp: Gateway API
+watchdog: http://[HOST]:[PORT:3218]/live
+hassio_api: true
+discovery:
+  - eufy_event_gateway
+options:
+  username: ""
+  password: ""
+  country: AU
+schema:
+  username: str
+  password: password
+  country: str
+  verification_code: str?

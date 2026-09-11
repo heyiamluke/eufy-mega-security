@@ -1,0 +1,12 @@
+{
+  "domain": "eufy_event_gateway",
+  "name": "Eufy Event Gateway",
+  "after_dependencies": ["stream"],
+  "codeowners": ["@mscodemonkey"],
+  "config_flow": true,
+  "documentation": "https://github.com/mscodemonkey/eufy-event-gateway",
+  "integration_type": "hub",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/mscodemonkey/eufy-event-gateway/issues",
+  "version": "0.1.0"
+}

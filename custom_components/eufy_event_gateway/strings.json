@@ -1,0 +1,45 @@
+{
+  "title": "Eufy Event Gateway",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Eufy Event Gateway",
+        "description": "Enter the address Home Assistant uses to reach the local gateway.",
+        "data": {
+          "url": "Gateway URL",
+          "api_token": "API token"
+        },
+        "data_description": {
+          "url": "For example, http://192.168.1.20:3218",
+          "api_token": "Leave blank while the gateway is restricted to the same host."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Eufy Event Gateway",
+        "description": "Update the address or API token used to reach the gateway.",
+        "data": {
+          "url": "Gateway URL",
+          "api_token": "API token"
+        },
+        "data_description": {
+          "url": "For the local app, use http://local-eufy-event-gateway:3218",
+          "api_token": "Use the same token configured in the Eufy Event Gateway app."
+        }
+      },
+      "hassio_confirm": {
+        "title": "Connect to the Eufy Event Gateway app",
+        "description": "Home Assistant discovered the local Eufy Event Gateway app. Submit to create its camera and detection entities."
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the gateway",
+      "invalid_auth": "The gateway rejected the API token"
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured",
+      "reconfigure_successful": "The gateway connection was updated",
+      "hassio_connected": "The integration is now connected to the local Eufy Event Gateway app",
+      "invalid_discovery": "The app supplied invalid connection details"
+    }
+  }
+}

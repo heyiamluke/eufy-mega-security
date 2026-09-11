@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.DS_Store
+coverage/
+data/
+__pycache__/
+*.pyc
+*.log
+*.apk
+*.apks
+*.xapk
+captures/
+decompiled/

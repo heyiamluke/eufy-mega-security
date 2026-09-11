@@ -1,0 +1,320 @@
+import { mkdir } from "node:fs/promises";
+import type { Readable } from "node:stream";
+
+import {
+  EufySecurity,
+  PropertyName,
+  type Device,
+  type Picture,
+  type PropertyValue,
+  type StreamMetadata,
+  type PushMessage,
+  type MegaHTTPApi,
+} from "eufy-security-client";
+
+import type { InventoryDiagnostic } from "../domain/types.js";
+import type { CameraProvider, ProviderEvents } from "./provider.js";
+
+export interface EufyProviderConfig {
+  readonly username: string;
+  readonly password: string;
+  readonly country: string;
+  readonly persistentDirectory: string;
+  readonly verifyCode?: string;
+  readonly maxStreamSeconds: number;
+}
+
+export class EufyProvider implements CameraProvider {
+  #client: EufySecurity | null = null;
+  readonly #knownCameraSerials = new Set<string>();
+  readonly #pushOnlyCameraSerials = new Set<string>();
+
+  constructor(private readonly config: EufyProviderConfig) {}
+
+  async start(events: ProviderEvents): Promise<void> {
+    await mkdir(this.config.persistentDirectory, { recursive: true, mode: 0o700 });
+    const client = await EufySecurity.initialize({
+      username: this.config.username,
+      password: this.config.password,
+      country: this.config.country,
+      language: "en",
+      trustedDeviceName: "Home Assistant Eufy Gateway",
+      persistentDir: this.config.persistentDirectory,
+      p2pConnectionSetup: 0,
+      pollingIntervalMinutes: 10,
+      eventDurationSeconds: 10,
+      acceptInvitations: true,
+      deviceConfig: { simultaneousDetections: true },
+    });
+    this.#client = client;
+    client.setCameraMaxLivestreamDuration(this.config.maxStreamSeconds);
+    this.#wireEvents(client, events);
+    const options = this.config.verifyCode ? { verifyCode: this.config.verifyCode, force: true } : undefined;
+    await client.connect(options);
+  }
+
+  async startStream(serial: string): Promise<void> {
+    if (!this.#client) throw new Error("Eufy provider is not connected");
+    await this.#client.startStationLivestream(serial);
+  }
+
+  async stopStream(serial: string): Promise<void> {
+    if (!this.#client) return;
+    await this.#client.stopStationLivestream(serial);
+  }
+
+  async close(): Promise<void> {
+    this.#client?.close();
+    this.#client = null;
+  }
+
+  #wireEvents(client: EufySecurity, events: ProviderEvents): void {
+    client.on("connect", () => {
+      events.connection("connected", null);
+      void this.#discoverCameras(client, events);
+    });
+    client.on("close", () => events.connection("disconnected", null));
+    client.on("connection error", (error) => events.connection("error", safeError(error)));
+    client.on("tfa request", () => events.connection("authentication-required", "Eufy requested an email verification code"));
+    client.on("captcha request", () => events.connection("authentication-required", "Eufy requested a captcha"));
+    client.on("push message", (message: PushMessage) => {
+      const derivedPersonName = personNameFromPush(message);
+      events.pushDiagnostic({
+        receivedAt: new Date().toISOString(),
+        cameraSerial: message.device_sn,
+        cameraName: safeLabel(message.name),
+        type: message.type ?? null,
+        eventType: message.event_type ?? null,
+        messageType: message.msg_type ?? null,
+        notificationStyle: message.notification_style ?? null,
+        personName: derivedPersonName,
+        hasPersonName: derivedPersonName !== null,
+        hasPictureUrl: typeof message.pic_url === "string" && message.pic_url.length > 0,
+        hasFilePath: typeof message.file_path === "string" && message.file_path.length > 0,
+        hasFetchId: message.fetch_id !== undefined,
+        hasSenseId: message.sense_id !== undefined,
+      });
+      const isDetection = isCameraDetection(message.event_type);
+      if (!this.#knownCameraSerials.has(message.device_sn) && isDetection) {
+        this.#knownCameraSerials.add(message.device_sn);
+        this.#pushOnlyCameraSerials.add(message.device_sn);
+        events.camera({
+          serial: message.device_sn,
+          name: safeLabel(message.name) ?? `Eufy camera ${message.device_sn.slice(-4)}`,
+          model: "HomeBase 3 push-only camera",
+          stationSerial: message.station_sn,
+          streamSupported: false,
+        });
+      }
+      if (this.#pushOnlyCameraSerials.has(message.device_sn) && isDetection) {
+        if (message.event_type === 3101) events.motion(message.device_sn, true);
+        else events.person(message.device_sn, true, derivedPersonName);
+      }
+    });
+    client.on("device added", (device) => this.#registerIfCamera(device, events));
+    client.on("device motion detected", (device, detected) => events.motion(device.getSerial(), detected));
+    client.on("device person detected", (device, detected, person) => {
+      events.person(device.getSerial(), detected, person || null);
+    });
+    client.on("device property changed", (device: Device, name: string, value: PropertyValue) => {
+      if (name !== PropertyName.DevicePicture || !isPicture(value)) return;
+      events.snapshot(device.getSerial(), value.data, value.type.mime);
+    });
+    client.on(
+      "station livestream start",
+      (_station, device, _metadata: StreamMetadata, video: Readable) => events.streamStarted(device.getSerial(), video),
+    );
+    client.on("station livestream stop", (_station, device) => events.streamStopped(device.getSerial()));
+  }
+
+  async #discoverCameras(client: EufySecurity, events: ProviderEvents): Promise<void> {
+    const devices = await client.getDevices();
+    const legacyDiagnostics: InventoryDiagnostic[] = devices.map((device) => ({
+      serial: device.getSerial(),
+      name: device.getName(),
+      model: device.getModel(),
+      sources: ["legacy"],
+      upstreamIsCamera: device.isCamera(),
+      acceptedAsCamera: isSupportedCameraDevice(device.isCamera(), device.getModel(), device.getSerial()),
+      megaDeviceType: null,
+      category: null,
+    }));
+    for (const device of devices) this.#registerIfCamera(device, events);
+
+    const megaDevices = await this.#getMegaInventory(client);
+    events.inventory(mergeInventoryDiagnostics(legacyDiagnostics, megaDevices));
+    for (const device of megaDevices) {
+      if (this.#knownCameraSerials.has(device.serial) || !isSupportedMegaCamera(device)) continue;
+      this.#knownCameraSerials.add(device.serial);
+      this.#pushOnlyCameraSerials.add(device.serial);
+      events.camera({
+        serial: device.serial,
+        name: device.name,
+        model: device.model,
+        stationSerial: device.parentSerial,
+        streamSupported: false,
+      });
+    }
+  }
+
+  #registerIfCamera(device: Device, events: ProviderEvents): void {
+    if (!isSupportedCameraDevice(device.isCamera(), device.getModel(), device.getSerial())) return;
+    this.#knownCameraSerials.add(device.getSerial());
+    if (requiresPushFallback(device.isCamera(), device.getModel(), device.getSerial())) {
+      this.#pushOnlyCameraSerials.add(device.getSerial());
+    } else {
+      this.#pushOnlyCameraSerials.delete(device.getSerial());
+    }
+    events.camera({
+      serial: device.getSerial(),
+      name: device.getName(),
+      model: device.getModel(),
+      stationSerial: device.getStationSerial(),
+      streamSupported: !requiresPushFallback(device.isCamera(), device.getModel(), device.getSerial()),
+    });
+  }
+
+  async #getMegaInventory(client: EufySecurity): Promise<MegaInventoryDevice[]> {
+    try {
+      const transition = (client as unknown as MegaEnabledClient).megaTransition;
+      if (!transition) return [];
+      const mega = await transition.getMegaApi();
+      if (!mega.hasValidSession()) return [];
+      const response = await mega.callDecrypted("house", "/app/house/get_devs_list", {
+        house_id: "",
+        device_sns: {},
+      });
+      return parseMegaInventory(response);
+    } catch (error) {
+      console.warn(`Eufy Mega inventory unavailable; continuing with legacy inventory: ${safeError(ensureError(error))}`);
+      return [];
+    }
+  }
+}
+
+interface MegaEnabledClient {
+  readonly megaTransition?: {
+    getMegaApi(): Promise<MegaHTTPApi>;
+  };
+}
+
+export interface MegaInventoryDevice {
+  readonly serial: string;
+  readonly name: string;
+  readonly model: string;
+  readonly parentSerial: string;
+  readonly deviceType: number | null;
+  readonly category: string | null;
+}
+
+export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
+  if (!isRecord(response) || !Array.isArray(response.devices)) return [];
+  const devices: MegaInventoryDevice[] = [];
+  const seen = new Set<string>();
+  for (const value of response.devices) {
+    if (!isRecord(value)) continue;
+    const serial = safeInventoryValue(value.device_sn, 128);
+    if (!serial || seen.has(serial)) continue;
+    seen.add(serial);
+    const model = safeInventoryValue(value.device_model, 100) ?? "Unknown Eufy device";
+    devices.push({
+      serial,
+      name: safeInventoryValue(value.device_name, 100) ?? model,
+      model,
+      parentSerial: safeInventoryValue(value.parent_sn, 128) ?? "",
+      deviceType: typeof value.device_type === "number" && Number.isSafeInteger(value.device_type) ? value.device_type : null,
+      category: safeInventoryValue(value.category, 100),
+    });
+  }
+  return devices;
+}
+
+export function mergeInventoryDiagnostics(
+  legacy: readonly InventoryDiagnostic[],
+  mega: readonly MegaInventoryDevice[],
+): InventoryDiagnostic[] {
+  const merged = new Map(legacy.map((device) => [device.serial, device]));
+  for (const device of mega) {
+    const existing = merged.get(device.serial);
+    if (existing) {
+      merged.set(device.serial, {
+        ...existing,
+        sources: existing.sources.includes("mega") ? existing.sources : [...existing.sources, "mega"],
+        megaDeviceType: device.deviceType,
+        category: device.category,
+      });
+      continue;
+    }
+    merged.set(device.serial, {
+      serial: device.serial,
+      name: device.name,
+      model: device.model,
+      sources: ["mega"],
+      upstreamIsCamera: false,
+      acceptedAsCamera: isSupportedMegaCamera(device),
+      megaDeviceType: device.deviceType,
+      category: device.category,
+    });
+  }
+  return [...merged.values()];
+}
+
+function isSupportedMegaCamera(device: MegaInventoryDevice): boolean {
+  return device.category === "eufy_security" && isSupportedCameraDevice(false, device.model, device.serial);
+}
+
+export function isSupportedCameraDevice(upstreamIsCamera: boolean, model: string, serial: string): boolean {
+  return upstreamIsCamera || model === "T817L" || serial.startsWith("T817L");
+}
+
+export function requiresPushFallback(upstreamIsCamera: boolean, model: string, serial: string): boolean {
+  return !upstreamIsCamera && (model === "T817L" || serial.startsWith("T817L"));
+}
+
+function isPicture(value: PropertyValue): value is Picture {
+  return typeof value === "object" && value !== null && "data" in value && Buffer.isBuffer(value.data);
+}
+
+function safeError(error: Error): string {
+  return error.message || error.name || "Eufy connection failed";
+}
+
+function ensureError(error: unknown): Error {
+  return error instanceof Error ? error : new Error("Unknown Mega inventory error");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function safeInventoryValue(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const candidate = value.trim();
+  return candidate && candidate.length <= maxLength ? candidate : null;
+}
+
+function safeLabel(value: string | undefined): string | null {
+  const name = value?.trim();
+  if (!name || name.length > 100) return null;
+  return name;
+}
+
+export function personNameFromPush(message: Pick<PushMessage, "event_type" | "person_name" | "content">): string | null {
+  const structuredName = safeLabel(message.person_name);
+  if (structuredName) return isGenericPersonLabel(structuredName) ? null : structuredName;
+  if (message.event_type !== 3102 && message.event_type !== 3111) return null;
+
+  const content = message.content?.trim();
+  if (!content || content.length > 300) return null;
+  const match = /^(?:[^:]{1,100}:\s*)?(.{1,100}?)\s+(?:has been|was)\s+(?:spotted|detected)(?:\b|[.!])/i.exec(content);
+  const candidate = safeLabel(match?.[1]);
+  return candidate && !isGenericPersonLabel(candidate) ? candidate : null;
+}
+
+function isCameraDetection(eventType: number | undefined): boolean {
+  return eventType === 3101 || eventType === 3102 || eventType === 3111 || eventType === 3112;
+}
+
+function isGenericPersonLabel(value: string): boolean {
+  return /^(someone|stranger|unknown|unknown person|person)$/i.test(value);
+}

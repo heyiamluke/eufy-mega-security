@@ -1,0 +1,168 @@
+# Eufy Event Gateway for Home Assistant
+
+Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.
+
+Battery cameras stay asleep until they are needed. Motion and person detections arrive as Home Assistant entities, HomeBase 3 familiar-person names are exposed when Eufy actually supplies one, and the last good frame remains visible while the camera is idle. Opening live view or asking for a snapshot or clip wakes only the selected camera and releases it afterwards.
+
+> [!IMPORTANT]
+> This is an early community project built against real EufyCam 2C, HomeBase 3, and Doorbell hardware. It is not affiliated with Anker or Eufy and should not be your only security system.
+
+## What it provides
+
+For every discovered camera, the integration creates:
+
+- a camera entity with a retained idle image and on-demand live video where the hardware supports it;
+- a motion binary sensor;
+- a person binary sensor;
+- a last-recognized-person sensor, including the detection type and timestamp.
+
+It also provides two Home Assistant actions:
+
+- `eufy_event_gateway.capture_snapshot` wakes a supported camera, waits for a fresh frame, and saves a JPEG;
+- `eufy_event_gateway.record_clip` records an MP4 for a chosen duration from 1 to 120 seconds.
+
+The actions work in Home Assistant automations and through Node-RED's Home Assistant Action node. An importable example is included in [`examples/node-red-gate-and-motion.json`](examples/node-red-gate-and-motion.json).
+
+## How it fits together
+
+This repository contains two parts, and Home Assistant needs both:
+
+1. **Eufy Event Gateway app** — signs in to Eufy, receives push/HomeBase events, controls P2P streams, and retains snapshots.
+2. **Eufy Event Gateway integration** — turns the gateway data into normal Home Assistant camera, binary-sensor, and sensor entities.
+
+On Home Assistant OS or Supervised, the app generates its own private API token and passes it directly to the integration through Supervisor discovery. The gateway port is closed to the LAN by default.
+
+## Before installing
+
+Create a separate Eufy guest account and share only the Home and cameras you want Home Assistant to access. Do not use the Eufy account currently signed into your everyday mobile app; simultaneous Eufy sessions can interfere with one another.
+
+You will need:
+
+- Home Assistant OS or Home Assistant Supervised for the app installation below;
+- HACS, or File Editor/SSH for the manual integration method;
+- the guest account username, password, and two-letter account country code.
+
+## Install the integration with HACS
+
+The project does not need to be accepted into HACS's default catalogue. Add it as a custom repository:
+
+1. Open **HACS** in Home Assistant.
+2. Open the three-dot menu and choose **Custom repositories**.
+3. Enter `https://github.com/mscodemonkey/eufy-event-gateway`.
+4. Select **Integration** as the category and add it.
+5. Find **Eufy Event Gateway**, choose **Download**, and restart Home Assistant.
+
+If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/config/custom_components/eufy_event_gateway` and restart Home Assistant.
+
+## Install the Home Assistant app
+
+1. Open **Settings > Apps > App Store**.
+2. Open the repository manager from the top-right menu.
+3. Add `https://github.com/mscodemonkey/eufy-event-gateway`.
+4. Find **Eufy Event Gateway** under the new repository and select **Install**.
+5. On its **Configuration** tab, enter the dedicated Eufy guest username, password, and country code.
+6. Start the app and enable **Start on boot** and **Watchdog**.
+
+If the log says Eufy requested email verification, enter the temporary code in **Verification code**, restart the app once, and remove the code after it connects. Never post credentials, verification codes, or app logs containing private account details in a GitHub issue.
+
+## Connect it to Home Assistant
+
+After the app connects:
+
+1. Open **Settings > Devices & services**.
+2. A discovered **Eufy Event Gateway** card should appear.
+3. Select **Configure** and submit the confirmation.
+
+The app address and generated API token are transferred privately. You do not need to copy either value.
+
+If discovery does not appear, first confirm the app log reports a healthy gateway. Then choose **Add integration**, search for **Eufy Event Gateway**, and use the manual gateway details only if you deliberately exposed a standalone gateway.
+
+## Automations and Node-RED
+
+Motion and person detections are ordinary Home Assistant binary sensors, so they appear directly in Node-RED's **Events: state** node. Snapshot and recording requests are ordinary Home Assistant actions, so use an **Action** node with one of:
+
+```text
+eufy_event_gateway.capture_snapshot
+eufy_event_gateway.record_clip
+```
+
+Both actions target the camera entity. Example recording data:
+
+```json
+{
+  "filename": "/media/eufy/gate_latest.mp4",
+  "duration": 15
+}
+```
+
+Create the target directory first and ensure the path is allowed by Home Assistant. The importable example uses JSONata to add a timestamp to each filename. Import [`examples/node-red-gate-and-motion.json`](examples/node-red-gate-and-motion.json), select your Home Assistant server, replace the example entity IDs, and deploy it.
+
+Recordings are assembled by the gateway with a hard stream-start timeout and duration limit, then written atomically by Home Assistant. A failed request therefore cannot leave a partial MP4 at the requested filename.
+
+## Camera behaviour
+
+- Motion alone does not start a livestream.
+- A battery camera waking on demand is expected to take a few seconds.
+- Closing the final viewer releases a gateway-owned P2P stream after a short grace period.
+- The last valid event image or decoded live frame remains visible while the camera sleeps.
+- A familiar-person name appears only when HomeBase supplies an explicit identity. Generic detections such as `Someone` remain unknown.
+- Powered cameras with their own RTSP feed can continue using that feed for video while this integration supplies Eufy/HomeBase detection entities.
+
+## Standalone gateway
+
+Home Assistant Container/Core users can run the gateway separately with Node.js 24 and FFmpeg. From `eufy_event_gateway`:
+
+```sh
+npm ci
+npm run build
+EUFY_USERNAME='guest@example.com' \
+EUFY_PASSWORD='your-password' \
+EUFY_COUNTRY='AU' \
+EUFY_GATEWAY_API_TOKEN='use-a-random-secret-of-at-least-32-characters' \
+EUFY_GATEWAY_HOST='0.0.0.0' \
+npm start
+```
+
+Keep credentials outside source control. A non-loopback gateway refuses to start without a bearer token of at least 32 characters. Add the integration manually using the reachable gateway URL and the same token.
+
+For development without a Eufy account:
+
+```sh
+cd eufy_event_gateway
+npm ci
+EUFY_GATEWAY_PROVIDER=simulated npm run dev
+```
+
+## Supported and known limitations
+
+Validated hardware currently includes HomeBase 3, EufyCam 2C, a Eufy video doorbell, and detection events from a powered T817L camera.
+
+- Eufy's cloud, push, HomeBase, and P2P protocols are undocumented and can change without notice.
+- Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
+- Mega inventory fills gaps in Eufy's older device list, but Mega-only powered cameras are not treated as P2P-capable unless the upstream client provides a controllable device.
+- CAPTCHA challenges are not currently handled by the app UI.
+- The app currently publishes source builds for `amd64` and `aarch64`; installation may take several minutes.
+
+## Privacy and security
+
+- Eufy credentials, sessions, generated API tokens, and snapshots stay in the app's private persistent data volume.
+- The app's API port is not exposed to the LAN by default.
+- Process liveness is checked separately from Eufy connectivity, so an email-code prompt or temporary Eufy outage does not create a restart loop.
+- API, snapshot, and event endpoints require authentication when the gateway is remotely reachable.
+- Diagnostics intentionally exclude passwords, access tokens, signing keys, notification text, media URLs, and raw payloads.
+
+## Development
+
+```sh
+cd eufy_event_gateway
+npm ci
+npm run check
+npm run build
+docker build -t eufy-event-gateway:test .
+```
+
+See [`docs/project-memory`](docs/project-memory/README.md) for architecture decisions, hardware evidence, and current delivery status.
+
+## Licence
+
+[MIT](LICENSE)

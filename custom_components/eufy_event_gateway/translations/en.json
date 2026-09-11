@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Eufy Event Gateway",
+        "description": "Enter the address Home Assistant uses to reach the local gateway.",
+        "data": {
+          "url": "Gateway URL",
+          "api_token": "API token"
+        },
+        "data_description": {
+          "url": "For example, http://192.168.1.20:3218",
+          "api_token": "Leave blank while the gateway is restricted to the same host."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the gateway",
+      "invalid_auth": "The gateway rejected the API token"
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured"
+    }
+  }
+}
