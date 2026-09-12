@@ -1,3 +1,10 @@
+/**
+ * Documents the narrow MQTT credential shape returned by Mega.
+ *
+ * The test ensures the typed value contains only the mutual-TLS material the
+ * isolated legacy experiment needs and does not silently accept unsafe
+ * fallback credentials.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

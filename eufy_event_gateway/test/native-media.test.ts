@@ -1,3 +1,9 @@
+/**
+ * Protects pure framing and crypto helpers for the legacy native relay.
+ *
+ * The tests describe relay token parsing, authentication records, encrypted
+ * media frames, and handshake extraction without opening a network connection.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { assembleRelayHandshake, authorizationField, decryptNativeRecord, encryptNativeRecord, keepaliveFrame, mediaFrame, nativeAuthCredential, parseNativeRelayToken, parseRelayHandshake, relayAuthAck, relayAuthRequest, relayEndpoint, relayFrame, relayHandshakeSignature, unwrapMediaFrame } from "../src/stream/native-media.js";

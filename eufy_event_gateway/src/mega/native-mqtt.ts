@@ -1,28 +1,41 @@
-/** Native MQTT transport helpers retained for isolated camera experiments. */
+/**
+ * Implements the isolated MQTT transport used by the older Thing protocol.
+ *
+ * This module opens a mutual-TLS broker connection, derives legacy camera
+ * topics, and frames application messages for protocol experiments. Production
+ * streaming does not instantiate it. It remains tested because its packet
+ * shapes explain earlier investigations and may help diagnose a camera that
+ * cannot yet use PPCS, but it must not become an authentication fallback.
+ */
 import { connect as tlsConnect, type TLSSocket } from "node:tls";
 import { EventEmitter } from "node:events";
 import { createHash } from "node:crypto";
 
 import type { MegaMqttInfo } from "./types.js";
 
+/** Decoded MQTT application message delivered to a signalling listener. */
 export interface NativeMqttMessage {
   readonly topic: string;
   readonly payload: Buffer;
 }
 
+/** Directional MQTT topics for one camera's signalling channel. */
 export interface NativeCameraTopics {
   readonly outgoing: string;
   readonly incoming: string;
 }
 
+/** Optional username, password, and TLS policy for a native broker. */
 export interface NativeMqttCredentials {
   readonly username?: string;
   readonly password?: string;
+
   /** Native Thing brokers have historically presented a certificate whose name
    * does not match the regional host. Keep this opt-in and explicit. */
   readonly rejectUnauthorized?: boolean;
 }
 
+/** Host and port used to open the native TLS MQTT connection. */
 export interface NativeMqttEndpoint {
   readonly endpointAddress: string;
   readonly certificatePem?: string;
@@ -33,6 +46,7 @@ export interface NativeMqttEndpoint {
 /** Credentials used by the Thing SDK's standard (non-AIoT) MQTT service.
  * The values come from the mobile base-config response and are intentionally
  * passed in rather than persisted in diagnostics. */
+
 export interface ThingMqttConfig {
   readonly appId: string;
   readonly partnerIdentity: string;
@@ -45,6 +59,7 @@ export interface ThingMqttConfig {
   readonly deviceFingerprint: string;
 }
 
+/** Derive the broker credentials expected by the legacy Thing service. */
 export function thingMqttCredentials(config: ThingMqttConfig): { readonly clientId: string; readonly username: string; readonly password: string } {
   const uid = `${config.deviceFingerprint}_${md5(config.uid + "sdkfasodifca")}`;
   const clientId = `com.tuya.smartlife_mb_${uid}_DEFAULT`;
@@ -57,6 +72,7 @@ export function thingMqttCredentials(config: ThingMqttConfig): { readonly client
 
 function md5(value: string): string { return createHash("md5").update(value).digest("hex"); }
 
+/** Build a stable native MQTT client ID for one gateway session. */
 export function nativeMqttClientId(info: Pick<MegaMqttInfo, "appName" | "userId" | "endpointAddress">, mqttUuid: string): string {
   if (!/^[A-Za-z0-9._:-]+$/.test(mqttUuid)) throw new Error("Invalid native MQTT client identifier");
   const endpoint = info.endpointAddress.replaceAll("-", "");
@@ -64,6 +80,7 @@ export function nativeMqttClientId(info: Pick<MegaMqttInfo, "appName" | "userId"
 }
 
 /** Topics used by the Thing camera MQTT server for a device's 302 channel. */
+
 export function cameraTopics(deviceId: string): NativeCameraTopics {
   if (!/^[A-Za-z0-9._:-]+$/.test(deviceId)) throw new Error("Invalid Eufy device identifier");
   return { outgoing: `smart/mb/out/${deviceId}`, incoming: `smart/mb/in/${deviceId}` };

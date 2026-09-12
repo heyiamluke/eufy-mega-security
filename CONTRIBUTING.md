@@ -4,6 +4,8 @@ Thanks for taking an interest in the project. The useful contributions here are 
 
 ## Start with the boundary
 
+If this is your first day on the project, read [Developers start here](docs/DEVELOPERS_START_HERE.md) before changing protocol or entity code. It defines Mega, PPCS, the data transformations, and the reason the repository is split into a gateway and a Home Assistant integration.
+
 The repository contains two cooperating pieces:
 
 - `eufy_event_gateway` is the Eufy client and media gateway. It owns Mega authentication, device discovery, push events, snapshots, and native camera transport.

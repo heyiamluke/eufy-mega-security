@@ -1,4 +1,13 @@
-/** Shares camera sources, extracts stills, and bounds recording lifetimes. */
+/**
+ * Owns the gateway's camera-media lifecycle above a provider byte stream.
+ *
+ * A camera source opens only for the first viewer or capture request. This
+ * manager shares that source, fans H.264 to HTTP viewers, feeds FFmpeg for a
+ * JPEG frame or bounded MP4, retains the resulting snapshot, cancels idle
+ * sources after a grace period, and enforces the maximum stream lifetime. It
+ * knows media lifecycle and process management, but not Mega login or PPCS
+ * packet construction.
+ */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
 import type { ServerResponse } from "node:http";
@@ -9,6 +18,7 @@ import type { GatewayEvent, SnapshotInfo } from "../domain/types.js";
 import { SnapshotStore } from "../storage/snapshot-store.js";
 import { JpegParser } from "./jpeg-parser.js";
 
+/** Provider operations needed to open and close a camera source. */
 export interface StreamController {
   startStream(serial: string): Promise<void>;
   stopStream(serial: string): Promise<void>;
@@ -40,9 +50,18 @@ type ClipRemuxer = (h264: Buffer) => Promise<Buffer>;
 
 const MAX_RECORDING_BYTES = 256 * 1024 * 1024;
 
+/**
+ * Coordinates one shared source per camera.
+ *
+ * HTTP viewers receive the source directly, while FFmpeg receives a tee of the
+ * same bytes for retained JPEG snapshots and MP4 clips. Ownership counts avoid
+ * duplicate camera sessions, and the idle grace period prevents refreshes from
+ * repeatedly opening and closing a camera.
+ */
 export class LiveStreamManager extends EventEmitter {
   readonly #sessions = new Map<string, Session>();
 
+  /** Create a manager with state, image storage, provider, and idle grace. */
   constructor(
     private readonly state: GatewayState,
     private readonly snapshots: SnapshotStore,
@@ -53,6 +72,7 @@ export class LiveStreamManager extends EventEmitter {
     super();
   }
 
+  /** Attach an HTTP viewer, starting the shared provider source if needed. */
   async addClient(serial: string, response: ServerResponse): Promise<void> {
     const session = this.#session(serial);
     this.#cancelStop(session);
@@ -66,6 +86,7 @@ export class LiveStreamManager extends EventEmitter {
       Connection: "keep-alive",
     });
 
+
     // Start the provider only after the HTTP client is registered so the first
     // video bytes can be fanned out to Home Assistant immediately.
     try {
@@ -75,6 +96,7 @@ export class LiveStreamManager extends EventEmitter {
     }
   }
 
+  /** Capture one fresh JPEG through the shared source and return its metadata. */
   async captureSnapshot(serial: string, timeoutMilliseconds = 20_000): Promise<SnapshotInfo> {
     const session = this.#session(serial);
     const previousRevision = this.state.getCamera(serial).snapshot?.revision ?? 0;
@@ -92,6 +114,7 @@ export class LiveStreamManager extends EventEmitter {
     }
   }
 
+  /** Record a bounded H.264 segment and package it as fragmented MP4. */
   async recordClip(
     serial: string,
     durationSeconds: number,
@@ -119,6 +142,7 @@ export class LiveStreamManager extends EventEmitter {
     }
   }
 
+  /** Attach provider bytes to all current viewers and FFmpeg consumers. */
   attachSource(serial: string, source: Readable): void {
     const session = this.#session(serial);
     session.source?.destroy();
@@ -143,6 +167,7 @@ export class LiveStreamManager extends EventEmitter {
     this.#updateState(serial, session);
   }
 
+  /** Mark a provider source as stopped and fail pending consumers cleanly. */
   markStopped(serial: string): void {
     const session = this.#session(serial);
     this.#failRecordings(session, new Error("Camera video stopped before the recording completed"));
@@ -154,6 +179,7 @@ export class LiveStreamManager extends EventEmitter {
     this.#updateState(serial, session);
   }
 
+  /** Stop every source and release FFmpeg processes during shutdown. */
   async close(): Promise<void> {
     await Promise.all(
       [...this.#sessions.entries()].map(async ([serial, session]) => {
@@ -312,6 +338,7 @@ export class LiveStreamManager extends EventEmitter {
   }
 
   #startSnapshotExtractor(serial: string): ChildProcessWithoutNullStreams {
+
     // FFmpeg turns the shared Annex-B stream into JPEGs. The store keeps the
     // latest complete frame, so an idle camera still has a useful image.
     const process = spawn("ffmpeg", [
@@ -375,6 +402,7 @@ export class LiveStreamManager extends EventEmitter {
   }
 }
 
+/** Remux Annex-B H.264 into fragmented MP4 without re-encoding. */
 export async function remuxH264ToMp4(h264: Buffer): Promise<Buffer> {
   return await new Promise<Buffer>((resolve, reject) => {
     const process = spawn("ffmpeg", [

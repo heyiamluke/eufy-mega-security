@@ -1,4 +1,13 @@
-/** Separate Web UI client used for challenge handling and legacy WebRTC work. */
+/**
+ * Isolates Eufy's separate Web API session used by legacy experiments.
+ * WebRTC experiments.
+ *
+ * This client exists for the challenge page and old WebRTC signalling. It has
+ * different host discovery, encryption, persistence, and portal challenge
+ * rules from `MegaClient`; its results must never be treated as the native
+ * Mega session. Production camera startup uses Mega/PPCS and does not select
+ * this client for ordinary operation.
+ */
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
@@ -35,6 +44,7 @@ interface WebResult {
   readonly signature?: string;
 }
 
+/** Account and storage dependencies for the separate Web API client. */
 export interface WebClientOptions {
   readonly email: string;
   readonly password: string;
@@ -44,6 +54,13 @@ export interface WebClientOptions {
   readonly now?: () => number;
 }
 
+/**
+ * Performs the separate Eufy Web API login and signalling requests.
+ *
+ * It exists for the local challenge page and legacy WebRTC experiments. Its
+ * session and verification flow are intentionally not used by the production
+ * Mega/PPCS camera path.
+ */
 export class WebClient {
   readonly #email: string;
   readonly #password: string;
@@ -92,6 +109,7 @@ export class WebClient {
     return deriveWebKey(this.#session!.clientPrivateKey, this.#session!.serverPublicKey);
   }
 
+  /** Restore a Web session or begin a login and return any challenge state. */
   async connect(captchaAnswer?: string): Promise<WebAuthResult> {
     if (!this.#session) await this.#restore();
     if (this.isAuthenticated && !captchaAnswer) return { state: "authenticated" };
@@ -119,6 +137,7 @@ export class WebClient {
     return { state: "authenticated" };
   }
 
+  /** Submit the email verification code requested by the Web API. */
   async submitVerification(code: string): Promise<WebAuthResult> {
     if (!/^\d{6}$/.test(code) || !this.#temporaryToken || !this.#loginKeys) {
       throw new Error("No Eufy verification is waiting for a code");
@@ -129,6 +148,7 @@ export class WebClient {
     return { state: "authenticated" };
   }
 
+  /** Fetch a short-lived WebRTC signalling signature and host. */
   async signal(): Promise<{ readonly sign: string; readonly host: string }> {
     this.#requireAuthentication();
     const host = webSignalHost(this.#session!.host);
@@ -145,6 +165,7 @@ export class WebClient {
     return { sign, host };
   }
 
+  /** Verify the expiring portal PIN used only by the legacy Web path. */
   async verifyPortalPin(pin: string): Promise<void> {
     this.#requireAuthentication();
     const pinHash = createHash("sha256").update(pin).digest("hex");
@@ -339,6 +360,7 @@ export class WebClient {
   }
 }
 
+/** Convert an API host into the matching WebRTC signalling host. */
 export function webSignalHost(apiHost: string): string {
   if (EU_API_HOSTS.has(apiHost)) return "security-smart-eu.eufylife.com";
   if (IE_API_HOSTS.has(apiHost)) return "security-smart-ie.eufylife.com";

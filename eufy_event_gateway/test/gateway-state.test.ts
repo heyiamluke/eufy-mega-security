@@ -1,3 +1,10 @@
+/**
+ * Tests the protocol-neutral camera state machine.
+ *
+ * These cases establish how transient detection flags, retained snapshots,
+ * person recognition ordering, and timer-based clearing appear to API/SSE
+ * consumers.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

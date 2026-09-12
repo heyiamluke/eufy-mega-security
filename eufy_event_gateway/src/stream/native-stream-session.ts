@@ -1,4 +1,12 @@
-/** Coordinates the isolated SmartLife/Thing MQTT, P2P, relay, and FFmpeg path. */
+/**
+ * Coordinates the complete legacy SmartLife/Thing-to-FFmpeg path.
+ *
+ * It composes the old MQTT, P2P, relay, KCP, and FFmpeg layers for research so
+ * their lifecycle can be exercised as one unit. Production startup never
+ * instantiates this class: the supported path is Mega authentication followed
+ * by first-party PPCS. Keeping the composition here makes the obsolete route
+ * visible without letting it leak into the provider boundary.
+ */
 import { PassThrough } from "node:stream";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -9,6 +17,7 @@ import { NativeP2PSignaller, nativeSdpOffer } from "../mega/native-p2p.js";
 import { NativeRelaySession } from "./native-relay-session.js";
 import { parseNativeRelayToken, type NativeRelayToken } from "./native-media.js";
 
+/** Dependencies for the isolated legacy Thing-to-FFmpeg stream path. */
 export interface NativeStreamSessionOptions {
   readonly gateway: ThingGatewayClient;
   readonly account: ThingAccountSession;
@@ -17,6 +26,7 @@ export interface NativeStreamSessionOptions {
   readonly maxSeconds: number;
 }
 
+/** End-to-end legacy stream coordinator retained for protocol investigation. */
 export class NativeStreamSession {
   readonly output = new PassThrough();
   #mqtt: NativeMqttTransport | null = null;

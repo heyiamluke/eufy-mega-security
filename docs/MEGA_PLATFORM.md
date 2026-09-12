@@ -1,0 +1,232 @@
+# Mega platform and Eufy protocol reference
+
+This is the deeper protocol reference for Eufy Mega Security. It explains what “Mega” means in this repository, what the gateway requests, what comes back, and how those results become Home Assistant camera and detection entities.
+
+For the newcomer-friendly route through the whole repository, start with [`Developers start here`](DEVELOPERS_START_HERE.md). For contribution rules and safe handling of credentials, read [`CONTRIBUTING.md`](../CONTRIBUTING.md) and [`SECURITY.md`](../SECURITY.md).
+
+## Mega is the cloud control plane
+
+Mega is Eufy's current mobile-app account and device platform. It is a set of regional HTTPS services plus Firebase notification delivery. It is not the live video stream itself.
+
+The gateway uses Mega for:
+
+- account login and token renewal;
+- regional service-domain discovery;
+- encrypted API identity exchange and request envelopes;
+- device and HomeBase inventory;
+- station DSK keys and HomeBase ECC cipher keys;
+- Firebase push-token registration;
+- event notifications and event-image URLs;
+- optional retrieval of the older Thing MQTT credential bundle for research.
+
+The gateway uses PPCS for camera media. A useful mental model is:
+
+```text
+Mega HTTPS + Firebase = who the account owns, what happened, and which keys are needed
+PPCS UDP              = the peer-to-peer camera connection carrying live H.264
+Gateway HTTP/SSE      = the stable contract exposed to Home Assistant
+```
+
+Mega and the old Thing/SmartLife platform are not interchangeable. They use different account sessions, identifiers, signatures, encryption envelopes, and media paths. Production startup uses `MegaClient`; the Thing modules remain isolated research code.
+
+## Service domains and operations
+
+`MegaClient` begins with a clear JSON POST to the regional passport host:
+
+```text
+POST /passport/estimate_domain
+body: { "ab": "au", "mode": 1 }
+```
+
+The response supplies the account's Mega domain and a product-domain map. The client retains those host names in `MegaSession` and uses service names such as `openapi`, `house`, `push`, `devicerelation`, and `security` to choose the correct endpoint.
+
+The production operations are:
+
+| Operation | Endpoint | Why we call it | Output used by |
+| --- | --- | --- | --- |
+| Login | `/passport/login` | Establish or refresh account session | provider startup |
+| CAPTCHA | `/passport/generate/captcha` | Obtain an image challenge | gateway Web UI |
+| Verification | `/app/sendmsg/verify_code` | Ask Eufy to send an email code | gateway Web UI |
+| Inventory | `/app/house/get_devs_list` | Enumerate stations, cameras, channels, and P2P metadata | provider |
+| DSK lookup | `/app/devicerelation/get_dsk_keys` | Obtain station secrets for PPCS lookup | PPCS session |
+| Cipher lookup | `/v3/app/cipher/get_ciphers` | Obtain ECC private keys for HomeBase level-two setup | PPCS session |
+| Push registration | `/app/push/register_push_token` | Register the Firebase receiver | push receiver |
+| MQTT information | `/app/devicemanage/get_user_mqtt_info` | Preserve the legacy Thing experiment's credential boundary | research only |
+
+The actual host is selected from the discovered product-domain map. Hard-coding one global Eufy host would break accounts in other regions and is one reason host discovery belongs in `MegaClient`.
+
+## Wire formats and encryption
+
+Most Mega responses have an outer JSON shape:
+
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": "<encrypted response text>"
+}
+```
+
+`code` is the first decision point. A successful string `data` is decrypted with the shared host AES key and parsed as JSON. Some bootstrap or error responses contain an object directly instead. The client handles that distinction before exposing a result.
+
+Normal request bodies are JSON-serialized, encrypted, and sent as text. Headers identify the host key, request timestamp, random nonce, country, and signature. Authenticated calls also include the Mega account token. The signature covers the values required by Eufy's native application, so reordering or changing a field can invalidate an otherwise correct request.
+
+Identity setup uses P-256 ECDH (`prime256v1`). The client starts with a Mega preset key, sends an encrypted client public key, receives an encrypted server public key and key identifier, and derives two values: the AES material used for envelopes and the signing material used for request headers. The resulting `MegaIdentity` is cached per host in the private session file.
+
+Login encrypts the password with Eufy's published login public key and a fresh client key pair. The plaintext password never enters the request body. A successful response yields an auth token, user ID, and expiry. The session store also records the country, account login hash, open device identifier, domains, and host identities so a restart can reuse a valid session.
+
+The session file is private JSON with mode `0600` and is replaced atomically. It contains secret session material, so it must stay in the gateway's private data volume and must never be attached to an issue or committed to Git. Passwords, CAPTCHA answers, and email verification codes are not persisted.
+
+## Login challenges
+
+Mega may return one of three useful states:
+
+- `authenticated`: the account token is valid and startup can continue;
+- `captcha-required`: Mega returned an image and challenge ID;
+- `verification-required`: Eufy sent a six-digit code to the account email.
+
+The provider exposes those states to the gateway Web UI. The answer/code lives in memory long enough to submit it. The gateway then calls `MegaClient` or the separate `WebClient` as appropriate and resumes inventory/push startup. The challenge page is not the production media protocol and should not be confused with the old expiring Web Portal Access PIN.
+
+## Inventory: raw values to safe camera identity
+
+`get_devs_list` returns a JSON object containing a `devices` array and optional `groups`. Each row is untrusted and may contain many fields that differ across product generations. The gateway keeps only the values required for routing and presentation:
+
+```text
+device_sn       -> serial
+device_name     -> name
+device_model    -> model
+category        -> category
+device_type     -> deviceType
+parent_sn or station_sn -> parentSerial
+device_channel or channel -> channel
+p2p_did         -> p2pDid
+p2p_conn or app_conn -> p2pConnection
+cipher_id       -> cipherId
+member.admin_user_id -> adminUserId
+```
+
+`parseMegaInventory()` rejects rows without a serial, removes duplicate serials, bounds text fields, and fills absent values with `null` or safe defaults. If a child camera has no `admin_user_id`, it inherits the parent station's value because the HomeBase media request is account-scoped.
+
+The current camera filter accepts Mega device types 7, 8, and 10031 when `category` is `eufy_security`. Type 18 is a HomeBase parent and remains in the provider map, but it is not registered as a Home Assistant camera. This distinction prevents a blank HomeBase tile from being mistaken for a second camera.
+
+The normalized provider row is converted into `CameraIdentity`, which is the first shape that the protocol-neutral domain and Home Assistant can consume. Raw Mega keys and payload fields stop at this boundary.
+
+## Push delivery and event data
+
+The push receiver uses Firebase Cloud Messaging delivery. The Firebase library handles the connection and persistent ID; it does not know Eufy's event meanings. Eufy's data commonly contains JSON nested inside a data field, and camera generations use different optional names.
+
+`MegaPushReceiver` extracts only this normalized event shape:
+
+```text
+cameraSerial, stationSerial, cameraName
+eventType, messageType, notificationStyle
+personName, content
+pictureUrl, filePath, fetchId, senseId
+```
+
+The provider interprets event type 3101 as motion and 3102/3111 as person detection. It accepts a person name only when the structured or textual value is an explicit recognized identity. Generic labels such as `Someone` do not become a named person entity.
+
+Diagnostics retain timestamps, event types, camera name, and boolean “field present” flags. They do not retain raw push payloads, tokens, complete media URLs, or notification text. The last fifty diagnostic records are enough to investigate a camera without turning the endpoint into an account-data dump.
+
+## Event images and snapshots
+
+An event may contain an HTTPS `pictureUrl`. `MegaClient.download()` verifies HTTPS, applies a 20 MiB default limit, enforces a 30-second timeout, and rejects empty or oversized responses.
+
+The bytes can be:
+
+1. a normal JPEG beginning with `FF D8`;
+2. a `v2_eufysecurity:` wrapper where the payload is missing the ordinary JPEG prefix and tables;
+3. an older `eufysecurity` wrapper whose first encrypted block is keyed from the station serial, camera P2P DID, and wrapper code.
+
+`decodeEventImage()` handles those formats locally. `EufyProvider` checks that the result is a JPEG before calling `GatewayState` and `SnapshotStore`. `SnapshotStore` writes a hashed serial filename, an index entry containing capture time/content type/revision, and replaces files atomically.
+
+Home Assistant reads the retained image through `GET /api/cameras/{serial}/snapshot`. A retained image does not wake a battery camera and remains useful while the device sleeps. A fresh snapshot is different: Home Assistant calls `capture_snapshot`, the gateway starts a live PPCS source, FFmpeg extracts one JPEG, and the result replaces the retained image.
+
+## PPCS: the native media path
+
+PPCS is Eufy's peer-to-peer camera transport. It uses UDP packet families and command frames rather than RTSP. The gateway's `FirstPartyPpcsSession` hides those details behind a readable stream of Annex-B H.264 bytes.
+
+### Inputs
+
+The session needs:
+
+- station serial and P2P DID;
+- decoded cloud application connection addresses;
+- station DSK from `get_dsk_keys`;
+- camera channel and model;
+- account/admin ID for the media request;
+- ECC cipher lookup for HomeBase-attached level-two setup;
+- a maximum session duration.
+
+### Handshake and media
+
+1. Bind an ephemeral UDP port.
+2. Send LAN broadcast and cloud lookup packets containing the encoded DID and DSK.
+3. Send `CAM_CHECK` to each responding address.
+4. Accept the first matching `CAM_ID`; this proves reachability, not video.
+5. Send the start command for the camera's media route.
+6. For HomeBase cameras, decrypt the `1100` gateway-info command, fetch the referenced ECC key from Mega, unwrap the level-two AES key, and send the encrypted `1350` media-start JSON.
+7. Acknowledge data datagrams, reassemble `XZYH` frames by type/sequence, unwrap the per-stream RSA-negotiated video key, and emit H.264 payloads from `1300` media frames.
+8. Send heartbeats and close the UDP socket/output stream when the consumer releases it or the maximum lifetime expires.
+
+The session exposes counters for `camId`, data datagrams, command headers, gateway-info frames, level-two completion, video frames, and errors. Those counters are essential when a battery camera completes lookup but has no charge or does not send media.
+
+## Home Assistant conversion
+
+The gateway converts media and events into a small HTTP/SSE contract:
+
+```text
+Mega/Firebase/PPCS
+  -> MegaClient, MegaPushReceiver, FirstPartyPpcsSession
+  -> EufyProvider normalized callbacks
+  -> GatewayState and SnapshotStore
+  -> GatewayServer JSON/JPEG/H.264/MP4/SSE
+  -> Python client/coordinator
+  -> Home Assistant entities and camera card
+```
+
+The Python integration never sees a Mega envelope, DSK, cipher key, P2P DID, push wrapper, or PPCS packet. It receives a camera dictionary, reads a retained JPEG, asks for a signed stream path, or consumes an SSE event. That is the point of the boundary: Home Assistant can evolve its entity lifecycle without carrying Eufy's protocol assumptions.
+
+## Why this is a standalone gateway
+
+The native client needs Node's cryptography and UDP support, FFmpeg process management, long-lived Firebase delivery, private session files, challenge handling, and careful media timeouts. Home Assistant needs a cooperative Python event loop, config entries, entity platforms, and recovery after supervisor restarts. Combining both concerns in one integration would make every protocol failure look like an entity failure and would make the Eufy implementation difficult to reuse.
+
+The gateway provides a stable place for:
+
+- protocol-specific credentials and key material;
+- rate limiting and session restoration;
+- event-image decoding and snapshot retention;
+- PPCS packet handling and H.264 output;
+- safe diagnostics and proof-of-concept probing;
+- a simulated provider for tests.
+
+The Home Assistant integration is consequently small, replaceable, and safe to run without an Eufy password in Python.
+
+## Reuse outside Home Assistant
+
+Another project can reuse the Eufy side without importing the Home Assistant integration. The useful public seams are `MegaClient`, the pure functions in `mega/crypto.ts` and `mega/image.ts`, `MegaPushReceiver`, `parseMegaInventory()`, and `FirstPartyPpcsSession`.
+
+The reuse contract is intentionally conservative:
+
+- provide a private persistent directory;
+- keep account credentials and session files secret;
+- honour request spacing and bounded downloads;
+- treat Mega endpoint fields and PPCS packets as changeable;
+- refresh DSK/cipher material when it expires or a session is recreated;
+- consume normalized return values instead of reaching into private client state;
+- keep a physical-camera proof or fixture for every newly supported model.
+
+This is reusable implementation code, not a guaranteed stable Eufy SDK. A future consumer should pin a project release and expect protocol maintenance.
+
+## Debugging checklist
+
+When a camera does not appear, start with inventory diagnostics. When it appears without streaming support, inspect its parent station, channel, P2P connection, and DSK status. When lookup succeeds but no frames arrive, inspect the PPCS counters and camera power state. When an event has no snapshot, inspect whether the push event contained a URL, whether the download was HTTPS and within limits, and whether the image wrapper had the required station DID.
+
+The standalone proof command is:
+
+```sh
+cd eufy_event_gateway
+npm run poc:ppcs
+```
+
+It writes raw media only to the configured local output directory. Do not attach those files or the gateway data directory to an issue without removing account and device identifiers.

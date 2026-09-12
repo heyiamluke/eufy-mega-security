@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.15
+
+- Add a first-day developer guide covering the repository architecture, Mega authentication, inventory, push events, snapshots, PPCS streaming, and Home Assistant conversion.
+- Add a detailed Mega platform and protocol reference with endpoint, payload, encryption, and media-flow documentation.
+- Expand file-level TypeScript, Python, probe, and test documentation so maintainers can understand ownership, lifecycle, and protocol boundaries from the source.
+- Add direct links to the developer documentation from the public and app READMEs.
+
 ## 0.1.14
 
 - Add contributor, security, and repository file-map documentation.

@@ -1,3 +1,9 @@
+/**
+ * Protects the safe diagnostic projection of incoming push events.
+ *
+ * The tests ensure useful presence/type flags survive while raw notification
+ * bodies, tokens, URLs, and unrelated account fields do not reach diagnostics.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

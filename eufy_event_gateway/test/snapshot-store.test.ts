@@ -1,3 +1,9 @@
+/**
+ * Protects durable snapshot semantics independently of HTTP and Eufy.
+ *
+ * The cases cover initialization, hashed filenames, revisions, malformed
+ * indexes, and concurrent writes that must leave complete old or new files.
+ */
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -1,4 +1,12 @@
-/** Native Thing/P2P message framing used by the non-production experiment. */
+/**
+ * Encodes and decodes the older Thing/P2P signalling protocol.
+ *
+ * These helpers are pure or transport-adjacent fixtures for reverse
+ * engineering: they describe legacy 302 framing, camera topics, and signalling
+ * messages. No production provider imports them for normal startup, and no
+ * caller should infer that this path replaces the first-party Mega/PPCS
+ * implementation or its session model.
+ */
 import { createCipheriv, createDecipheriv, randomBytes, type CipherGCM, type DecipherGCM } from "node:crypto";
 
 import { cameraTopics, type NativeMqttMessage, NativeMqttTransport } from "./native-mqtt.js";
@@ -24,6 +32,7 @@ export function encodeNative302V22(options: {
   return Buffer.concat([Buffer.from("2.2", "ascii"), u32(crc32(tail)), tail]);
 }
 
+/** Decode and authenticate one legacy 302 protocol version 2.2 frame. */
 export function decodeNative302V22(frame: Uint8Array, localKey: string): {
   readonly data: unknown;
   readonly timestamp: number;
@@ -67,6 +76,7 @@ export function encodeNative302V23(options: {
   return Buffer.concat([key, sequence, operation, Buffer.from([0]), nonce, cipher.update(plaintext), cipher.final(), cipher.getAuthTag()]);
 }
 
+/** Decode and authenticate one legacy 302 protocol version 2.3 frame. */
 export function decodeNative302V23(frame: Uint8Array, localKey: string): {
   readonly data: unknown;
   readonly timestamp: number;
@@ -91,6 +101,7 @@ export function decodeNative302V23(frame: Uint8Array, localKey: string): {
   return { data: value.data, timestamp: value.t, sequence, operation };
 }
 
+/** Inputs used to construct a legacy native P2P connect message. */
 export interface NativeP2PConnectOptions {
   readonly remoteId: string;
   readonly deviceId: string;
@@ -103,6 +114,7 @@ export interface NativeP2PConnectOptions {
   readonly connectSession?: string;
 }
 
+/** Build the legacy native P2P connect request body. */
 export function nativeConnectV3(options: NativeP2PConnectOptions): Record<string, unknown> {
   return {
     cmd: "connect_v3",
@@ -123,15 +135,18 @@ export function nativeConnectV3(options: NativeP2PConnectOptions): Record<string
 /** The first packet sent on a Thing 302 channel asks the camera for its
  * signalling capabilities. These are kept as plain builders so the gateway
  * can test the protocol without opening a broker connection. */
+
 export function nativeSignalQuery(): Record<string, unknown> {
   return { reqType: "sigQry" };
 }
 
+/** Create the time-scoped transaction identifier used by old signalling. */
 export function nativeCameraTransactionId(deviceId: string, now = Date.now()): string {
   if (!/^[A-Za-z0-9._:-]+$/.test(deviceId) || !Number.isSafeInteger(now)) throw new Error("Invalid native camera transaction id input");
   return `ipc_p2p_android_${deviceId}_${now}`;
 }
 
+/** Parsed ICE and session values returned by the legacy camera API. */
 export interface NativeCameraRtcConfig {
   readonly p2pId: string;
   readonly p2pKey: string;
@@ -145,6 +160,7 @@ export interface NativeCameraRtcConfig {
 /** Validate only the stable fields shared by the mobile SDK's RTC config
  * response. The relay/session objects are deliberately opaque: Eufy has
  * changed their shape between camera firmware generations. */
+
 export function parseNativeCameraRtcConfig(value: unknown): NativeCameraRtcConfig {
   if (!isRecord(value)) throw new Error("Native camera RTC config is not an object");
   const config = isRecord(value.p2pConfig) ? value.p2pConfig : value;
@@ -163,6 +179,7 @@ export function parseNativeCameraRtcConfig(value: unknown): NativeCameraRtcConfi
   };
 }
 
+/** Fields required to create a legacy camera offer message. */
 export interface NativeOfferMessageOptions {
   readonly uid: string;
   readonly deviceId: string;
@@ -174,6 +191,7 @@ export interface NativeOfferMessageOptions {
   readonly logConfig?: unknown;
 }
 
+/** Build the encrypted signalling offer sent through native MQTT. */
 export function nativeOfferMessage(options: NativeOfferMessageOptions): Record<string, unknown> {
   return {
     header: {
@@ -187,19 +205,28 @@ export function nativeOfferMessage(options: NativeOfferMessageOptions): Record<s
   };
 }
 
+/** Build a signalling message carrying one ICE candidate. */
 export function nativeCandidateMessage(candidate: string): Record<string, unknown> {
   return { header: { type: "candidate" }, msg: { candidate } };
 }
 
+/** Build the legacy signalling message that closes a camera session. */
 export function nativeDisconnectMessage(reason = "client_close"): Record<string, unknown> {
   return { header: { type: "disconnect" }, msg: { close_reason: reason, close_reason_local: 0 } };
 }
 
+/** Construct the SDP offer carrying the native camera encryption key. */
 export function nativeSdpOffer(uid: string, sessionId: string, epochSeconds: number, iceUfrag: string, icePassword: string, aesKey: Uint8Array): string {
   return ["v=0", `o=- ${epochSeconds} 1 IN IP4 127.0.0.1`, "s=-", "t=0 0", "a=group:BUNDLE imm0", `a=msid-semantic: WMS ${sessionId}`, "m=application 9 imm 6001", "c=IN IP4 0.0.0.0", "a=rtcp:9 IN IP4 0.0.0.0", `a=ice-ufrag:${iceUfrag}`, `a=ice-pwd:${icePassword}`, "a=ice-options:trickle", `a=aes-key:${Buffer.from(aesKey).toString("hex")}`, "a=mid:imm0", "a=rtpmap:6001 AES/KCP 330", `a=ssrc:0 cname:${uid}`, ""].join("\r\n");
 }
 
-/** The MQTT-backed signalling part of a native P2P session. */
+/**
+ * MQTT-backed signalling part of a native P2P session.
+ *
+ * The class encrypts and decrypts the old native signalling messages over
+ * MQTT. It is a protocol reference implementation, not the production stream
+ * selector used by EufyProvider.
+ */
 export class NativeP2PSignaller {
   constructor(
     private readonly mqtt: NativeMqttTransport,

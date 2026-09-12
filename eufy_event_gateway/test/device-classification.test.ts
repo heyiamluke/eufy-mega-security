@@ -1,3 +1,10 @@
+/**
+ * Protects the inventory filter that decides which Mega rows become cameras.
+ *
+ * It keeps HomeBase parent metadata and unsupported device categories out of
+ * the Home Assistant-facing camera list while retaining the validated camera
+ * types used by the test hardware.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

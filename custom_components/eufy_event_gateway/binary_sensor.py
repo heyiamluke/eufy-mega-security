@@ -1,4 +1,10 @@
-"""Detection entities for Eufy Mega Security."""
+"""Motion and person binary sensors for Eufy Mega Security.
+
+The gateway holds transient detection state long enough for an SSE update to
+reach Home Assistant. These entities mirror the normalized `motionDetected` and
+`personDetected` fields and do not poll Eufy, decode push payloads, or infer
+motion locally. Device identity and availability come from `entity.py`.
+"""
 
 from __future__ import annotations
 
@@ -35,9 +41,10 @@ async def async_setup_entry(
 
 
 class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
-    """One transient detection signal."""
+    """Expose one gateway detection flag as a Home Assistant binary sensor."""
 
     def __init__(self, coordinator: EufyGatewayCoordinator, serial: str, kind: str) -> None:
+        """Bind the sensor to a camera serial and detection kind."""
         super().__init__(coordinator, serial)
         self.kind = kind
         self._attr_unique_id = f"{serial}_{kind}"
@@ -48,4 +55,5 @@ class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
+        """Return the current motion or person flag from coordinator data."""
         return bool(self.camera.get(f"{self.kind}Detected"))

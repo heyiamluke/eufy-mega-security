@@ -1,6 +1,16 @@
-/** Environment-backed configuration for the standalone gateway process. */
+/**
+ * Defines the process configuration boundary for the standalone gateway.
+ *
+ * Docker, the Home Assistant app supervisor, and local shells all provide
+ * strings. This module is the one place that parses those strings into typed
+ * ports, paths, provider selections, credentials, and media limits. Every
+ * downstream component receives the result of this validation rather than
+ * re-reading `process.env`, which keeps configuration policy testable and
+ * prevents the HTTP and Eufy layers from drifting apart.
+ */
 import { resolve } from "node:path";
 
+/** Fully validated settings used by the running gateway process. */
 export interface GatewayConfig {
   readonly host: string;
   readonly port: number;
@@ -17,6 +27,15 @@ export interface GatewayConfig {
   };
 }
 
+/**
+ * Reads gateway settings from an environment-like object.
+ *
+ * @param environment Values to read. Tests pass a plain object here so they
+ * can exercise validation without modifying the process environment.
+ * @returns Normalized paths, numbers, provider selection, and credentials.
+ * @throws Error when a public listener has no API token or a numeric setting
+ * is not a positive integer.
+ */
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): GatewayConfig {
   const provider = environment.EUFY_GATEWAY_PROVIDER === "simulated" ? "simulated" : "eufy";
   const verifyCode = nonEmpty(environment.EUFY_VERIFY_CODE);
@@ -45,6 +64,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Gatewa
   };
 }
 
+/** Returns whether a listener is restricted to the local machine. */
 export function isLoopbackHost(host: string): boolean {
   return host === "127.0.0.1" || host === "::1" || host.toLowerCase() === "localhost";
 }

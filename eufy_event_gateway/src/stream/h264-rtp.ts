@@ -1,12 +1,22 @@
-/** Reassembles Annex-B H.264 NAL units from RTP payload fragments. */
+/**
+ * Reassembles H.264 NAL units from RTP packets used by the legacy WebRTC path.
+ *
+ * A packet may contain one NAL, several STAP-A NALs, or a FU-A fragment. The
+ * depacketizer tracks sequence continuity and drops incomplete fragments
+ * rather than emitting corrupt Annex-B bytes. Production Mega/PPCS streaming
+ * does not use this class; `WebRtcStream` retains it for the isolated web
+ * transport and its packet fixtures.
+ */
 const START_CODE = Buffer.from([0, 0, 0, 1]);
 const MAX_FRAGMENT_BYTES = 4 * 1024 * 1024;
 
+/** Stateful RTP depacketizer that emits complete Annex-B NAL units. */
 export class H264RtpDepacketizer {
   #fragment: Buffer[] | null = null;
   #fragmentBytes = 0;
   #expectedSequence: number | null = null;
 
+  /** Consume one RTP payload and return every complete NAL it contains. */
   push(payload: Buffer, sequenceNumber: number): Buffer[] {
     if (payload.length === 0) return [];
     if (this.#expectedSequence !== null && sequenceNumber !== this.#expectedSequence) this.#resetFragment();

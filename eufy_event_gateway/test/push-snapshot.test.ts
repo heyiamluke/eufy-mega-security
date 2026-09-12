@@ -1,3 +1,9 @@
+/**
+ * Covers the event-image path from a normalized push URL to JPEG bytes.
+ *
+ * The fake client verifies HTTPS download, ordinary-JPEG passthrough, wrapped
+ * image decoding, and the required station P2P identity for encrypted images.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

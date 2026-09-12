@@ -1,3 +1,10 @@
+/**
+ * Covers the legacy WebRTC RTP-to-Annex-B depacketizer.
+ *
+ * The fixtures include single NAL, STAP-A, FU-A, sequence-gap, and diagnostic
+ * cases. Production PPCS does not use this module, so these tests document the
+ * isolated web transport rather than the supported camera path.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

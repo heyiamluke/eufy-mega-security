@@ -1,3 +1,10 @@
+/**
+ * Documents the isolated legacy KCP conversation layer.
+ *
+ * Fixtures cover segment layout, ordering, fragmentation, acknowledgement,
+ * and loss handling. They are not evidence that production cameras should
+ * use the old relay path instead of first-party PPCS.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildKcpSegment, NativeKcpConversation, parseKcpSegment, KCP_ACK } from "../src/stream/native-kcp.js";

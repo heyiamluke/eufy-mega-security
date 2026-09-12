@@ -1,3 +1,9 @@
+/**
+ * Tests normalization of generation-specific Firebase/Eufy push envelopes.
+ *
+ * Fixtures include nested JSON and optional fields, proving that only the
+ * whitelisted `MegaPushEvent` data crosses into provider logic.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

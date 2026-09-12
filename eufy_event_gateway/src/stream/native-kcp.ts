@@ -1,18 +1,42 @@
-/** Minimal KCP framing used by the isolated native relay experiment. */
+/**
+ * Provides the minimal KCP framing used by the isolated legacy relay.
+ *
+ * KCP is a reliable message layer over UDP; it is part of the older Thing
+ * relay experiment, not the production PPCS framing. This file owns segment
+ * encoding, acknowledgements, sequence handling, and reassembly so packet
+ * fixtures can exercise that transport without involving Mega or Home
+ * Assistant. Keep it separate so the legacy path can be removed safely.
+ */
 import { createHmac } from "node:crypto";
 
+/** Number of bytes in the fixed KCP segment header. */
 export const KCP_HEADER_LENGTH = 24;
+
+/** KCP data segment command. */
 export const KCP_PUSH = 0x51;
+
+/** KCP acknowledgement segment command. */
 export const KCP_ACK = 0x52;
+
+/** KCP window request command. */
 export const KCP_WINDOW_ASK = 0x53;
+
+/** KCP window response command. */
 export const KCP_WINDOW_TELL = 0x54;
 
+/** One decoded KCP segment, including its transport and payload fields. */
 export interface KcpSegment { readonly conversation: number; readonly command: number; readonly fragment: number; readonly window: number; readonly timestamp: number; readonly sequence: number; readonly unacknowledged: number; readonly data: Buffer; }
+
+/** Parse a little-endian KCP segment, returning null for incomplete input. */
 export function parseKcpSegment(raw: Uint8Array): KcpSegment | null { const b = Buffer.from(raw); if (b.length < 24) return null; const len = b.readUInt32LE(20); if (24 + len > b.length) return null; return { conversation: b.readUInt32LE(0), command: b[4]!, fragment: b[5]!, window: b.readUInt16LE(6), timestamp: b.readUInt32LE(8), sequence: b.readUInt32LE(12), unacknowledged: b.readUInt32LE(16), data: b.subarray(24, 24 + len) }; }
+
+/** Serialize a KCP segment with its 24-byte header and optional payload. */
 export function buildKcpSegment(segment: Omit<KcpSegment, "data"> & { readonly data?: Uint8Array }): Buffer { const data = Buffer.from(segment.data ?? Buffer.alloc(0)); const b = Buffer.alloc(24 + data.length); b.writeUInt32LE(segment.conversation >>> 0, 0); b[4] = segment.command; b[5] = segment.fragment; b.writeUInt16LE(segment.window & 0xffff, 6); b.writeUInt32LE(segment.timestamp >>> 0, 8); b.writeUInt32LE(segment.sequence >>> 0, 12); b.writeUInt32LE(segment.unacknowledged >>> 0, 16); b.writeUInt32LE(data.length, 20); data.copy(b, 24); return b; }
 
+/** Authenticate one legacy relay segment with the negotiated media key. */
 export function mediaTag(mediaKey: Uint8Array, segment: Uint8Array): Buffer { return createHmac("sha1", Buffer.from(mediaKey)).update(segment).digest(); }
 
+/** Minimal ordered KCP conversation used by the legacy relay session. */
 export class NativeKcpConversation {
   #sendSequence = 0; #receiveSequence = 0; #received = new Map<number, KcpSegment>(); #fragments: Buffer[] = []; #pending = new Map<number, { raw: Buffer; sentAt: number; tries: number }>(); #timer: ReturnType<typeof setInterval> | null = null; #closed = false;
   constructor(readonly conversation: number, private readonly transmit: (raw: Buffer) => void, private readonly onMessage?: (data: Buffer) => void) {}

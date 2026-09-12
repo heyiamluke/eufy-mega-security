@@ -14,6 +14,8 @@ The Home Assistant app advertises the Supervisor-assigned app hostname discovere
 
 ## Delivery state
 
+v0.1.15 adds the first-day developer guide, the detailed Mega platform reference, and the file-level source/test documentation needed for outside testers and contributors. The public and app READMEs link directly to those documents. This release does not change the runtime protocol path.
+
 v0.1.13 renames the user-facing project, Home Assistant integration, and HACS repository to Eufy Mega Security while preserving the internal `eufy_event_gateway` domain, service namespace, app slug, and discovery service for existing installations. Those internal identifiers are intentional compatibility names, not stale user-facing branding.
 
 v0.1.12 adds the gateway-only first-party PPCS proof and wires that transport into on-demand camera streaming. An existing valid Mega session is migrated once from the previous client state, then saved in the gateway-owned session format. New Mega authentication supports email verification and the app's CAPTCHA interface when Eufy requires either challenge. The separate web session remains independently scoped and stored for the web transport code.

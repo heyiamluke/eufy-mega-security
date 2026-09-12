@@ -1,3 +1,9 @@
+/**
+ * Tests the gateway's HTTP authentication helpers and challenge presentation.
+ *
+ * Cases cover bearer comparison, HMAC stream-token expiry/signatures, and safe
+ * CAPTCHA page output without binding a listening server.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

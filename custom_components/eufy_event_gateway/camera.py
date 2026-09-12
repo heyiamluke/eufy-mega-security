@@ -1,4 +1,11 @@
-"""Camera entities backed by retained images and gateway-owned live streams."""
+"""Camera entities backed by retained images and gateway-owned live streams.
+
+The card image is a cheap read of the gateway's last-good JPEG. A live stream
+or fresh snapshot is an explicit operation, because waking a battery camera
+for every dashboard refresh would waste power and make the UI unreliable. The
+entity never contacts Eufy directly: it asks the gateway for retained bytes,
+a signed stream path, or a bounded capture/recording action.
+"""
 
 from __future__ import annotations
 
@@ -55,27 +62,32 @@ async def async_setup_entry(
 
 
 class EufyGatewayCamera(EufyGatewayEntity, Camera):
-    """On-demand live camera with a durable idle image."""
+    """Represent one camera with a retained image and on-demand media actions."""
 
     _attr_name = None
     _attr_content_type = "image/jpeg"
 
     def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create the entity with a stable serial-derived unique ID."""
         EufyGatewayEntity.__init__(self, coordinator, serial)
         Camera.__init__(self)
         self._attr_unique_id = f"{serial}_camera"
 
     @property
     def supported_features(self) -> CameraEntityFeature:
+        """Advertise streaming only when the gateway can control this camera."""
         if self.camera.get("streamSupported"):
             return CameraEntityFeature.STREAM
         return CameraEntityFeature(0)
 
     @property
     def is_streaming(self) -> bool:
+        """Reflect the gateway's shared stream state in the HA UI."""
         return self.camera.get("stream", {}).get("state") == "streaming"
 
     async def async_camera_image(self, width: int | None = None, height: int | None = None) -> bytes | None:
+        """Return the retained JPEG without starting a new camera session."""
+
         # Home Assistant calls this for the card image. It is intentionally a
         # cheap retained-image read and does not wake a sleeping camera.
         try:
@@ -84,6 +96,8 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
             return None
 
     async def stream_source(self) -> str | None:
+        """Return a short-lived gateway URL for HA's stream pipeline."""
+
         # The gateway returns a short-lived signed URL. Home Assistant's media
         # pipeline consumes it without receiving the gateway bearer token.
         if not self.camera.get("streamSupported"):
@@ -91,7 +105,7 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         return await self.coordinator.client.stream_url(self.serial)
 
     async def async_capture_snapshot(self, filename: str) -> None:
-        """Wake the camera, wait for a fresh frame, and save it through Home Assistant."""
+        """Wake the camera, wait for a fresh frame, and save it through HA."""
         if not self.camera.get("streamSupported"):
             raise HomeAssistantError("Fresh snapshot capture is unavailable for this camera")
         await self.coordinator.client.capture_snapshot(self.serial)
@@ -103,7 +117,7 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         )
 
     async def async_record_clip(self, filename: str, duration: int) -> None:
-        """Record an on-demand clip through the gateway and save it atomically."""
+        """Request a bounded MP4 and replace the destination only when complete."""
         if not self.camera.get("streamSupported"):
             raise HomeAssistantError("Clip recording is unavailable for this camera")
         if not self.hass.config.is_allowed_path(filename):

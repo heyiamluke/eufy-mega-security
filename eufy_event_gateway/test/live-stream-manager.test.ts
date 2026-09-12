@@ -1,3 +1,10 @@
+/**
+ * Exercises media lifecycle policy above a fake provider byte stream.
+ *
+ * The cases cover one shared source for multiple consumers, fresh JPEG capture,
+ * bounded MP4 recording, idle grace cleanup, and failure propagation without
+ * opening a real PPCS socket.
+ */
 import assert from "node:assert/strict";
 import { PassThrough } from "node:stream";
 import test from "node:test";

@@ -1,4 +1,11 @@
-"""Authenticated HTTP and SSE client for the local Eufy Mega Security gateway."""
+"""Authenticated HTTP and SSE client for the local Eufy Mega Security gateway.
+
+Home Assistant talks only to this client. It validates the gateway's JSON
+shapes, translates HTTP and transport failures into integration exceptions,
+keeps the bearer token in request headers, and parses the SSE stream into
+normalized dictionaries. It does not know how Mega login, push notifications,
+PPCS packets, or camera media work inside the gateway process.
+"""
 
 from __future__ import annotations
 
@@ -18,15 +25,16 @@ class GatewayAuthenticationError(GatewayClientError):
 
 
 class GatewayClient:
-    """Access the gateway without retaining Eufy credentials in Home Assistant."""
+    """Access normalized gateway state without retaining Eufy credentials."""
 
     def __init__(self, session: ClientSession, base_url: str, api_token: str = "") -> None:
+        """Create a client from HA's shared HTTP session and gateway settings."""
         self._session = session
         self.base_url = base_url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {api_token}"} if api_token else {}
 
     async def cameras(self) -> list[dict[str, Any]]:
-        """Fetch the complete normalized camera state."""
+        """Fetch every normalized camera state used to create or update entities."""
         payload = await self._json("/api/cameras")
         cameras = payload.get("cameras")
         if not isinstance(cameras, list):
@@ -34,7 +42,7 @@ class GatewayClient:
         return [camera for camera in cameras if isinstance(camera, dict) and isinstance(camera.get("serial"), str)]
 
     async def snapshot(self, serial: str) -> bytes | None:
-        """Fetch the last good still without waking an idle camera."""
+        """Read the last retained still, returning None when no image exists."""
         try:
             async with self._session.get(
                 self._url(f"/api/cameras/{serial}/snapshot"), headers=self._headers
@@ -47,7 +55,7 @@ class GatewayClient:
             raise GatewayClientError(str(error)) from error
 
     async def stream_url(self, serial: str) -> str:
-        """Create a short-lived on-demand H.264 stream URL for Home Assistant's FFmpeg process."""
+        """Create a short-lived H.264 URL that does not expose the bearer token."""
         payload = await self._json(f"/api/cameras/{serial}/stream-token", method="POST")
         path = payload.get("path")
         if not isinstance(path, str) or not path.startswith("/"):
@@ -55,11 +63,11 @@ class GatewayClient:
         return self._url(path)
 
     async def capture_snapshot(self, serial: str) -> None:
-        """Wake a supported camera and wait for a newly decoded frame."""
+        """Ask the gateway to wake a supported camera and retain a new JPEG."""
         await self._json(f"/api/cameras/{serial}/capture-snapshot", method="POST")
 
     async def record_clip(self, serial: str, duration: int) -> bytes:
-        """Wake a supported camera and return a bounded MP4 recording."""
+        """Request a bounded MP4 and reject a response that is not an MP4 file."""
         try:
             async with self._session.post(
                 self._url(f"/api/cameras/{serial}/record.mp4"),
@@ -78,7 +86,7 @@ class GatewayClient:
             raise GatewayClientError(str(error)) from error
 
     async def events(self) -> AsyncIterator[dict[str, Any]]:
-        """Yield normalized gateway events from its server-sent event stream."""
+        """Yield normalized SSE events until the connection closes or fails."""
         try:
             async with self._session.get(
                 self._url("/api/events"), headers=self._headers, timeout=None

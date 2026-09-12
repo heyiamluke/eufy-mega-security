@@ -1,3 +1,9 @@
+/**
+ * Protects the native Mega session store's persistence contract.
+ *
+ * The cases cover restrictive permissions, atomic replacement, malformed data,
+ * and one-time migration from the older local session shape.
+ */
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

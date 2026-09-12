@@ -1,4 +1,13 @@
-/** Small authenticated HTTP/SSE API used by the Home Assistant integration. */
+/**
+ * Implements the gateway's external HTTP contract.
+ *
+ * Home Assistant and diagnostic tools use this boundary for health, normalized
+ * camera state, retained JPEGs, short-lived stream URLs, MP4 capture, SSE,
+ * and safe diagnostics. The local authentication page is only a presentation
+ * surface for an Eufy challenge already represented by the provider. This
+ * module owns request authentication, response framing, and route selection;
+ * it does not parse Mega payloads or open camera sockets.
+ */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
@@ -10,9 +19,18 @@ import type { CaptchaProvider } from "./provider/provider.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
 import { LiveStreamManager } from "./stream/live-stream-manager.js";
 
+/**
+ * Serves the gateway's public HTTP contract and optional local auth page.
+ *
+ * When an API token is configured, every `/api` request requires it except a
+ * short-lived signed stream URL. `/health` remains readable so supervisors can
+ * tell the difference between a process that is alive and one that is
+ * connected to Eufy.
+ */
 export class GatewayServer {
   #server: Server | null = null;
 
+  /** Assemble the server from shared state, storage, stream, and provider objects. */
   constructor(
     private readonly config: GatewayConfig,
     private readonly state: GatewayState,
@@ -22,6 +40,7 @@ export class GatewayServer {
     private readonly captchaProvider: CaptchaProvider | null = null,
   ) {}
 
+  /** Bind the configured host and port and begin accepting requests. */
   async listen(): Promise<void> {
     const server = createServer((request, response) => void this.#route(request, response));
     this.#server = server;
@@ -31,6 +50,7 @@ export class GatewayServer {
     });
   }
 
+  /** Stop accepting requests and wait for the HTTP server to close. */
   async close(): Promise<void> {
     if (!this.#server) return;
     await new Promise<void>((resolve, reject) => this.#server?.close((error) => error ? reject(error) : resolve()));
@@ -143,7 +163,7 @@ export class GatewayServer {
         ? `<p>Eufy sent a six-digit verification code to your account email.</p><form method="post" action=""><label for="code">Verification code</label><input id="code" name="code" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"><button type="submit">Verify and connect</button></form>`
       : connection.state === "connected"
         ? `<p><strong>Connected to Eufy.</strong></p><p>The gateway is ready. Return to Home Assistant to review your cameras and entities.</p><a class="button" href="/config/integrations/integration/eufy_event_gateway" target="_top">View Eufy integration</a>`
-        : `<p>No authentication challenge is waiting.</p><p>Current connection: <strong>${escapeHtml(connection.state)}</strong>${connection.detail ? ` — ${escapeHtml(connection.detail)}` : ""}.</p>`;
+        : `<p>No authentication challenge is waiting.</p><p>Current connection: <strong>${escapeHtml(connection.state)}</strong>${connection.detail ? `; ${escapeHtml(connection.detail)}` : ""}.</p>`;
     return html(response, 200, `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Eufy Mega Security</title><style>body{font:16px system-ui,sans-serif;max-width:34rem;margin:4rem auto;padding:0 1.25rem;color:#202124}main{border:1px solid #ddd;border-radius:12px;padding:1.5rem}img{display:block;max-width:100%;margin:1rem 0;border:1px solid #ddd}label,input,button{display:block;width:100%;box-sizing:border-box}input,button,.button{font:inherit;padding:.75rem;margin:.4rem 0 1rem}.button{display:inline-block;width:auto;border-radius:999px;background:#03a9f4;color:#fff;text-decoration:none}button{cursor:pointer}</style><main><h1>Eufy Mega Security</h1>${message ? `<p role="status">${escapeHtml(message)}</p>` : ""}${content}</main></html>`);
   }
 
@@ -294,11 +314,13 @@ async function readBody(request: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/** Convert a Mega CAPTCHA payload into an image URI safe for the auth page. */
 export function captchaDataUri(image: string): string {
   if (image.startsWith("data:image/")) return escapeHtml(image);
   return `data:image/jpeg;base64,${escapeHtml(image)}`;
 }
 
+/** Build the human-readable result shown after a CAPTCHA submission. */
 export function captchaResultMessage(hasNextChallenge: boolean): string {
   return hasNextChallenge
     ? "Eufy did not accept that answer. Try the new challenge below."
@@ -328,16 +350,19 @@ function safeError(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected gateway error";
 }
 
+/** Validate a bearer header without leaking token material in an error path. */
 export function isBearerAuthorized(header: string | undefined, expectedToken: string): boolean {
   if (!header?.startsWith("Bearer ")) return false;
   return equalSecret(header.slice(7), expectedToken);
 }
 
+/** Create a signed, camera-scoped token for the unauthenticated media URL. */
 export function createStreamToken(serial: string, expiresAt: number, apiToken: string): string {
   const signature = createHmac("sha256", apiToken).update(`${serial}.${expiresAt}`).digest("base64url");
   return `${expiresAt}.${signature}`;
 }
 
+/** Check a stream token's camera, expiry, and HMAC signature. */
 export function validateStreamToken(
   serial: string,
   token: string | null,

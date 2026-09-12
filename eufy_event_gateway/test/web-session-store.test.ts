@@ -1,3 +1,9 @@
+/**
+ * Protects persistence and validation of the isolated Web session schema.
+ *
+ * The tests cover private file permissions, valid restoration, and malformed
+ * or incomplete data without touching the native Mega session store.
+ */
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -1,3 +1,9 @@
+/**
+ * Protects JPEG marker reconstruction at the FFmpeg boundary.
+ *
+ * The tests split start/end markers across arbitrary chunks and include noise
+ * and multiple images, matching the stream manager's real stdout behaviour.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

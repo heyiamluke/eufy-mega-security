@@ -1,3 +1,10 @@
+/**
+ * Tests the older Thing/P2P signalling helpers in isolation.
+ *
+ * Fixtures cover protocol 302 framing, RTC configuration parsing, transaction
+ * IDs, and SDP construction. The production provider does not select these
+ * helpers.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 
