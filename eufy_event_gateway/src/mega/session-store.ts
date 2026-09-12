@@ -49,7 +49,9 @@ function parseLegacySession(value: unknown): MegaSession | null {
     authToken: legacy.cloud_token,
     tokenExpiresAt: legacy.cloud_token_expiration,
     userId: legacy.user_id,
-    megaDomain: legacy.megaDomain,
+    megaDomain: typeof legacy.megaDomain === "string" && legacy.megaDomain.length > 0
+      ? legacy.megaDomain
+      : `mega-${Object.keys(isRecord(legacy.identities) ? legacy.identities : {}).some((host) => host.includes("-us-")) ? "us" : "eu"}-pr.eufy.com`,
     domains: legacy.domains,
     identities: legacy.identities,
   });

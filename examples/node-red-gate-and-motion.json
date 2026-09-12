@@ -2,7 +2,7 @@
   {
     "id": "eufy-gateway-examples",
     "type": "tab",
-    "label": "Eufy Event Gateway examples",
+    "label": "Eufy Mega Security examples",
     "disabled": false,
     "info": "Replace the example entity IDs and filenames before deploying."
   },

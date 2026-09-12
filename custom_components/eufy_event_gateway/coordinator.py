@@ -1,4 +1,4 @@
-"""Push-first state coordinator for the Eufy Event Gateway."""
+"""Push-first state coordinator for Eufy Mega Security."""
 
 from __future__ import annotations
 

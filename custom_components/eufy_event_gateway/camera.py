@@ -1,4 +1,4 @@
-"""Camera entities for the Eufy Event Gateway."""
+"""Camera entities for Eufy Mega Security."""
 
 from __future__ import annotations
 

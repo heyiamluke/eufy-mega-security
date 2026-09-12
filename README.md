@@ -1,10 +1,10 @@
-# Eufy Event Gateway for Home Assistant
+# Eufy Mega Security for Home Assistant
 
-[![My Home Assistant](https://img.shields.io/badge/Home%20Assistant-%2341BDF5.svg?style=flat&logo=home-assistant&label=My)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mscodemonkey&repository=eufy-event-gateway&category=integration)
-[![MIT licence](https://img.shields.io/badge/licence-MIT-blue.svg)](https://github.com/mscodemonkey/eufy-event-gateway/blob/main/LICENSE)
+[![My Home Assistant](https://img.shields.io/badge/Home%20Assistant-%2341BDF5.svg?style=flat&logo=home-assistant&label=My)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mscodemonkey&repository=eufy-mega-security&category=integration)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-blue.svg)](https://github.com/mscodemonkey/eufy-mega-security/blob/main/LICENSE)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mscodemonkey/eufy-event-gateway/main/custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Event Gateway icon">
+  <img src="https://raw.githubusercontent.com/mscodemonkey/eufy-mega-security/main/custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Mega Security icon">
 </p>
 
 Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.
@@ -28,7 +28,7 @@ The integration also defines two Home Assistant actions for on-demand streaming:
 - `eufy_event_gateway.capture_snapshot` requests a fresh frame from a camera with a supported live transport;
 - `eufy_event_gateway.record_clip` records from a camera with a supported live transport.
 
-Live viewing uses Eufy's native Thing MQTT/P2P signalling and relay media path. The gateway implements that path directly; it does not use `eufy-security-client` or its obsolete APIs.
+Live viewing uses the gateway-owned Eufy Mega/PPCS transport. The gateway does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. The transport has produced real stream and snapshot bytes from both a wired T8210 and battery T817L, and v0.1.13 exposes it through the Home Assistant camera entities.
 
 The actions work in Home Assistant automations and through Node-RED's Home Assistant Action node. An importable example is included in [`examples/node-red-gate-and-motion.json`](examples/node-red-gate-and-motion.json).
 
@@ -36,8 +36,8 @@ The actions work in Home Assistant automations and through Node-RED's Home Assis
 
 This repository contains two parts, and Home Assistant needs both:
 
-1. **Eufy Event Gateway app** — signs in through Eufy's current Mega service, receives push/HomeBase events, and retains snapshots.
-2. **Eufy Event Gateway integration** — turns the gateway data into normal Home Assistant camera, binary-sensor, and sensor entities.
+1. **Eufy Mega Security app** — signs in through Eufy's current Mega service, receives push/HomeBase events, and retains snapshots.
+2. **Eufy Mega Security integration** — turns the gateway data into normal Home Assistant camera, binary-sensor, and sensor entities.
 
 On Home Assistant OS or Supervised, the app generates its own private API token and passes it directly to the integration through Supervisor discovery. The gateway port is closed to the LAN by default.
 
@@ -50,7 +50,7 @@ You will need:
 - Home Assistant OS or Home Assistant Supervised for the app installation below;
 - HACS, or File Editor/SSH for the manual integration method;
 - the guest account username, password, and two-letter account country code;
-- the Eufy account credentials; live viewing does not require the Web Portal Access PIN.
+- the Eufy account credentials; the gateway does not use the expiring Web Portal Access PIN.
 
 ## Install the integration with HACS
 
@@ -58,9 +58,9 @@ The project does not need to be accepted into HACS's default catalogue. Add it a
 
 1. Open **HACS** in Home Assistant.
 2. Open the three-dot menu and choose **Custom repositories**.
-3. Enter `https://github.com/mscodemonkey/eufy-event-gateway`.
+3. Enter `https://github.com/mscodemonkey/eufy-mega-security`.
 4. Select **Integration** as the category and add it.
-5. Find **Eufy Event Gateway**, choose **Download**, and restart Home Assistant.
+5. Find **Eufy Mega Security**, choose **Download**, and restart Home Assistant.
 
 If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/config/custom_components/eufy_event_gateway` and restart Home Assistant.
 
@@ -68,26 +68,26 @@ If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/confi
 
 1. Open **Settings > Apps > App Store**.
 2. Open the repository manager from the top-right menu.
-3. Add `https://github.com/mscodemonkey/eufy-event-gateway`.
-4. Find **Eufy Event Gateway** under the new repository and select **Install**.
+3. Add `https://github.com/mscodemonkey/eufy-mega-security`.
+4. Find **Eufy Mega Security** under the new repository and select **Install**.
 5. On its **Configuration** tab, enter the dedicated Eufy guest username, password, and country code.
 6. Start the app and enable **Start on boot** and **Watchdog**.
 
 If the log says Eufy requested email verification, enter the temporary code in **Verification code**, restart the app once, and remove the code after it connects. Never post credentials, verification codes, or app logs containing private account details in a GitHub issue.
 
-Mega events and web live viewing use separate Eufy sessions. If Eufy requests a CAPTCHA or sends a six-digit email code for either session, open the app's **Web UI** and complete the prompt there. The gateway stores the resulting sessions so routine app upgrades and restarts do not repeat authentication. Challenge answers and email codes are kept in memory only and are not written to the app configuration or logs.
+Mega events and the native camera transport use the gateway's Mega session. If Eufy requests a CAPTCHA or sends a six-digit email code, open the app's **Web UI** and complete the prompt there. The gateway stores the resulting Mega session so routine app upgrades and restarts do not repeat authentication. Challenge answers and email codes are kept in memory only and are not written to the app configuration or logs.
 
 ## Connect it to Home Assistant
 
 After the app connects:
 
 1. Open **Settings > Devices & services**.
-2. A discovered **Eufy Event Gateway** card should appear.
+2. A discovered **Eufy Mega Security** card should appear.
 3. Select **Configure** and submit the confirmation.
 
 The app address and generated API token are transferred privately. You do not need to copy either value.
 
-If discovery does not appear, first confirm the app log reports a healthy gateway. Then choose **Add integration**, search for **Eufy Event Gateway**, and use the manual gateway details only if you deliberately exposed a standalone gateway.
+If discovery does not appear, first confirm the app log reports a healthy gateway. Then choose **Add integration**, search for **Eufy Mega Security**, and use the manual gateway details only if you deliberately exposed a standalone gateway.
 
 ## Automations and Node-RED
 
@@ -115,11 +115,15 @@ Recordings are assembled by the gateway with a hard stream-start timeout and dur
 
 - Motion and person notifications update their Home Assistant sensors without waking a stream.
 - The last valid event image remains visible while the camera sleeps.
-- Opening a camera starts its live WebRTC session on demand and stops it after the configured limit.
+- Opening a camera starts its native PPCS session on demand and stops it after the configured limit, once that camera has passed the gateway proof.
 - A familiar-person name appears only when HomeBase supplies an explicit identity. Generic detections such as `Someone` remain unknown.
 - Powered cameras with their own RTSP feed can continue using that feed for video while this integration supplies Eufy/HomeBase detection entities.
 
 ## Standalone gateway
+
+### Gateway-only stream proof
+
+Before enabling Home Assistant live entities, run `npm run poc:ppcs` from `eufy_event_gateway` with the gateway's existing data directory and credentials available as environment variables. The probe prints one safe JSON result per discovered camera and writes raw `.h264` plus first-frame `.jpg` files to `EUFY_PPCS_OUTPUT_DIR` (default `./poc-output`). A camera only counts as working when both byte counts are non-zero.
 
 Home Assistant Container/Core users can run the gateway separately with Node.js 24 and FFmpeg. From `eufy_event_gateway`:
 
@@ -151,7 +155,7 @@ Validated inventory currently includes HomeBase 3, three EufyCam 2C cameras, a v
 - Eufy's cloud, push, and HomeBase protocols are undocumented and can change without notice.
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
 - Live video uses Eufy's native camera transport. Eufy may require account verification the first time that session is created.
-- The app handles authentication challenges in its Web UI, then reuses valid Mega and web sessions across upgrades and restarts.
+- The app handles authentication challenges in its Web UI, then reuses the valid Mega session across upgrades and restarts.
 - The app currently publishes source builds for `amd64` and `aarch64`; installation may take several minutes.
 
 ## Privacy and security
@@ -169,7 +173,7 @@ cd eufy_event_gateway
 npm ci
 npm run check
 npm run build
-docker build -t eufy-event-gateway:test .
+docker build -t eufy-mega-security:test .
 ```
 
 ## Licence

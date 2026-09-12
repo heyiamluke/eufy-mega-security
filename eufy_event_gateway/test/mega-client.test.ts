@@ -15,7 +15,7 @@ test("uses the supported Mega inventory request and decrypts its response", asyn
     await writeFile(join(directory, "mega-session.json"), JSON.stringify({
       version: 1, country: "au", openUdid: "device", loginHash: loginHash("device", "user@example.invalid", "password"),
       authToken: "token", tokenExpiresAt: 2_000_000_000, userId: "user", megaDomain: "mega-eu-pr.eufy.com",
-      domains: {}, identities: { [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" } },
+      domains: {}, identities: { [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" }, "app-devicerelation-eu-pr.eufy.com": { keyIdent: "identity", sharedKey, clientPublicKey: "public" } },
     }));
     const requests: Array<{ url: string; body: string; headers: Headers }> = [];
     const fakeFetch: typeof fetch = async (input, init) => {
@@ -48,7 +48,7 @@ test("fetches native MQTT credentials through the encrypted Mega API", async () 
     await writeFile(join(directory, "mega-session.json"), JSON.stringify({
       version: 1, country: "au", openUdid: "device", loginHash: loginHash("device", "user@example.invalid", "password"),
       authToken: "token", tokenExpiresAt: 2_000_000_000, userId: "user", megaDomain: "mega-eu-pr.eufy.com",
-      domains: {}, identities: { [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" } },
+      domains: {}, identities: { [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" }, "app-security-eu-pr.eufy.com": { keyIdent: "identity", sharedKey, clientPublicKey: "public" } },
     }));
     const requests: string[] = [];
     const fakeFetch: typeof fetch = async (input, _init) => {
@@ -69,6 +69,61 @@ test("fetches native MQTT credentials through the encrypted Mega API", async () 
       certificatePem: "cert", privateKey: "key", rootCaPem: "root",
     });
     assert.equal(requests.at(-1), "https://app-openapi-eu-pr.eufy.com/app/devicemanage/get_user_mqtt_info");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("fetches first-party PPCS DSK keys from the Mega device-relation API", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-dsk-"));
+  const sharedKey = "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100";
+  const host = "app-openapi-eu-pr.eufy.com";
+  try {
+    await writeFile(join(directory, "mega-session.json"), JSON.stringify({
+      version: 1, country: "au", openUdid: "device", loginHash: loginHash("device", "user@example.invalid", "password"),
+      authToken: "token", tokenExpiresAt: 2_000_000_000, userId: "user", megaDomain: "mega-eu-pr.eufy.com",
+      domains: {}, identities: { [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" }, "app-devicerelation-eu-pr.eufy.com": { keyIdent: "identity", sharedKey, clientPublicKey: "public" } },
+    }));
+    const requests: string[] = [];
+    const fakeFetch: typeof fetch = async (input, _init) => {
+      requests.push(String(input));
+      const data = encryptEnvelope(JSON.stringify({ device_dsks: [{ device_sn: "station", dsk_key: "dsk", expiration: 1_700_000_123 }] }), sharedAesKey(sharedKey), Buffer.alloc(16, 3));
+      return new Response(JSON.stringify({ code: 0, data }), { status: 200 });
+    };
+    const client = new MegaClient({ email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory, minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000, fetch: fakeFetch });
+    await client.connect();
+    assert.deepEqual(await client.dskKeys(["station"]), { station: { key: "dsk", expiresAt: 1_700_000_123_000 } });
+    assert.equal(requests.at(-1), "https://app-devicerelation-eu-pr.eufy.com/app/devicerelation/get_dsk_keys");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("fetches PPCS cipher keys through the regional eufy security API", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-ciphers-"));
+  const sharedKey = "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100";
+  const host = "app-openapi-eu-pr.eufy.com";
+  const securityHost = "security-app-eu.eufylife.com";
+  try {
+    await writeFile(join(directory, "mega-session.json"), JSON.stringify({
+      version: 1, country: "au", openUdid: "device", loginHash: loginHash("device", "user@example.invalid", "password"),
+      authToken: "token", tokenExpiresAt: 2_000_000_000, userId: "user", megaDomain: "mega-eu-pr.eufy.com",
+      domains: { eufy_security: "security-app.eufylife.com" }, identities: {
+        [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" },
+        [securityHost]: { keyIdent: "security-identity", sharedKey, clientPublicKey: "public" },
+      },
+    }));
+    const requests: Array<{ url: string; headers: Headers }> = [];
+    const fakeFetch: typeof fetch = async (input, init) => {
+      requests.push({ url: String(input), headers: new Headers(init?.headers) });
+      const data = encryptEnvelope(JSON.stringify([{ cipher_id: 197, ecc_private_key: "ecc", private_key: "private" }]), sharedAesKey(sharedKey), Buffer.alloc(16, 4));
+      return new Response(JSON.stringify({ code: 0, data }), { status: 200 });
+    };
+    const client = new MegaClient({ email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory, minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000, fetch: fakeFetch });
+    await client.connect();
+    assert.deepEqual(await client.getCiphers([197], "user", "station"), [{ cipher_id: 197, ecc_private_key: "ecc", private_key: "private" }]);
+    assert.equal(requests.at(-1)?.url, "https://security-app-eu.eufylife.com/v3/app/cipher/get_ciphers");
+    assert.equal(requests.at(-1)?.headers.get("content-type"), "application/json");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

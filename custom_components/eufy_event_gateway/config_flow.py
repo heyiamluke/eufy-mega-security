@@ -1,4 +1,4 @@
-"""UI configuration for the Eufy Event Gateway."""
+"""UI configuration for Eufy Mega Security."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ class EufyGatewayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(url.lower())
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title="Eufy Event Gateway", data={**user_input, CONF_URL: url})
+                return self.async_create_entry(title="Eufy Mega Security", data={**user_input, CONF_URL: url})
 
         return self.async_show_form(
             step_id="user",
@@ -109,7 +109,7 @@ class EufyGatewayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Confirm a newly discovered local app."""
         if user_input is not None:
             assert self._discovered_data is not None
-            return self.async_create_entry(title="Eufy Event Gateway", data=self._discovered_data)
+            return self.async_create_entry(title="Eufy Mega Security", data=self._discovered_data)
         return self.async_show_form(step_id="hassio_confirm")
 
 

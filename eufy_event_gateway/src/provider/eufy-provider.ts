@@ -2,19 +2,16 @@ import { join } from "node:path";
 
 import type { InventoryDiagnostic } from "../domain/types.js";
 import { MegaClient } from "../mega/client.js";
-import { ThingGatewayClient, type ThingAccountSession, type ThingDevice } from "../mega/thing-gateway.js";
 import { WebClient } from "../mega/web-client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
-import { WebRtcStream } from "../stream/web-rtc-stream.js";
-import { NativeStreamSession } from "../stream/native-stream-session.js";
+import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
 
 export interface EufyProviderConfig {
   readonly username: string;
   readonly password: string;
   readonly country: string;
-  readonly webPortalPin: string | null;
   readonly persistentDirectory: string;
   readonly verifyCode?: string;
   readonly maxStreamSeconds: number;
@@ -29,18 +26,18 @@ export interface MegaInventoryDevice {
   readonly category: string | null;
   readonly channel: number | null;
   readonly p2pDid: string | null;
+  readonly p2pConnection: string | null;
+  readonly cipherId: number | null;
   readonly adminUserId: string | null;
 }
 
 export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #client: MegaClient;
-  readonly #thingGateway: ThingGatewayClient;
   readonly #webClient: WebClient;
   readonly #devices = new Map<string, MegaInventoryDevice>();
-  readonly #streams = new Map<string, WebRtcStream>();
-  readonly #nativeStreams = new Map<string, NativeStreamSession>();
-  #thingAccount: ThingAccountSession | null = null;
-  #thingDevices = new Map<string, ThingDevice>();
+  readonly #ppcsStreams = new Map<string, FirstPartyPpcsSession>();
+  readonly #dskKeys = new Map<string, { readonly key: string; readonly expiresAt: number | null }>();
+  readonly #cipherKeys = new Map<number, string>();
   readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
   #push: MegaPushReceiver | null = null;
   #events: ProviderEvents | null = null;
@@ -55,7 +52,6 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       country: config.country,
       persistentDirectory: config.persistentDirectory,
     });
-    this.#thingGateway = new ThingGatewayClient({ region: config.country.toLowerCase() === "au" ? "we" : config.country.toLowerCase() });
     this.#webClient = new WebClient({
       email: config.username,
       password: config.password,
@@ -82,54 +78,52 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   async startStream(serial: string): Promise<void> {
     const device = this.#devices.get(serial);
     if (!device || !isSupportedMegaCamera(device)) throw new Error(`Unknown Eufy camera: ${serial}`);
-    const nativeDevice = this.#thingDevices.get(serial);
-    if (nativeDevice && this.#thingAccount) {
-      this.#nativeStreams.get(serial)?.close();
-      const stream = new NativeStreamSession({ gateway: this.#thingGateway, account: this.#thingAccount, deviceId: nativeDevice.deviceId, localKey: nativeDevice.localKey, maxSeconds: this.config.maxStreamSeconds });
-      this.#nativeStreams.set(serial, stream);
+    const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
+    const dsk = station ? this.#dskKeys.get(station.serial) : null;
+    if (station?.p2pDid && station.p2pConnection && dsk && device.channel !== null) {
+      this.#ppcsStreams.get(serial)?.close();
+      const stream = new FirstPartyPpcsSession({
+        stationSerial: station.serial, p2pDid: station.p2pDid, appConnection: station.p2pConnection,
+        dskKey: dsk.key, channel: device.channel, cameraModel: device.model, accountId: device.adminUserId,
+        homeBaseAttached: Boolean(device.parentSerial),
+        resolveCipherKey: async (cipherId) => {
+          const cached = this.#cipherKeys.get(cipherId);
+          if (cached) return cached;
+          if (!station.adminUserId) return undefined;
+          try {
+            const ciphers = await this.#client.getCiphers([cipherId], station.adminUserId, station.serial);
+            for (const cipher of ciphers) {
+              const id = typeof cipher.cipher_id === "number" ? cipher.cipher_id : Number(cipher.cipher_id);
+              const key = typeof cipher.ecc_private_key === "string" ? cipher.ecc_private_key : "";
+              if (Number.isInteger(id) && key) this.#cipherKeys.set(id, key);
+            }
+          } catch (error) {
+            console.warn(`Mega cipher lookup unavailable: ${safeError(error)}`);
+          }
+          return this.#cipherKeys.get(cipherId);
+        },
+        maxSeconds: this.config.maxStreamSeconds,
+      });
+      this.#ppcsStreams.set(serial, stream);
       await stream.start();
       this.#events?.streamStarted(serial, stream.output);
-      stream.output.once("close", () => { if (this.#nativeStreams.get(serial) !== stream) return; this.#nativeStreams.delete(serial); this.#events?.streamStopped(serial); });
+      stream.output.once("close", () => { if (this.#ppcsStreams.get(serial) !== stream) return; this.#ppcsStreams.delete(serial); this.#events?.streamStopped(serial); });
       return;
     }
-    if (!this.config.webPortalPin || !this.#webClient.isAuthenticated) {
-      throw new Error("Eufy Web Portal authentication and its access PIN are required for live viewing");
-    }
-    if (device.channel === null || !device.parentSerial || !device.adminUserId) {
-      throw new Error("Eufy did not provide the live-view identity for this camera");
-    }
-    this.#streams.get(serial)?.close();
-    const stream = new WebRtcStream(this.#webClient, this.config.webPortalPin, {
-      serial: device.serial,
-      stationSerial: device.parentSerial,
-      channel: device.channel,
-      adminUserId: device.adminUserId,
-    }, this.config.maxStreamSeconds);
-    this.#streams.set(serial, stream);
-    await stream.start();
-    this.#events?.streamStarted(serial, stream.output);
-    stream.output.once("close", () => {
-      if (this.#streams.get(serial) !== stream) return;
-      this.#streams.delete(serial);
-      this.#events?.streamStopped(serial);
-    });
+    throw new Error("First-party PPCS camera transport is unavailable for this camera");
   }
 
   async stopStream(serial: string): Promise<void> {
-    this.#nativeStreams.get(serial)?.close();
-    this.#nativeStreams.delete(serial);
-    this.#streams.get(serial)?.close();
-    this.#streams.delete(serial);
+    this.#ppcsStreams.get(serial)?.close();
+    this.#ppcsStreams.delete(serial);
     this.#events?.streamStopped(serial);
   }
 
   async close(): Promise<void> {
     this.#push?.close();
     this.#push = null;
-    for (const stream of this.#streams.values()) stream.close();
-    this.#streams.clear();
-    for (const stream of this.#nativeStreams.values()) stream.close();
-    this.#nativeStreams.clear();
+    for (const stream of this.#ppcsStreams.values()) stream.close();
+    this.#ppcsStreams.clear();
     this.#events = null;
   }
 
@@ -191,30 +185,29 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     this.#devices.clear();
     for (const device of devices) {
       this.#devices.set(device.serial, device);
+    }
+    this.#dskKeys.clear();
+    this.#cipherKeys.clear();
+    const stationSerials = [...new Set(devices.filter((device) => !device.parentSerial && device.p2pDid).map((device) => device.serial))];
+    if (stationSerials.length > 0) {
+      try {
+        for (const [serial, key] of Object.entries(await this.#client.dskKeys(stationSerials))) this.#dskKeys.set(serial, key);
+      } catch (error) {
+        console.warn(`Mega DSK lookup unavailable: ${safeError(error)}`);
+      }
+    }
+    for (const device of devices) {
       if (!isSupportedMegaCamera(device)) continue;
+      const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
       events.camera({
         serial: device.serial,
         name: device.name,
         model: device.model,
         stationSerial: device.parentSerial,
-        streamSupported: Boolean(
-          this.config.webPortalPin && this.#webClient.isAuthenticated &&
-          device.channel !== null && device.parentSerial && device.adminUserId,
-        ),
+        streamSupported: Boolean(station?.p2pDid && station.p2pConnection && device.channel !== null && station && this.#dskKeys.has(station.serial)),
       });
     }
     events.inventory(inventoryDiagnostics(devices));
-
-    this.#thingAccount = null;
-    this.#thingDevices.clear();
-    try {
-      this.#thingAccount = await this.#thingGateway.login(this.config.username, this.config.password, this.config.country);
-      for (const device of await this.#thingGateway.listDevices(this.#thingAccount)) this.#thingDevices.set(device.deviceId, device);
-      const nativeCameraCount = devices.filter((device) => isSupportedMegaCamera(device) && this.#thingDevices.has(device.serial)).length;
-      if (nativeCameraCount > 0) events.connection("connected", `Native camera transport ready (${nativeCameraCount} cameras)`);
-    } catch (error) {
-      console.warn(`Native Thing camera transport unavailable: ${safeError(error)}`);
-    }
 
     this.#push?.close();
     this.#push = new MegaPushReceiver(
@@ -223,41 +216,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       (event) => this.#handlePush(events, event),
     );
     await this.#push.start();
-    if (devices.some((device) => isSupportedMegaCamera(device) && this.#thingDevices.has(device.serial))) {
-      for (const device of devices) {
-        if (!isSupportedMegaCamera(device)) continue;
-        events.camera({ serial: device.serial, name: device.name, model: device.model, stationSerial: device.parentSerial, streamSupported: this.#thingDevices.has(device.serial) });
-      }
-      events.connection("connected", null);
-      return;
-    }
-    if (!this.config.webPortalPin) {
-      events.connection("connected", "Live viewing is disabled until a Web Portal Access PIN is configured");
-      return;
-    }
-    const webAuth = await this.#webClient.connect();
-    if (webAuth.state === "captcha-required") {
-      this.#captchaChallenge = webAuth.captcha ?? null;
-      this.#captchaTarget = "web";
-      events.connection("authentication-required", "Open the add-on web interface to complete Eufy's live-view CAPTCHA");
-      return;
-    }
-    if (webAuth.state === "verification-required") {
-      this.#verificationRequired = true;
-      events.connection("authentication-required", "Eufy sent a six-digit verification code; enter it in the add-on web interface");
-      return;
-    }
-    for (const device of devices) {
-      if (!isSupportedMegaCamera(device)) continue;
-      events.camera({
-        serial: device.serial,
-        name: device.name,
-        model: device.model,
-        stationSerial: device.parentSerial,
-        streamSupported: device.channel !== null && Boolean(device.parentSerial && device.adminUserId),
-      });
-    }
-    events.connection("connected", null);
+    events.connection("connected", "Gateway events and snapshots are ready; live viewing requires a validated PPCS camera path");
   }
 
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
@@ -298,6 +257,11 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   }
 }
 
+export function thingRegion(country: string): string {
+  const normalized = country.trim().toLowerCase();
+  return normalized === "au" ? "sg" : normalized;
+}
+
 export async function downloadPushSnapshot(
   client: Pick<MegaClient, "download">,
   event: Pick<MegaPushEvent, "pictureUrl" | "stationSerial">,
@@ -332,6 +296,8 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
       category: safeValue(value.category, 100),
       channel: integer(value.device_channel) ?? integer(value.channel),
       p2pDid: safeValue(value.p2p_did, 128),
+      p2pConnection: safeValue(value.p2p_conn, 512) ?? safeValue(value.app_conn, 512),
+      cipherId: integer(value.cipher_id),
       adminUserId: isRecord(value.member) ? safeValue(value.member.admin_user_id, 128) : null,
     });
   }

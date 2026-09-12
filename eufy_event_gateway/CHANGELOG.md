@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.13
+
+- Rename the project, Home Assistant integration, and HACS repository to Eufy Mega Security.
+
+## 0.1.12
+
+- Add a gateway-owned first-party PPCS camera transport with level-2 key negotiation.
+- Prove live H.264 and fresh JPEG snapshots for wired and battery camera classes before Home Assistant integration.
+- Remove the obsolete Web Portal PIN and Thing-login stream configuration.
+
 ## 0.1.11
 
 - Use the gateway's first-party Mega authentication, inventory, push, and event-image implementations.

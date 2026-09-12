@@ -1,4 +1,4 @@
-"""Constants for the Eufy Event Gateway integration."""
+"""Constants for the Eufy Mega Security integration."""
 
 from homeassistant.const import Platform
 
