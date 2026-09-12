@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.12
+
+- Add the gateway-owned first-party PPCS transport for live H.264 streams and fresh camera snapshots.
+- Discover and use Eufy's DSK and ECC cipher APIs without the Web Portal PIN, SmartLife/Thing login, or `eufy-security-client`.
+- Validate the transport against wired T8210 and battery T817L cameras before exposing the Home Assistant live entities.
+
 ## 0.1.11
 
 - Replace the obsolete Eufy login and device client with the gateway's own Mega API implementation.

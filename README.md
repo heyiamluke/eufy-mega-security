@@ -28,7 +28,7 @@ The integration also defines two Home Assistant actions for on-demand streaming:
 - `eufy_event_gateway.capture_snapshot` requests a fresh frame from a camera with a supported live transport;
 - `eufy_event_gateway.record_clip` records from a camera with a supported live transport.
 
-Live viewing uses Eufy's native Thing MQTT/P2P signalling and relay media path. The gateway implements that path directly; it does not use `eufy-security-client` or its obsolete APIs.
+Live viewing is proven at the gateway boundary through the gateway-owned Eufy PPCS transport. The proof-of-concept does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. The current test account has produced real stream and snapshot bytes from both a wired T8210 and battery T817L; Home Assistant live integration remains a separate validation step.
 
 The actions work in Home Assistant automations and through Node-RED's Home Assistant Action node. An importable example is included in [`examples/node-red-gate-and-motion.json`](examples/node-red-gate-and-motion.json).
 
@@ -50,7 +50,7 @@ You will need:
 - Home Assistant OS or Home Assistant Supervised for the app installation below;
 - HACS, or File Editor/SSH for the manual integration method;
 - the guest account username, password, and two-letter account country code;
-- the Eufy account credentials; live viewing does not require the Web Portal Access PIN.
+- the Eufy account credentials; the gateway does not use the expiring Web Portal Access PIN.
 
 ## Install the integration with HACS
 
@@ -75,7 +75,7 @@ If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/confi
 
 If the log says Eufy requested email verification, enter the temporary code in **Verification code**, restart the app once, and remove the code after it connects. Never post credentials, verification codes, or app logs containing private account details in a GitHub issue.
 
-Mega events and web live viewing use separate Eufy sessions. If Eufy requests a CAPTCHA or sends a six-digit email code for either session, open the app's **Web UI** and complete the prompt there. The gateway stores the resulting sessions so routine app upgrades and restarts do not repeat authentication. Challenge answers and email codes are kept in memory only and are not written to the app configuration or logs.
+Mega events and the native camera transport use the gateway's Mega session. If Eufy requests a CAPTCHA or sends a six-digit email code, open the app's **Web UI** and complete the prompt there. The gateway stores the resulting Mega session so routine app upgrades and restarts do not repeat authentication. Challenge answers and email codes are kept in memory only and are not written to the app configuration or logs.
 
 ## Connect it to Home Assistant
 
@@ -115,11 +115,15 @@ Recordings are assembled by the gateway with a hard stream-start timeout and dur
 
 - Motion and person notifications update their Home Assistant sensors without waking a stream.
 - The last valid event image remains visible while the camera sleeps.
-- Opening a camera starts its live WebRTC session on demand and stops it after the configured limit.
+- Opening a camera starts its native PPCS session on demand and stops it after the configured limit, once that camera has passed the gateway proof.
 - A familiar-person name appears only when HomeBase supplies an explicit identity. Generic detections such as `Someone` remain unknown.
 - Powered cameras with their own RTSP feed can continue using that feed for video while this integration supplies Eufy/HomeBase detection entities.
 
 ## Standalone gateway
+
+### Gateway-only stream proof
+
+Before enabling Home Assistant live entities, run `npm run poc:ppcs` from `eufy_event_gateway` with the gateway's existing data directory and credentials available as environment variables. The probe prints one safe JSON result per discovered camera and writes raw `.h264` plus first-frame `.jpg` files to `EUFY_PPCS_OUTPUT_DIR` (default `./poc-output`). A camera only counts as working when both byte counts are non-zero.
 
 Home Assistant Container/Core users can run the gateway separately with Node.js 24 and FFmpeg. From `eufy_event_gateway`:
 

@@ -40,3 +40,17 @@ test("ignores malformed session data", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("derives the Mega cluster when a legacy session omitted megaDomain", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-session-domain-"));
+  try {
+    await writeFile(join(directory, "persistent.json"), JSON.stringify({ megaApi: {
+      ab: "au", openudid: "device", login_hash: "hash", cloud_token: "token", cloud_token_expiration: 2_000_000_000,
+      user_id: "user", domains: {}, identities: { "app-openapi-us-pr.eufy.com": { keyIdent: "id", sharedKey: "key", clientPublicKey: "public" } },
+    } }));
+    const session = await new MegaSessionStore(join(directory, "mega-session.json"), join(directory, "persistent.json")).load();
+    assert.equal(session?.megaDomain, "mega-us-pr.eufy.com");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

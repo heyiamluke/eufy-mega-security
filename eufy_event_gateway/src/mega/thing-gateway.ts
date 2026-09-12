@@ -87,7 +87,15 @@ export class ThingGatewayClient {
     const params: Record<string, string> = { a: api, v: version, clientId: CLIENT_ID, time: String(Math.floor(Date.now() / 1000)), requestId, lang: "en_US", deviceId: this.#fingerprint, appVersion: APP_VERSION, ttid: `sdk_international@${CLIENT_ID}`, os: "Android", sdkVersion: SDK_VERSION, chKey: CH_KEY, et: "3", postData: encrypted, ...(session ? { sid: session.sid } : {}), ...(extra ?? {}) };
     const signParams: Record<string, string> = { ...params, postData: swap(md5(encrypted)) };
     params.sign = hmac(COMPOSITE_KEY, Object.keys(signParams).sort().filter((k) => SIGN_FIELDS.has(k) && signParams[k]).map((k) => `${k}=${signParams[k]}`).join("||"));
-    const response = await this.#fetch(this.#url, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": `TY/${APP_VERSION}` }, body: new URLSearchParams(params), signal: AbortSignal.timeout(20_000) });
+    let response: Response;
+    try {
+      response = await this.#fetch(this.#url, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": `TY/${APP_VERSION}` }, body: new URLSearchParams(params), signal: AbortSignal.timeout(20_000) });
+    } catch (error) {
+      const detail = error instanceof Error && error.cause instanceof Error
+        ? `${error.message} (${error.cause.message})`
+        : error instanceof Error ? error.message : String(error);
+      throw new Error(`Thing ${api} network request failed for ${this.#url}: ${detail}`);
+    }
     const envelope: unknown = await response.json();
     if (!isRecord(envelope)) throw new Error(`Thing ${api} returned invalid JSON`);
     const result = typeof envelope.result === "string" && envelope.result ? JSON.parse(decryptBody(key, envelope.result)) : envelope;

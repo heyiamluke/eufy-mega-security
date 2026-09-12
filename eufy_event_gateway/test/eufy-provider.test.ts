@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { inventoryDiagnostics, parseMegaInventory, personNameFromPush } from "../src/provider/eufy-provider.js";
+import { inventoryDiagnostics, parseMegaInventory, personNameFromPush, thingRegion } from "../src/provider/eufy-provider.js";
 
 const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Parameters<typeof personNameFromPush>[0] => ({
   eventType: null,
   personName: null,
   content: null,
   ...overrides,
+});
+
+test("routes Australian Thing accounts through the Singapore cluster", () => {
+  assert.equal(thingRegion("AU"), "sg");
+  assert.equal(thingRegion("US"), "us");
 });
 
 test("uses a structured person name when Eufy supplies one", () => {
@@ -35,7 +40,7 @@ test("parses only whitelisted Mega inventory fields and de-duplicates serials", 
   assert.deepEqual(result, [{
     serial: "T8113ABC", name: "Path", model: "T8113-Z", parentSerial: "T8030ABC",
     deviceType: 8, category: "eufy_security", channel: 3, p2pDid: "ABC-123456-XYZ",
-    adminUserId: null,
+    adminUserId: null, p2pConnection: null, cipherId: null,
   }]);
   assert.equal(JSON.stringify(result).includes("must-not-escape"), false);
 });

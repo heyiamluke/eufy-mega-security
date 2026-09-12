@@ -12,7 +12,6 @@ export interface GatewayConfig {
     readonly username: string | null;
     readonly password: string | null;
     readonly country: string;
-    readonly webPortalPin: string | null;
     readonly verifyCode?: string;
   };
 }
@@ -40,7 +39,6 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Gatewa
       username: nonEmpty(environment.EUFY_USERNAME),
       password: nonEmpty(environment.EUFY_PASSWORD),
       country: (environment.EUFY_COUNTRY ?? "AU").toUpperCase(),
-      webPortalPin: nonEmpty(environment.EUFY_WEB_PORTAL_PIN),
       ...(verifyCode ? { verifyCode } : {}),
     },
   };

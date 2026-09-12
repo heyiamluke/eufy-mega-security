@@ -11,6 +11,7 @@ import {
 import type { MegaIdentity } from "./types.js";
 
 export const MEGA_PRESET_KEY = "2500a7d5617812f9d52515b2c8f20a3d";
+export const EUFYLIFE_PRESET_KEY = "118c12c81e211149304bd70a0c071d01";
 export const LOGIN_SERVER_PUBLIC_KEY =
   "04c5c00c4f8d1197cc7c3167c52bf7acb054d722f0ef08dcd7e0883236e0d72a3868d9750cb47fa4619248f3d83f0f662671dadc6e2d31c2f41db0161651c7c076";
 
@@ -56,7 +57,7 @@ export interface PendingKeyExchange {
   readonly encryptedPublicKey: string;
 }
 
-export function beginKeyExchange(): PendingKeyExchange {
+export function beginKeyExchange(localKeyHex = MEGA_PRESET_KEY): PendingKeyExchange {
   const ecdh = createECDH("prime256v1");
   ecdh.generateKeys();
   const clientPublicKey = ecdh.getPublicKey("hex");
@@ -64,12 +65,12 @@ export function beginKeyExchange(): PendingKeyExchange {
     ecdh,
     keyIdent: randomIdentifier(),
     clientPublicKey,
-    encryptedPublicKey: encryptEnvelope(clientPublicKey, presetKey()),
+    encryptedPublicKey: encryptEnvelope(clientPublicKey, Buffer.from(localKeyHex, "hex")),
   };
 }
 
-export function finishKeyExchange(pending: PendingKeyExchange, encryptedServerPublicKey: string): MegaIdentity {
-  const serverPublicKey = decryptEnvelope(encryptedServerPublicKey, presetKey());
+export function finishKeyExchange(pending: PendingKeyExchange, encryptedServerPublicKey: string, localKeyHex = MEGA_PRESET_KEY): MegaIdentity {
+  const serverPublicKey = decryptEnvelope(encryptedServerPublicKey, Buffer.from(localKeyHex, "hex"));
   if (!/^04[0-9a-f]{128}$/i.test(serverPublicKey)) throw new Error("Mega returned an invalid server public key");
   const sharedKey = pending.ecdh.computeSecret(Buffer.from(serverPublicKey, "hex")).toString("hex");
   return { keyIdent: pending.keyIdent, sharedKey, clientPublicKey: pending.clientPublicKey };

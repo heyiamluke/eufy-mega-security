@@ -8,6 +8,7 @@ import {
   finishKeyExchange,
   loginHash,
   megaUserToken,
+  EUFYLIFE_PRESET_KEY,
   MEGA_PRESET_KEY,
   randomIdentifier,
   requestSignature,
@@ -20,7 +21,7 @@ import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaMqtt
 const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
 const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
-const AUTH_SESSION_INVALID = 26884;
+const AUTH_SESSION_INVALID_CODES = new Set([26084, 26884]);
 
 export interface MegaClientOptions {
   readonly email: string;
@@ -96,7 +97,7 @@ export class MegaClient {
     }
 
     const decoded = this.#decodeResult(result, openApiHost);
-    if (!isRecord(decoded)) throw new Error(`Mega login failed (${result.code}: ${result.msg ?? "unknown error"})`);
+    if (!isRecord(decoded)) throw new Error(`Mega login failed (${result.code}: ${safeMegaMessage(result.msg)})`);
     const authToken = stringValue(decoded.auth_token) ?? stringValue(decoded.token);
     const userId = stringValue(decoded.user_id) ?? stringValue(decoded.userId);
     if (authToken && userId) this.#setAuth(authToken, userId, numberValue(decoded.token_expires_at));
@@ -110,7 +111,7 @@ export class MegaClient {
       return { state: "verification-required" };
     }
     if (!isSuccess(result.code) || !this.isAuthenticated) {
-      throw new Error(`Mega login failed (${result.code}: ${result.msg ?? "unknown error"})`);
+      throw new Error(`Mega login failed (${result.code}: ${safeMegaMessage(result.msg)})`);
     }
     this.#pendingCaptcha = null;
     await this.#save();
@@ -129,7 +130,8 @@ export class MegaClient {
   }
 
   isSessionInvalidError(error: unknown): boolean {
-    return error instanceof Error && error.message.includes(`Mega request failed (${AUTH_SESSION_INVALID}:`);
+    return error instanceof Error && ([...AUTH_SESSION_INVALID_CODES].some((code) => error.message.includes(`Mega request failed (${code}:`)) ||
+      /Mega request failed \(401:.*token not exist/i.test(error.message));
   }
 
   /**
@@ -153,6 +155,47 @@ export class MegaClient {
       throw new Error("Mega returned incomplete MQTT credentials");
     }
     return { endpointAddress, thingName, userId, appName, certificatePem, privateKey, rootCaPem };
+  }
+
+  /** Fetch the short-lived DSK lookup keys used by Eufy's native PPCS camera path. */
+  async dskKeys(stationSerials: readonly string[]): Promise<Record<string, { readonly key: string; readonly expiresAt: number | null }>> {
+    this.#requireAuthentication();
+    const deviceDsks = stationSerials.map((serial) => ({ invalid_dsk: "", device_sn: serial, category: "eufy_security" }));
+    const result = await this.#call("devicerelation", "/app/devicerelation/get_dsk_keys", {
+      device_dsks: deviceDsks,
+      invalid_dsks: Object.fromEntries(stationSerials.map((serial) => [serial, ""])),
+      station_sns: [...stationSerials],
+      transaction: `${Date.now()}`,
+    });
+    const decoded = this.#decodeResult(result, this.#clusterHost("openapi"));
+    const value: Record<string, unknown> = isRecord(decoded) ? decoded : {};
+    const output: Record<string, { readonly key: string; readonly expiresAt: number | null }> = {};
+    const keys = Array.isArray(value.device_dsks) ? value.device_dsks : [];
+    const entries = keys.length > 0
+      ? keys.map((raw) => [isRecord(raw) ? stringValue(raw.device_sn) : null, raw] as const)
+      : Object.entries(value);
+    for (const [serial, raw] of entries) {
+      if (!serial) continue;
+      if (!isRecord(raw)) continue;
+      const key = stringValue(raw.dsk_key);
+      if (!key) continue;
+      const expiration = numberValue(raw.expiration);
+      output[serial] = { key, expiresAt: expiration === null ? null : expiration * 1_000 };
+    }
+    return output;
+  }
+
+  /** Fetch the ECC private keys used to unwrap a station's level-2 PPCS session key. */
+  async getCiphers(cipherIds: readonly number[], userId: string, stationSerial: string): Promise<readonly Record<string, unknown>[]> {
+    this.#requireAuthentication();
+    const result = await this.#call("security", "/v3/app/cipher/get_ciphers", {
+      cipher_ids: [...cipherIds], user_id: userId, station_sn: stationSerial,
+    });
+    const decoded = this.#decodeResult(result, this.#clusterHost("security"));
+    if (Array.isArray(decoded)) return decoded.filter(isRecord);
+    if (!isRecord(decoded)) return [];
+    const values = Array.isArray(decoded.ciphers) ? decoded.ciphers : Array.isArray(decoded.data) ? decoded.data : [];
+    return values.filter(isRecord);
   }
 
   async registerPushToken(token: string): Promise<void> {
@@ -193,7 +236,7 @@ export class MegaClient {
     const host = `mega-${this.#country === "us" ? "us" : "eu"}-pr.eufy.com`;
     const result = await this.#postClear(host, "/passport/estimate_domain", { ab: this.#country, mode: 1 });
     if (!isSuccess(result.code) || !isRecord(result.data)) {
-      throw new Error(`Mega domain discovery failed (${result.code}: ${result.msg ?? "unknown error"})`);
+      throw new Error(`Mega domain discovery failed (${result.code}: ${safeMegaMessage(result.msg)})`);
     }
     const domain = stringValue(result.data.domain);
     if (!domain || !isStringRecord(result.data.product_domains)) throw new Error("Mega returned an invalid domain profile");
@@ -206,6 +249,12 @@ export class MegaClient {
   }
 
   #clusterHost(service: string): string {
+    if (service === "security" && this.#session?.domains.eufy_security) {
+      const host = this.#session.domains.eufy_security;
+      return host === "security-app.eufylife.com"
+        ? (this.#session.megaDomain.includes("-us-") ? "security-app.eufylife.com" : "security-app-eu.eufylife.com")
+        : host;
+    }
     if (this.#session?.megaDomain.startsWith("mega-")) {
       return this.#session.megaDomain.replace(/^mega-/, `app-${service}-`);
     }
@@ -215,29 +264,32 @@ export class MegaClient {
   async #identity(host: string): Promise<MegaIdentity> {
     const saved = this.#session?.identities[host];
     if (saved) return saved;
-    const pending = beginKeyExchange();
-    const result = await this.#signedPost(host, "/openapi/oauth/key/exchange", undefined, undefined, {
+    const eufyLife = host.endsWith(".eufylife.com");
+    const localKey = eufyLife ? EUFYLIFE_PRESET_KEY : MEGA_PRESET_KEY;
+    const pending = beginKeyExchange(localKey);
+    const result = await this.#signedPost(host, eufyLife ? "/v3/openapi/oauth/key/exchange" : "/openapi/oauth/key/exchange", undefined, undefined, {
       keyIdent: pending.keyIdent,
       encryptedPublicKey: pending.encryptedPublicKey,
     });
     if (!isSuccess(result.code) || !isRecord(result.data)) {
-      throw new Error(`Mega key exchange failed (${result.code}: ${result.msg ?? "unknown error"})`);
+      throw new Error(`Mega key exchange failed (${result.code}: ${safeMegaMessage(result.msg)})`);
     }
     const encryptedServerPublicKey = stringValue(result.data.server_public_key);
     if (!encryptedServerPublicKey) throw new Error("Mega key exchange omitted the server public key");
-    const identity = finishKeyExchange(pending, encryptedServerPublicKey);
+    const identity = finishKeyExchange(pending, encryptedServerPublicKey, localKey);
     const base = this.#session ?? emptySession(this.#country, randomIdentifier(), "");
     this.#session = { ...base, identities: { ...base.identities, [host]: identity } };
     return identity;
   }
 
   async #call(service: string, path: string, payload: unknown, retryIdentity = true): Promise<MegaResult> {
-    const openApiHost = this.#clusterHost("openapi");
-    const identity = await this.#identity(openApiHost);
-    const result = await this.#signedPost(this.#clusterHost(service), path, payload, identity);
+    const host = this.#clusterHost(service);
+    const identityHost = host.endsWith(".eufylife.com") ? host : this.#clusterHost("openapi");
+    const identity = await this.#identity(identityHost);
+    const result = await this.#signedPost(host, path, payload, identity);
     if (retryIdentity && TRANSIENT_IDENTITY_ERRORS.has(result.code)) {
       if (this.#session) this.#session = { ...this.#session, identities: {} };
-      return this.#signedPost(this.#clusterHost(service), path, payload, await this.#identity(openApiHost));
+      return this.#signedPost(host, path, payload, await this.#identity(identityHost));
     }
     return result;
   }
@@ -257,7 +309,7 @@ export class MegaClient {
       bootstrap?.keyIdent ?? identity!.keyIdent,
       timestamp,
       nonce,
-      requestSignature(bootstrap ? MEGA_PRESET_KEY : sharedSigningKey(identity!.sharedKey), timestamp, nonce, encrypted),
+      requestSignature(bootstrap ? (host.endsWith(".eufylife.com") ? EUFYLIFE_PRESET_KEY : MEGA_PRESET_KEY) : sharedSigningKey(identity!.sharedKey), timestamp, nonce, encrypted),
     );
     return this.#post(host, path, body, headers);
   }
@@ -286,7 +338,7 @@ export class MegaClient {
     try {
       value = JSON.parse(text);
     } catch {
-      throw new Error(`Mega request failed (HTTP ${response.status}, invalid JSON)`);
+      throw new Error(`Mega request failed (HTTP ${response.status}, invalid JSON at ${host}${path}: ${text.slice(0, 160)})`);
     }
     if (!isRecord(value) || typeof value.code !== "number") throw new Error("Mega returned an invalid response");
     return value as unknown as MegaResult;
@@ -296,7 +348,7 @@ export class MegaClient {
     const headers: Record<string, string> = {
       accept: "application/json",
       "accept-charset": "UTF-8",
-      "accept-language": `${this.#country}-${this.#country.toUpperCase()},${this.#country};q=0.9`,
+      "accept-language": "en-US,en;q=0.9",
       "app-name": "eufy_mega",
       "app-version": "6.0.51_26722",
       app_version: "6.0.51_26722",
@@ -319,7 +371,7 @@ export class MegaClient {
       "x-replay-info": "replay",
       "x-signature": signature,
       country: this.#country.toUpperCase(),
-      language: this.#country,
+      language: "en",
       ab_code: this.#country,
     };
     if (this.#session?.userId) headers.gtoken = megaUserToken(this.#session.userId);
@@ -333,7 +385,7 @@ export class MegaClient {
   #decodeResult(result: MegaResult, identityHost: string): unknown {
     if (!isSuccess(result.code)) {
       if (result.code === VERIFICATION_REQUIRED || CAPTCHA_REQUIRED.has(result.code)) return result.data;
-      throw new Error(`Mega request failed (${result.code}: ${result.msg ?? "unknown error"})`);
+      throw new Error(`Mega request failed (${result.code}: ${safeMegaMessage(result.msg)})`);
     }
     if (typeof result.data !== "string") return result.data;
     const identity = this.#session?.identities[identityHost];
@@ -409,4 +461,8 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function safeMegaMessage(value: string | undefined): string {
+  return (value ?? "unknown error").replace(/token\s*=\s*[^\s,]+/gi, "token=[redacted]");
 }
