@@ -20,6 +20,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: eufy_event_gateway/package-lock.json
+      - run: npm run release:check
       - run: sudo apt-get update && sudo apt-get install --yes ffmpeg
       - run: npm ci
       - run: npm run check
