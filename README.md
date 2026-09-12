@@ -28,7 +28,7 @@ The integration also defines two Home Assistant actions for on-demand streaming:
 - `eufy_event_gateway.capture_snapshot` requests a fresh frame from a camera with a supported live transport;
 - `eufy_event_gateway.record_clip` records from a camera with a supported live transport.
 
-Live viewing is proven at the gateway boundary through the gateway-owned Eufy PPCS transport. The proof-of-concept does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. The current test account has produced real stream and snapshot bytes from both a wired T8210 and battery T817L; Home Assistant live integration remains a separate validation step.
+Live viewing uses the gateway-owned Eufy Mega/PPCS transport. The gateway does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. The transport has produced real stream and snapshot bytes from both a wired T8210 and battery T817L, and v0.1.13 exposes it through the Home Assistant camera entities.
 
 The actions work in Home Assistant automations and through Node-RED's Home Assistant Action node. An importable example is included in [`examples/node-red-gate-and-motion.json`](examples/node-red-gate-and-motion.json).
 
@@ -155,7 +155,7 @@ Validated inventory currently includes HomeBase 3, three EufyCam 2C cameras, a v
 - Eufy's cloud, push, and HomeBase protocols are undocumented and can change without notice.
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
 - Live video uses Eufy's native camera transport. Eufy may require account verification the first time that session is created.
-- The app handles authentication challenges in its Web UI, then reuses valid Mega and web sessions across upgrades and restarts.
+- The app handles authentication challenges in its Web UI, then reuses the valid Mega session across upgrades and restarts.
 - The app currently publishes source builds for `amd64` and `aarch64`; installation may take several minutes.
 
 ## Privacy and security
