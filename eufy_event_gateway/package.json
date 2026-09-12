@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "npm run typecheck && npm test",
+    "release:check": "node scripts/check-release-consistency.mjs",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "poc:ppcs": "tsx scripts/ppcs-probe.ts",
