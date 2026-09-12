@@ -1,3 +1,4 @@
+/** Real Eufy provider: Mega login, push events, event images, and PPCS streams. */
 import { join } from "node:path";
 
 import type { InventoryDiagnostic } from "../domain/types.js";
@@ -80,6 +81,8 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     if (!device || !isSupportedMegaCamera(device)) throw new Error(`Unknown Eufy camera: ${serial}`);
     const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
     const dsk = station ? this.#dskKeys.get(station.serial) : null;
+    // The production path is deliberately first-party Mega/PPCS. Older
+    // transports remain in their own modules and are not selected here.
     if (station?.p2pDid && station.p2pConnection && dsk && device.channel !== null) {
       this.#ppcsStreams.get(serial)?.close();
       const stream = new FirstPartyPpcsSession({

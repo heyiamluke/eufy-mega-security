@@ -1,3 +1,4 @@
+/** Application composition root. Keep protocol details in providers and stream modules. */
 import { join } from "node:path";
 
 import { loadConfig } from "./config.js";
@@ -38,6 +39,9 @@ if (config.provider === "simulated") {
 }
 
 const streams = new LiveStreamManager(state, snapshots, provider, config.streamGraceMilliseconds);
+// Provider callbacks are the only bridge from Eufy-specific code into the
+// gateway state. This keeps the HTTP server and Home Assistant API unaware of
+// Mega packet formats and authentication details.
 const providerEvents: ProviderEvents = {
   camera(identity) {
     state.registerCamera(identity);

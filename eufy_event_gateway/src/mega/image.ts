@@ -1,3 +1,4 @@
+/** Decode the image wrappers used by Mega push and event responses. */
 import { createDecipheriv, createHash } from "node:crypto";
 
 const V2_PREFIX = "v2_eufysecurity:";

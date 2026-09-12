@@ -1,3 +1,4 @@
+/** Coordinates the isolated SmartLife/Thing MQTT, P2P, relay, and FFmpeg path. */
 import { PassThrough } from "node:stream";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomBytes } from "node:crypto";

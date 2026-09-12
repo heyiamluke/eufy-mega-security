@@ -1,3 +1,4 @@
+/** Finds complete JPEG marker pairs in FFmpeg's chunked stdout stream. */
 export class JpegParser {
   #pending = Buffer.alloc(0);
 

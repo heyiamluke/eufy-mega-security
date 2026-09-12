@@ -1,3 +1,4 @@
+/** Wire-level and persisted shapes returned by the Mega service. */
 export interface MegaIdentity {
   readonly keyIdent: string;
   readonly sharedKey: string;

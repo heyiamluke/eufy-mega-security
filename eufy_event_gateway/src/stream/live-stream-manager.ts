@@ -1,3 +1,4 @@
+/** Shares camera sources, extracts stills, and bounds recording lifetimes. */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
 import type { ServerResponse } from "node:http";
@@ -65,6 +66,8 @@ export class LiveStreamManager extends EventEmitter {
       Connection: "keep-alive",
     });
 
+    // Start the provider only after the HTTP client is registered so the first
+    // video bytes can be fanned out to Home Assistant immediately.
     try {
       await this.#ensureStarted(serial, session);
     } catch (error) {
@@ -309,6 +312,8 @@ export class LiveStreamManager extends EventEmitter {
   }
 
   #startSnapshotExtractor(serial: string): ChildProcessWithoutNullStreams {
+    // FFmpeg turns the shared Annex-B stream into JPEGs. The store keeps the
+    // latest complete frame, so an idle camera still has a useful image.
     const process = spawn("ffmpeg", [
       "-hide_banner",
       "-loglevel",

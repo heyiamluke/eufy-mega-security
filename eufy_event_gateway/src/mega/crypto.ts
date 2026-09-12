@@ -1,3 +1,4 @@
+/** Mega request, login, and session cryptography. Keep these helpers pure. */
 import {
   createCipheriv,
   createDecipheriv,

@@ -1,3 +1,4 @@
+/** Native MQTT transport helpers retained for isolated camera experiments. */
 import { connect as tlsConnect, type TLSSocket } from "node:tls";
 import { EventEmitter } from "node:events";
 import { createHash } from "node:crypto";

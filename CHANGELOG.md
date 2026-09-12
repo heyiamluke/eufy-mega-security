@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.14
+
+- Add contributor, security, and repository file-map documentation.
+- Document the internal `eufy_event_gateway` compatibility identifiers separately from the Eufy Mega Security branding.
+- Expand source comments around the Mega, PPCS, state, storage, and Home Assistant integration boundaries.
+- Clarify that a battery camera with no charge can complete the PPCS handshake without producing video.
+
 ## 0.1.13
 
 - Rename the project, Home Assistant integration, and HACS repository to Eufy Mega Security.

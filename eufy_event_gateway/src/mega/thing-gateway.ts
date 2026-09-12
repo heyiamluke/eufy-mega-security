@@ -1,3 +1,4 @@
+/** Isolated SmartLife/Thing transport research. Production uses Mega instead. */
 import { createCipheriv, createDecipheriv, createHash, createHmac, publicEncrypt, createPublicKey, randomBytes } from "node:crypto";
 
 export interface ThingAccountSession { readonly sid: string; readonly ecode: string; readonly uid: string; readonly deviceFingerprint: string; }

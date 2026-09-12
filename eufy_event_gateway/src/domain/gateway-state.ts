@@ -1,3 +1,4 @@
+/** In-memory state and lifecycle events exposed by the gateway API. */
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 

@@ -1,3 +1,4 @@
+/** Native relay encryption, framing, and media-packet extraction helpers. */
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 
 export const RELAY_HANDSHAKE = 0xf4;

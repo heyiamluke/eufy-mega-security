@@ -1,3 +1,4 @@
+/** Minimal KCP framing used by the isolated native relay experiment. */
 import { createHmac } from "node:crypto";
 
 export const KCP_HEADER_LENGTH = 24;

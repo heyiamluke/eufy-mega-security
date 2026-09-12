@@ -1,3 +1,4 @@
+/** Native relay control/video session layered over KCP. */
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { NativeRelayConnection } from "./native-relay.js";
 import { NativeKcpConversation, buildKcpSegment, parseKcpSegment, KCP_PUSH } from "./native-kcp.js";

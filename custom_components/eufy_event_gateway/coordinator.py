@@ -31,6 +31,8 @@ class EufyGatewayCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._event_task: asyncio.Task[None] | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+        # Polling is recovery only. Normal updates arrive through the long-lived
+        # SSE connection started after the first successful refresh.
         try:
             cameras = await self.client.cameras()
         except GatewayClientError as error:

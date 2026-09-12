@@ -1,4 +1,4 @@
-"""Camera entities for Eufy Mega Security."""
+"""Camera entities backed by retained images and gateway-owned live streams."""
 
 from __future__ import annotations
 
@@ -76,12 +76,16 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         return self.camera.get("stream", {}).get("state") == "streaming"
 
     async def async_camera_image(self, width: int | None = None, height: int | None = None) -> bytes | None:
+        # Home Assistant calls this for the card image. It is intentionally a
+        # cheap retained-image read and does not wake a sleeping camera.
         try:
             return await self.coordinator.client.snapshot(self.serial)
         except GatewayClientError:
             return None
 
     async def stream_source(self) -> str | None:
+        # The gateway returns a short-lived signed URL. Home Assistant's media
+        # pipeline consumes it without receiving the gateway bearer token.
         if not self.camera.get("streamSupported"):
             return None
         return await self.coordinator.client.stream_url(self.serial)

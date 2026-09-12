@@ -1,3 +1,4 @@
+/** Durable last-good camera images with serialized, atomic writes. */
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";

@@ -1,3 +1,4 @@
+/** Small authenticated HTTP/SSE API used by the Home Assistant integration. */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 

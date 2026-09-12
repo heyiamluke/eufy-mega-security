@@ -1,3 +1,4 @@
+/** Native Thing/P2P message framing used by the non-production experiment. */
 import { createCipheriv, createDecipheriv, randomBytes, type CipherGCM, type DecipherGCM } from "node:crypto";
 
 import { cameraTopics, type NativeMqttMessage, NativeMqttTransport } from "./native-mqtt.js";

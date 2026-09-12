@@ -1,4 +1,4 @@
-"""Small async client for the local Eufy gateway."""
+"""Authenticated HTTP and SSE client for the local Eufy Mega Security gateway."""
 
 from __future__ import annotations
 

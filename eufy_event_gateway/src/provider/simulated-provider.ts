@@ -1,3 +1,4 @@
+/** Deterministic provider used by local development and integration tests. */
 import { Readable } from "node:stream";
 
 import type { CameraProvider, ProviderEvents } from "./provider.js";

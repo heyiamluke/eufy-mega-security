@@ -1,3 +1,4 @@
+/** Reassembles Annex-B H.264 NAL units from RTP payload fragments. */
 const START_CODE = Buffer.from([0, 0, 0, 1]);
 const MAX_FRAGMENT_BYTES = 4 * 1024 * 1024;
 

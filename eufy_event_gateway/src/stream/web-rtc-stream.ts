@@ -1,3 +1,4 @@
+/** Web UI WebRTC signalling and RTP-to-Annex-B media session. */
 import { createHash, randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
 

@@ -1,3 +1,4 @@
+/** Private on-disk Mega session storage, including one-time legacy migration. */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 

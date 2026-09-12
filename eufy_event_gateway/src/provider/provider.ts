@@ -1,3 +1,4 @@
+/** Provider boundary. Implementations supply normalized state, never raw API payloads. */
 import type { Readable } from "node:stream";
 
 import type { CameraIdentity, InventoryDiagnostic, PushDiagnostic } from "../domain/types.js";

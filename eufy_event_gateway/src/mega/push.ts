@@ -1,3 +1,4 @@
+/** Firebase delivery registration and safe normalization of Eufy notifications. */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 

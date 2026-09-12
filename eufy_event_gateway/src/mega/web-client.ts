@@ -1,3 +1,4 @@
+/** Separate Web UI client used for challenge handling and legacy WebRTC work. */
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 

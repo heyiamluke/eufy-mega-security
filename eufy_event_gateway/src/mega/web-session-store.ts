@@ -1,3 +1,4 @@
+/** Private storage for the separate Web UI authentication session. */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 

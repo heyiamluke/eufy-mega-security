@@ -1,3 +1,4 @@
+/** Cryptographic helpers for the separate Web UI and WebRTC session. */
 import {
   createCipheriv,
   createDecipheriv,

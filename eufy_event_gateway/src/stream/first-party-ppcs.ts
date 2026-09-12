@@ -1,7 +1,10 @@
+/** First-party Mega/PPCS UDP media session used by production camera streaming. */
 import { createCipheriv, createDecipheriv, createECDH, createHmac, generateKeyPairSync, privateDecrypt, randomBytes } from "node:crypto";
 import { createSocket, type RemoteInfo, type Socket } from "node:dgram";
 import { PassThrough } from "node:stream";
 
+// PPCS wraps command payloads in an XZYH header. The outer D1 datagrams and
+// these inner command frames use different sequence numbers and byte order.
 const MAGIC = Buffer.from("XZYH", "ascii");
 const REQ = {
   lookup: Buffer.from([0xf1, 0x26]),
@@ -61,6 +64,9 @@ export class FirstPartyPpcsSession {
   constructor(options: PpcsCameraOptions) { this.#options = options; }
 
   async start(): Promise<void> {
+    // Bind an ephemeral UDP port, then try LAN and cloud lookup addresses. A
+    // successful CAM_ID response means the peer is reachable, not that video
+    // has started yet.
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("PPCS camera lookup timed out")), 20_000);
       this.#socket.once("error", (error) => { clearTimeout(timeout); reject(error); });
@@ -152,6 +158,8 @@ export class FirstPartyPpcsSession {
       const payload = pending.subarray(16, 16 + size);
       this.stats.frameHeaders++;
       pending = pending.subarray(16 + size);
+      // 1100 carries the encrypted HomeBase gateway details. 1300 carries
+      // media frames after the level-2 request has been accepted.
       if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
       else if (command === 1300) { this.stats.videoFrames++; this.#writeVideo(payload, signCode); }
     }
@@ -204,6 +212,8 @@ export class FirstPartyPpcsSession {
       mValue3: 1003,
       payload: { ClientOS: "Android", accountId: this.#options.accountId ?? "", camera_type: 0, entrytype: 0, key, streamtype: 1 },
     });
+    // The level-2 body is AES-GCM encrypted. The RSA modulus inside the JSON
+    // lets the camera establish the per-stream video key for frame payloads.
     const level2Sequence = this.#level2Seq++;
     const body = encryptLevel2(Buffer.from(value), this.#level2Key, level2Sequence);
     const streamId = this.#options.channel === 0 || this.#options.channel === 255 ? 0 : 10 + (this.#level2Seq & 127);

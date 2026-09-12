@@ -1,3 +1,4 @@
+/** Environment-backed configuration for the standalone gateway process. */
 import { resolve } from "node:path";
 
 export interface GatewayConfig {

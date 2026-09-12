@@ -1,3 +1,4 @@
+/** Public state contracts shared by the provider, server, and API consumers. */
 export type ConnectionState =
   | "starting"
   | "connected"

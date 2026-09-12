@@ -1,3 +1,4 @@
+/** Response contracts for the separate Web UI transport. */
 export interface WebApiIdentity {
   readonly keyIdent: string;
   readonly sharedKey: string;

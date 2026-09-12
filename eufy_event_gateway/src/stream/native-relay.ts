@@ -1,3 +1,4 @@
+/** Native relay TCP connection and handshake implementation. */
 import { connect as tcpConnect, type Socket } from "node:net";
 import { randomBytes } from "node:crypto";
 import { assembleRelayHandshake, authorizationField, relayAuthAck, relayAuthRequest, relayEndpoint, relayHandshakeSignature, type NativeRelayToken, parseRelayHandshake, mediaFrame, unwrapMediaFrame, keepaliveFrame } from "./native-media.js";

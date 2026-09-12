@@ -1,3 +1,4 @@
+/** Direct client for Eufy's current Mega cloud API and its auth session. */
 import { join } from "node:path";
 
 import {
@@ -18,6 +19,8 @@ import {
 import { MegaSessionStore } from "./session-store.js";
 import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaMqttInfo, MegaResult, MegaSession } from "./types.js";
 
+// These codes are returned by the Mega passport endpoint. They are kept here
+// instead of in the UI so every caller gets the same challenge behaviour.
 const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
 const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
@@ -75,6 +78,8 @@ export class MegaClient {
       return { state: "authenticated" };
     }
 
+    // Domain discovery and key exchange happen before login because the
+    // regional API host and its signing identity are account-specific.
     await this.#ensureDomain();
     const openApiHost = this.#clusterHost("openapi");
     await this.#identity(openApiHost);
@@ -324,6 +329,8 @@ export class MegaClient {
   }
 
   async #post(host: string, path: string, body: string, headers: Record<string, string>): Promise<MegaResult> {
+    // Mega rate-limits aggressively. Serializing requests here also prevents
+    // parallel startup calls from invalidating the short-lived identity.
     const wait = this.#lastRequestAt + this.#minimumRequestIntervalMs - this.#now();
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     this.#lastRequestAt = this.#now();
