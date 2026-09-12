@@ -1,3 +1,14 @@
+/**
+ * Adapts Eufy's Mega cloud and PPCS camera protocols to the gateway contract.
+ *
+ * Startup authenticates one account, parses and filters inventory, retrieves
+ * station DSK material, registers Firebase push delivery, and reports camera
+ * identities to `GatewayState`. Push callbacks become motion/person events
+ * and verified JPEG snapshots. A live request creates a first-party PPCS
+ * session and exposes only its byte stream to `LiveStreamManager`. This is the
+ * sole production translation point from Eufy-specific data to normalized
+ * provider callbacks; Home Assistant-specific naming stays downstream.
+ */
 import { join } from "node:path";
 
 import type { InventoryDiagnostic } from "../domain/types.js";
@@ -8,6 +19,7 @@ import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
 
+/** Credentials, storage, and transport limits for one Mega account. */
 export interface EufyProviderConfig {
   readonly username: string;
   readonly password: string;
@@ -17,6 +29,7 @@ export interface EufyProviderConfig {
   readonly maxStreamSeconds: number;
 }
 
+/** Normalized Mega inventory row used to decide camera support and routing. */
 export interface MegaInventoryDevice {
   readonly serial: string;
   readonly name: string;
@@ -31,6 +44,14 @@ export interface MegaInventoryDevice {
   readonly adminUserId: string | null;
 }
 
+/**
+ * Bridges Mega cloud observations and first-party PPCS streams into callbacks.
+ *
+ * Startup is deliberately ordered. The provider authenticates, discovers all
+ * devices, obtains the station keys needed for camera sessions, then starts
+ * push delivery. A stream request creates one PPCS session per camera and
+ * closes it when the last consumer releases the source.
+ */
 export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #client: MegaClient;
   readonly #webClient: WebClient;
@@ -80,6 +101,9 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     if (!device || !isSupportedMegaCamera(device)) throw new Error(`Unknown Eufy camera: ${serial}`);
     const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
     const dsk = station ? this.#dskKeys.get(station.serial) : null;
+
+    // The production path is deliberately first-party Mega/PPCS. Older
+    // transports remain in their own modules and are not selected here.
     if (station?.p2pDid && station.p2pConnection && dsk && device.channel !== null) {
       this.#ppcsStreams.get(serial)?.close();
       const stream = new FirstPartyPpcsSession({
@@ -257,11 +281,13 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   }
 }
 
+/** Map an account country to the regional Thing service name used by legacy diagnostics. */
 export function thingRegion(country: string): string {
   const normalized = country.trim().toLowerCase();
   return normalized === "au" ? "sg" : normalized;
 }
 
+/** Download and decode the image referenced by one normalized push event. */
 export async function downloadPushSnapshot(
   client: Pick<MegaClient, "download">,
   event: Pick<MegaPushEvent, "pictureUrl" | "stationSerial">,
@@ -277,6 +303,7 @@ export async function downloadPushSnapshot(
   return { data: decoded };
 }
 
+/** Parse and normalize the untrusted device list returned by Mega. */
 export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
   if (!isRecord(response) || !Array.isArray(response.devices)) return [];
   const devices: MegaInventoryDevice[] = [];
@@ -309,6 +336,7 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
     : { ...device, adminUserId: adminUserIds.get(device.parentSerial) ?? null });
 }
 
+/** Explain camera filtering decisions without exposing raw cloud payloads. */
 export function inventoryDiagnostics(devices: readonly MegaInventoryDevice[]): InventoryDiagnostic[] {
   return devices.map((device) => ({
     serial: device.serial,
@@ -322,10 +350,12 @@ export function inventoryDiagnostics(devices: readonly MegaInventoryDevice[]): I
   }));
 }
 
+/** Return whether Mega metadata identifies a device as a supported camera. */
 export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "category" | "deviceType">): boolean {
   return device.category === "eufy_security" && (device.deviceType === 7 || device.deviceType === 8 || device.deviceType === 10031);
 }
 
+/** Extract a recognized name only from push events that represent a person. */
 export function personNameFromPush(message: Pick<MegaPushEvent, "eventType" | "personName" | "content">): string | null {
   const structured = safeLabel(message.personName);
   if (structured) return isGenericPersonLabel(structured) ? null : structured;

@@ -1,12 +1,22 @@
+/**
+ * Coordinates the legacy relay's control and video channels over KCP.
+ *
+ * This class owns the old relay lifecycle, keepalive, and media framing but is
+ * intentionally not selected by `EufyProvider`. It remains available for
+ * packet-level experiments and for a future camera transport only after a
+ * separate proof establishes that the older protocol is needed.
+ */
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { NativeRelayConnection } from "./native-relay.js";
 import { NativeKcpConversation, buildKcpSegment, parseKcpSegment, KCP_PUSH } from "./native-kcp.js";
 import { decryptNativeRecord, encryptNativeRecord, extractNativeMediaPackets, mediaPacketPayload, type NativeRelayToken } from "./native-media.js";
 
+/** Credentials and callbacks needed by the isolated relay/KCP session. */
 export interface NativeRelaySessionOptions { readonly token: NativeRelayToken; readonly deviceId: string; readonly uid: string; readonly offerKey: Uint8Array; readonly answerKey: Uint8Array; readonly onVideo: (annexBOrJpeg: Buffer) => void; }
 
 /** Relay/KCP session core. Signalling is sent over conversation 0x010000f3;
  * video arrives on conversation 1 after channel-zero authentication. */
+
 export class NativeRelaySession {
   readonly #connection: NativeRelayConnection;
   readonly #control: NativeKcpConversation;
@@ -22,7 +32,7 @@ export class NativeRelaySession {
   sendTunnelJson(json: Uint8Array, key: Uint8Array): void { const header = Buffer.alloc(4); header.writeUInt16BE(1, 0); header.writeUInt16BE(json.length, 2); const plain = Buffer.concat([header, Buffer.from(json), json.length % 2 ? Buffer.from([0]) : Buffer.alloc(0)]); const padded = pkcs7(plain); for (let offset = 0; offset < padded.length; offset += 1312) { const iv = randomBytes(16); const cipher = createCipheriv("aes-128-cbc", Buffer.from(key), iv); cipher.setAutoPadding(false); const encrypted = Buffer.concat([cipher.update(padded.subarray(offset, offset + 1312)), cipher.final()]); this.#connection.send(buildKcpSegment({ conversation: 0x010000f3, command: KCP_PUSH, fragment: 0, window: 64, timestamp: 0, sequence: this.#signalSequence++, unacknowledged: 0, data: Buffer.concat([iv, encrypted]) })); } }
   authenticate(devicePassword: string, localKey: string): void { const credential = createHashMd5(`${devicePassword}||${localKey}`); for (const packet of startSequence(credential)) this.#control.send(encryptNativeRecord(this.options.offerKey, packet)); }
   close(): void { this.#control.close(); this.#video.close(); this.#connection.close(); }
-  #consumeVideo(record: Buffer): void { try { const plain = decryptNativeRecord(this.options.answerKey, record); for (const packet of extractNativeMediaPackets(plain)) this.options.onVideo(mediaPacketPayload(packet)); } catch { /* ignore malformed/control records while the stream settles */ } }
+  #consumeVideo(record: Buffer): void { try { const plain = decryptNativeRecord(this.options.answerKey, record); for (const packet of extractNativeMediaPackets(plain)) this.options.onVideo(mediaPacketPayload(packet)); } catch { return; } }
 }
 function pkcs7(value: Buffer): Buffer { const amount = 16 - (value.length % 16) || 16; return Buffer.concat([value, Buffer.alloc(amount, amount)]); }
 function createHashMd5(value: string): string { return createHash("md5").update(value).digest("hex"); }

@@ -1,6 +1,16 @@
+/**
+ * Reassembles JPEG images from FFmpeg's arbitrary stdout chunks.
+ *
+ * FFmpeg can split a marker across writes or place several images in one
+ * write. This stateful parser keeps the unfinished suffix, emits only bytes
+ * bracketed by JPEG start/end markers, and discards unrelated output. The
+ * stream manager owns the FFmpeg process; this class owns only byte-boundary
+ * reconstruction and is suitable for deterministic unit tests.
+ */
 export class JpegParser {
   #pending = Buffer.alloc(0);
 
+  /** Consume FFmpeg output and return all complete images now available. */
   push(chunk: Buffer): Buffer[] {
     this.#pending = Buffer.concat([this.#pending, chunk]);
     const images: Buffer[] = [];

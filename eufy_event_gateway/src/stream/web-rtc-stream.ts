@@ -1,3 +1,12 @@
+/**
+ * Implements the isolated Web UI WebRTC signalling and RTP media session.
+ *
+ * It exchanges portal signalling messages, drives a peer connection, and
+ * emits Annex-B H.264 after RTP depacketization. Production camera operation
+ * does not use this class because the native Mega/PPCS path avoids the
+ * expiring portal credential. It remains separate for comparison and protocol
+ * research, not as a hidden production fallback.
+ */
 import { createHash, randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
 
@@ -8,6 +17,7 @@ import type { WebClient } from "../mega/web-client.js";
 import { decryptWebEnvelope, encryptWebEnvelope } from "../mega/web-crypto.js";
 import { H264RtpDepacketizer } from "./h264-rtp.js";
 
+/** Device metadata required to open a legacy WebRTC camera session. */
 export interface WebRtcDevice {
   readonly serial: string;
   readonly stationSerial: string;
@@ -22,6 +32,7 @@ interface TurnServer {
   readonly turn_password: string;
 }
 
+/** Legacy Web API WebRTC session that emits Annex-B video bytes. */
 export class WebRtcStream {
   readonly output = new PassThrough({ highWaterMark: 2 * 1024 * 1024 });
   readonly #depacketizer = new H264RtpDepacketizer();
@@ -40,8 +51,9 @@ export class WebRtcStream {
     private readonly client: WebClient,
     private readonly pin: string,
     private readonly device: WebRtcDevice,
-    private readonly maximumSeconds: number,
+  private readonly maximumSeconds: number,
   ) {
+
     // Signalling can fail before LiveStreamManager attaches source listeners.
     // Consume the stream error during that startup window so it cannot become
     // an uncaught process-level exception.
@@ -53,6 +65,7 @@ export class WebRtcStream {
     const signal = await this.client.signal();
     this.#sign = signal.sign;
     this.#signalKey = this.client.signalKey;
+
     // Eufy's web client sends the signed ticket byte-for-byte. Its signalling
     // service validates the raw query value rather than an equivalent
     // percent-encoded representation.
@@ -252,17 +265,20 @@ export class WebRtcStream {
   }
 }
 
+/** Format a WebSocket close event for the stream diagnostics. */
 export function webSocketCloseMessage(code: number, reason: string): string {
   const safeReason = reason.trim().replaceAll(/[\r\n\t]/g, " ").slice(0, 160);
   return `Eufy live signalling closed (code ${code}${safeReason ? `: ${safeReason}` : ""})`;
 }
 
+/** Format a WebSocket error without exposing an entire error object. */
 export function webSocketErrorMessage(error: Error & { code?: string }): string {
   const status = /Unexpected server response: (\d{3})/.exec(error.message)?.[1];
   if (status) return `Eufy live signalling failed (HTTP upgrade ${status})`;
   return `Eufy live signalling failed${error.code ? ` (${error.code})` : ""}`;
 }
 
+/** Format a rejected signalling response while bounding remote text. */
 export function webSocketHttpRejectionMessage(status: number, body: string): string {
   const detail = safeHttpDetail(body);
   return `Eufy live signalling rejected the HTTP upgrade (${status}${detail ? `: ${detail}` : ""})`;

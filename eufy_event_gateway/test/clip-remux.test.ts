@@ -1,3 +1,9 @@
+/**
+ * Exercises the gateway's FFmpeg remux contract for recorded clips.
+ *
+ * The fixture supplies deterministic H.264 bytes and verifies that the
+ * resulting fragmented MP4 is usable without involving Mega or a camera.
+ */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";

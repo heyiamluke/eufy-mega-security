@@ -1,3 +1,9 @@
+/**
+ * Covers the configuration boundary from environment strings to typed values.
+ *
+ * These tests protect defaults, numeric validation, path normalization, and
+ * the rule that a non-loopback HTTP listener requires a strong API token.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

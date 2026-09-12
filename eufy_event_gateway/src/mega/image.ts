@@ -1,3 +1,13 @@
+/**
+ * Owns the conversion from Eufy's event-image variants to JPEG.
+ *
+ * The Mega notification may reference ordinary JPEG bytes, a
+ * `v2_eufysecurity` wrapper whose JPEG tables need reconstruction, or an older
+ * encrypted `eufysecurity` body keyed by the station's P2P DID. This module
+ * accepts raw bytes and an optional DID, performs local decoding, and lets the
+ * provider verify the final JPEG before handing it to SnapshotStore. It does
+ * not download URLs or decide when a camera event should be retained.
+ */
 import { createDecipheriv, createHash } from "node:crypto";
 
 const V2_PREFIX = "v2_eufysecurity:";
@@ -7,6 +17,7 @@ const JPEG_PREFIX = Buffer.from(
   "hex",
 );
 
+/** Decode one raw event payload, returning JPEG bytes when the wrapper permits it. */
 export function decodeEventImage(data: Buffer, p2pDid = ""): Buffer {
   if (isJpeg(data)) return data;
   if (data.subarray(0, V2_PREFIX.length).toString("latin1") === V2_PREFIX) {
@@ -25,6 +36,7 @@ export function decodeEventImage(data: Buffer, p2pDid = ""): Buffer {
   return body;
 }
 
+/** Check the JPEG start marker without parsing or mutating the buffer. */
 export function isJpeg(data: Buffer): boolean {
   return data.length >= 4 && data[0] === 0xff && data[1] === 0xd8 && data.at(-2) === 0xff && data.at(-1) === 0xd9;
 }

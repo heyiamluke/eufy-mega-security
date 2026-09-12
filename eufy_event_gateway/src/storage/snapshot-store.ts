@@ -1,23 +1,43 @@
+/**
+ * Owns durable last-good snapshot storage for the gateway.
+ *
+ * The provider supplies verified image bytes and the HTTP server reads them
+ * for Home Assistant. This store maps camera serials to hashed filenames,
+ * keeps a small JSON index, serializes concurrent writes, and uses temporary
+ * files plus rename for crash-safe replacement. It intentionally stores no
+ * Eufy credentials or raw event metadata; a restart should recover media, not
+ * recreate a cloud session from this directory.
+ */
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { SnapshotInfo } from "../domain/types.js";
 
+/** One JSON index entry linking a camera serial to image metadata. */
 interface SnapshotRecord {
   readonly serial: string;
   readonly info: SnapshotInfo;
 }
 
+/**
+ * Last-good image store with atomic index updates.
+ *
+ * `write` returns only after both the image and index have been replaced. The
+ * internal promise queue preserves that ordering when several push events
+ * arrive together.
+ */
 export class SnapshotStore {
   readonly #directory: string;
   readonly #records = new Map<string, SnapshotInfo>();
   #writeQueue: Promise<void> = Promise.resolve();
 
+  /** Create a store rooted beneath the gateway's private data directory. */
   constructor(dataDirectory: string) {
     this.#directory = join(dataDirectory, "snapshots");
   }
 
+  /** Load the index, ignoring a first-run missing file. */
   async initialize(): Promise<void> {
     await mkdir(this.#directory, { recursive: true, mode: 0o700 });
     try {
@@ -28,10 +48,12 @@ export class SnapshotStore {
     }
   }
 
+  /** Return metadata for the retained image without reading its bytes. */
   getInfo(serial: string): SnapshotInfo | null {
     return this.#records.get(serial) ?? null;
   }
 
+  /** Read one retained image and its metadata, or return null if absent. */
   async read(serial: string): Promise<{ data: Buffer; info: SnapshotInfo } | null> {
     const info = this.#records.get(serial);
     if (!info) return null;
@@ -43,6 +65,7 @@ export class SnapshotStore {
     }
   }
 
+  /** Atomically replace a camera image and advance its revision number. */
   async write(
     serial: string,
     data: Buffer,

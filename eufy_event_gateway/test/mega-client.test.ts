@@ -1,3 +1,10 @@
+/**
+ * Tests MegaClient against deterministic fake HTTPS responses.
+ *
+ * It protects domain discovery, encrypted request envelopes, login challenge
+ * states, session reuse, inventory validation, DSK/cipher extraction, and
+ * bounded media download without contacting Eufy.
+ */
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

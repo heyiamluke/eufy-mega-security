@@ -1,4 +1,12 @@
-"""Eufy Mega Security integration."""
+"""Home Assistant entry point for Eufy Mega Security.
+
+This package keeps Home Assistant deliberately thin. The add-on gateway owns
+Eufy authentication, event decoding, snapshot persistence, and media sessions.
+The integration creates one authenticated HTTP/SSE client and one coordinator,
+forwards the camera, motion, person, and snapshot platforms, and listens for
+normalized gateway updates. It never stores the Eufy account password or
+reimplements a Mega endpoint.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +23,8 @@ from .coordinator import EufyGatewayCoordinator
 
 @dataclass
 class GatewayRuntimeData:
+    """Objects that must live for the lifetime of one config entry."""
+
     coordinator: EufyGatewayCoordinator
 
 
@@ -22,7 +32,7 @@ EufyGatewayConfigEntry = ConfigEntry[GatewayRuntimeData]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) -> bool:
-    """Set up the gateway and its entity platforms."""
+    """Connect to the local gateway before creating any entities."""
     client = GatewayClient(
         async_get_clientsession(hass),
         entry.data["url"],
@@ -37,6 +47,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) 
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) -> bool:
-    """Unload the integration cleanly."""
+    """Cancel the SSE listener and unload all entity platforms."""
     await entry.runtime_data.coordinator.async_shutdown()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

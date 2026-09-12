@@ -1,3 +1,9 @@
+/**
+ * Tests the isolated Web API login and WebRTC signalling-ticket flow.
+ *
+ * This suite exists to preserve research behaviour and challenge handling; it
+ * is not the production Mega/PPCS authentication contract.
+ */
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";

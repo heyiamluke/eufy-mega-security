@@ -1,3 +1,13 @@
+/**
+ * Runs a gateway-independent proof of the first-party Mega/PPCS media path.
+ *
+ * The probe restores or creates a Mega session, enumerates supported cameras,
+ * retrieves station keys, starts one bounded PPCS session per camera, and
+ * writes raw Annex-B H.264 plus a first JPEG frame to a local output folder.
+ * Its JSON diagnostics are deliberately safe for sharing. This is a developer
+ * tool, not a second gateway runtime and not an automated test: real account
+ * credentials and camera power/network state are required.
+ */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { spawn } from "node:child_process";

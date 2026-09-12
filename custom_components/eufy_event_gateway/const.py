@@ -1,4 +1,10 @@
-"""Constants for the Eufy Mega Security integration."""
+"""Stable Home Assistant identifiers for Eufy Mega Security.
+
+The domain remains `eufy_event_gateway` for installed-entry compatibility even
+though the user-facing project and integration name is Eufy Mega Security.
+These constants are the shared keys used by the config flow, coordinator, and
+platform setup; changing them can orphan existing Home Assistant entries.
+"""
 
 from homeassistant.const import Platform
 

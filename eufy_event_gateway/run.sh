@@ -43,8 +43,9 @@ until curl -fsS http://127.0.0.1:3218/live >/dev/null; do
   sleep 1
 done
 
+gateway_host="$(hostname)"
 discovery_config="$(jq -cn \
-  --arg host "local-eufy-event-gateway" \
+  --arg host "$gateway_host" \
   --argjson port 3218 \
   --arg api_token "$EUFY_GATEWAY_API_TOKEN" \
   '{host:$host, port:$port, api_token:$api_token}')"

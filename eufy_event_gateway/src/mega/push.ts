@@ -1,3 +1,13 @@
+/**
+ * Owns Firebase delivery and Eufy notification normalization.
+ *
+ * `PushReceiver` supplies transport delivery; this module registers the token
+ * through Mega, persists the receiver ID, unwraps nested JSON used by several
+ * camera generations, and emits a whitelisted `MegaPushEvent`. The provider
+ * decides whether an event is motion/person and whether its picture URL is
+ * downloaded. Raw payloads never cross the provider boundary or enter
+ * diagnostics because they can contain tokens, URLs, and account metadata.
+ */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
@@ -13,6 +23,7 @@ const FIREBASE = {
   messagingSenderId: "348804314802",
 };
 
+/** Normalized subset of a Firebase/Eufy notification used by the provider. */
 export interface MegaPushEvent {
   readonly cameraSerial: string;
   readonly stationSerial: string;
@@ -33,16 +44,25 @@ interface StoredPushState {
   persistentIds: string[];
 }
 
+/**
+ * Maintains Firebase delivery for one Mega account and emits normalized events.
+ *
+ * The receiver owns reconnect and persistent-ID handling. It does not mutate
+ * gateway state directly, which keeps notification delivery testable and
+ * leaves camera policy to EufyProvider and GatewayState.
+ */
 export class MegaPushReceiver {
   #receiver: PushReceiver | null = null;
   #state: StoredPushState = { persistentIds: [] };
 
+  /** Create a receiver using the account client and private state directory. */
   constructor(
     private readonly client: MegaClient,
     private readonly path: string,
     private readonly onEvent: (event: MegaPushEvent) => void,
   ) {}
 
+  /** Register with Firebase and begin forwarding normalized notifications. */
   async start(): Promise<void> {
     this.#state = await loadState(this.path);
     const receiver = new PushReceiver({
@@ -73,6 +93,7 @@ export class MegaPushReceiver {
     await this.client.registerPushToken(receiver.fcmToken);
   }
 
+  /** Stop the receiver and release its network listener. */
   close(): void {
     this.#receiver?.destroy();
     this.#receiver = null;
@@ -82,6 +103,7 @@ export class MegaPushReceiver {
 function guardReceiverDestroy(receiver: PushReceiver): void {
   const destroy = receiver.destroy.bind(receiver);
   receiver.destroy = () => {
+
     // The dependency rejects its private readiness promise during every socket
     // retry but does not consume that rejection. Guard both promises it owns
     // across destroy() so a transient Google MCS outage cannot kill the app.
@@ -91,6 +113,7 @@ function guardReceiverDestroy(receiver: PushReceiver): void {
   };
 }
 
+/** Parse nested notification JSON without retaining the original payload. */
 export function parsePushEvent(data: unknown): MegaPushEvent | null {
   if (!isRecord(data)) return null;
   const outer = nestedRecord(data.payload) ?? data;

@@ -1,3 +1,9 @@
+/**
+ * Covers the isolated Thing MQTT transport's identity and packet contract.
+ *
+ * The cases protect topic derivation, client credentials, TLS startup, and
+ * framing while keeping this historical path visibly separate from Mega/PPCS.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

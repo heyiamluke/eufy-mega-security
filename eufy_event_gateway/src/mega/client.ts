@@ -1,3 +1,15 @@
+/**
+ * Owns the gateway's direct connection to Eufy's current Mega cloud API.
+ *
+ * This client implements domain discovery, ECDH identity exchange, encrypted
+ * It discovers regional hosts, performs the per-host ECDH identity exchange,
+ * encrypts and signs requests, handles login challenge states, persists a
+ * reusable session, retrieves inventory/DSK/cipher material, registers push,
+ * and downloads bounded HTTPS media. It returns checked domain values to
+ * `EufyProvider`; it deliberately knows nothing about Home Assistant entities,
+ * SSE, or the PPCS packet stream. Keeping those concerns out of this class is
+ * what makes the Mega layer reusable by a probe or another application.
+ */
 import { join } from "node:path";
 
 import {
@@ -18,11 +30,14 @@ import {
 import { MegaSessionStore } from "./session-store.js";
 import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaMqttInfo, MegaResult, MegaSession } from "./types.js";
 
+// These codes are returned by the Mega passport endpoint. They are kept here
+// instead of in the UI so every caller gets the same challenge behaviour.
 const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
 const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
 const AUTH_SESSION_INVALID_CODES = new Set([26084, 26884]);
 
+/** Runtime dependencies and account settings for {@link MegaClient}. */
 export interface MegaClientOptions {
   readonly email: string;
   readonly password: string;
@@ -33,6 +48,15 @@ export interface MegaClientOptions {
   readonly now?: () => number;
 }
 
+/**
+ * Authenticated Mega API client used by the production Eufy provider.
+ *
+ * The client keeps one account session, caches per-host ECDH identities, and
+ * serializes requests because Mega rate-limits aggressively. Authentication
+ * challenges are represented as return states so the caller can decide how to
+ * present them, rather than embedding a browser or Home Assistant dependency
+ * in this low-level client.
+ */
 export class MegaClient {
   readonly #email: string;
   readonly #password: string;
@@ -58,15 +82,23 @@ export class MegaClient {
     );
   }
 
+  /** Return the pending image challenge, if login requested one. */
   get captcha(): MegaCaptcha | null {
     return this.#pendingCaptcha;
   }
 
+  /** Return true only while the cached token has a one-minute safety margin. */
   get isAuthenticated(): boolean {
     return this.#session !== null && this.#session.authToken.length > 0 &&
       this.#session.userId.length > 0 && this.#now() / 1_000 < this.#session.tokenExpiresAt - 60;
   }
 
+  /**
+   * Restore or establish the account session.
+   *
+   * @returns An authentication state. Challenge states are expected and let
+   * the provider expose the right next step to the user.
+   */
   async connect(verificationCode?: string, captchaAnswer?: string, forceLogin = false): Promise<MegaAuthResult> {
     if (forceLogin) this.#session = null;
     if (!this.#session && !forceLogin) await this.#restore();
@@ -75,6 +107,9 @@ export class MegaClient {
       return { state: "authenticated" };
     }
 
+
+    // Domain discovery and key exchange happen before login because the
+    // regional API host and its signing identity are account-specific.
     await this.#ensureDomain();
     const openApiHost = this.#clusterHost("openapi");
     await this.#identity(openApiHost);
@@ -118,6 +153,7 @@ export class MegaClient {
     return { state: "authenticated" };
   }
 
+  /** Fetch the account's devices and groups after authentication. */
   async inventory(): Promise<MegaInventory> {
     this.#requireAuthentication();
     const result = await this.#call("house", "/app/house/get_devs_list", { house_id: "", device_sns: {} });
@@ -129,6 +165,7 @@ export class MegaClient {
     };
   }
 
+  /** Identify errors that should trigger a fresh Mega login attempt. */
   isSessionInvalidError(error: unknown): boolean {
     return error instanceof Error && ([...AUTH_SESSION_INVALID_CODES].some((code) => error.message.includes(`Mega request failed (${code}:`)) ||
       /Mega request failed \(401:.*token not exist/i.test(error.message));
@@ -139,6 +176,7 @@ export class MegaClient {
    * transport. This is deliberately separate from the web portal session:
    * native P2P signalling does not use the expiring Web Portal PIN.
    */
+
   async mqttInfo(): Promise<MegaMqttInfo> {
     this.#requireAuthentication();
     const result = await this.#call("openapi", "/app/devicemanage/get_user_mqtt_info", {});
@@ -198,6 +236,7 @@ export class MegaClient {
     return values.filter(isRecord);
   }
 
+  /** Register the persistent Firebase token with Mega notification service. */
   async registerPushToken(token: string): Promise<void> {
     this.#requireAuthentication();
     const result = await this.#call("push", "/app/push/register_push_token", {
@@ -208,6 +247,7 @@ export class MegaClient {
     if (!isSuccess(result.code)) throw new Error(`Mega push registration failed (${result.code})`);
   }
 
+  /** Download an HTTPS event image while enforcing a bounded response size. */
   async download(url: string, maximumBytes = 20 * 1024 * 1024): Promise<Buffer> {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") throw new Error("Mega media URL must use HTTPS");
@@ -324,6 +364,9 @@ export class MegaClient {
   }
 
   async #post(host: string, path: string, body: string, headers: Record<string, string>): Promise<MegaResult> {
+
+    // Mega rate-limits aggressively. Serializing requests here also prevents
+    // parallel startup calls from invalidating the short-lived identity.
     const wait = this.#lastRequestAt + this.#minimumRequestIntervalMs - this.#now();
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     this.#lastRequestAt = this.#now();

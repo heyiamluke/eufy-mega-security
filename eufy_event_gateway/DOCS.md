@@ -18,4 +18,4 @@ After the app starts, open **Settings > Devices & services**. Home Assistant sho
 
 Mega events and native camera transport use the gateway's Mega session. If Eufy requests a CAPTCHA or sends an email code, open the app's **Web UI** and complete the prompt. The authenticated session persists in the app's private data volume, so routine upgrades and restarts do not repeat the challenge.
 
-The gateway-only PPCS probe has produced real H.264 and JPEG bytes for the test account's wired T8210 and battery T817L. In v0.1.13, the companion integration exposes that transport through live camera views plus `capture_snapshot` and `record_clip`.
+The gateway-only PPCS probe has produced real H.264 and JPEG bytes for the test account's wired T8210 and battery T817L. In v0.1.14, the companion integration exposes that transport through live camera views plus `capture_snapshot` and `record_clip`. A battery camera that is asleep or out of charge can complete the handshake without sending video; record its power state before treating that result as a software failure.

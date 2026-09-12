@@ -1,11 +1,28 @@
+/**
+ * Owns on-disk persistence for the native Mega session.
+ *
+ * The store reads the current session schema and one older layout, validates
+ * the shape before returning it, and writes restrictive, atomically replaced
+ * JSON. It stores session metadata and derived host key material only; plaintext
+ * passwords, CAPTCHA answers, verification codes, and media bytes are never
+ * persisted here.
+ */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { MegaIdentity, MegaSession } from "./types.js";
 
+/**
+ * Atomic file store for native Mega sessions and one-time legacy migration.
+ * It intentionally stores only session metadata and derived host key material,
+ * not raw passwords or CAPTCHA answers.
+ */
 export class MegaSessionStore {
+
+  /** Create a store with the current path and optional legacy fallback. */
   constructor(private readonly path: string, private readonly legacyPath?: string) {}
 
+  /** Load a valid current session, then try the legacy shape if needed. */
   async load(): Promise<MegaSession | null> {
     const current = await readJson(this.path);
     const parsed = parseSession(current);
@@ -14,6 +31,7 @@ export class MegaSessionStore {
     return parseLegacySession(await readJson(this.legacyPath));
   }
 
+  /** Persist a session with restrictive permissions and atomic replacement. */
   async save(session: MegaSession): Promise<void> {
     await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
     const temporary = `${this.path}.tmp`;

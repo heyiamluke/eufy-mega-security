@@ -1,3 +1,9 @@
+/**
+ * Verifies pure cryptographic helpers for the separate Web API session.
+ *
+ * Fixtures protect key derivation, envelope round trips, and signatures while
+ * ensuring those rules cannot be confused with native Mega cryptography.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

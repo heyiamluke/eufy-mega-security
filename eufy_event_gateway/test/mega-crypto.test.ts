@@ -1,3 +1,10 @@
+/**
+ * Verifies byte-level Mega cryptographic primitives in isolation.
+ *
+ * These fixtures protect key exchange, signatures, encrypted passwords,
+ * envelope round trips, and token derivation so protocol changes fail before
+ * they reach a live account.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

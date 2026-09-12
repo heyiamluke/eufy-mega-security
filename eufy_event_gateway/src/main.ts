@@ -1,3 +1,13 @@
+/**
+ * Composition root for one gateway process.
+ *
+ * This module creates configuration, snapshot storage, normalized state, the
+ * real or simulated provider, stream management, and the authenticated HTTP
+ * server in dependency order. It also attaches provider callbacks and owns
+ * process shutdown. It is intentionally not a home for business rules: if a
+ * change needs to parse Eufy data, alter state policy, or change an endpoint,
+ * it belongs in the neighbouring boundary module instead.
+ */
 import { join } from "node:path";
 
 import { loadConfig } from "./config.js";
@@ -38,6 +48,10 @@ if (config.provider === "simulated") {
 }
 
 const streams = new LiveStreamManager(state, snapshots, provider, config.streamGraceMilliseconds);
+
+// Provider callbacks are the only bridge from Eufy-specific code into the
+// gateway state. This keeps the HTTP server and Home Assistant API unaware of
+// Mega packet formats and authentication details.
 const providerEvents: ProviderEvents = {
   camera(identity) {
     state.registerCamera(identity);

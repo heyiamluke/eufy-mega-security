@@ -1,7 +1,16 @@
+/**
+ * Owns the TCP socket and handshake for the older native relay experiment.
+ *
+ * It turns a relay token from the isolated Thing API into framed control and
+ * media packets for the KCP session above it. It is intentionally not part of
+ * `EufyProvider`'s production Mega/PPCS selection and should be changed only
+ * with packet fixtures or a documented research result.
+ */
 import { connect as tcpConnect, type Socket } from "node:net";
 import { randomBytes } from "node:crypto";
 import { assembleRelayHandshake, authorizationField, relayAuthAck, relayAuthRequest, relayEndpoint, relayHandshakeSignature, type NativeRelayToken, parseRelayHandshake, mediaFrame, unwrapMediaFrame, keepaliveFrame } from "./native-media.js";
 
+/** Legacy relay socket that performs the framed TCP authentication handshake. */
 export class NativeRelayConnection {
   #socket: Socket | null = null; #buffer = Buffer.alloc(0); #closed = false; #keepalive: ReturnType<typeof setInterval> | null = null;
   constructor(private readonly token: NativeRelayToken, private readonly deviceId: string, private readonly uid: string, private readonly mediaKey: Uint8Array) {}

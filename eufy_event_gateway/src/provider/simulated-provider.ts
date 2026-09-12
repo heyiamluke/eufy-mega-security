@@ -1,7 +1,21 @@
+/**
+ * Provides a deterministic implementation of the provider boundary.
+ *
+ * The simulated provider owns no cloud credentials and performs no Eufy
+ * network calls. It creates a known camera, emits repeatable JPEG/H.264 test
+ * bytes, and can trigger detection events through the development endpoint.
+ * This keeps HTTP, SSE, snapshot, and Home Assistant integration work
+ * reproducible when Mega is unavailable or a physical camera is asleep.
+ */
 import { Readable } from "node:stream";
 
 import type { CameraProvider, ProviderEvents } from "./provider.js";
 
+/**
+ * Supplies deterministic camera observations for tests and local API checks.
+ * It follows the same callback contract as EufyProvider, so the server and
+ * state layers can be exercised without changing their production code.
+ */
 export class SimulatedProvider implements CameraProvider {
   static readonly serial = "SIMULATED-CAMERA-1";
   #events: ProviderEvents | null = null;

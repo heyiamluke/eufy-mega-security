@@ -1,3 +1,13 @@
+/**
+ * Implements the gateway's in-memory camera state machine.
+ *
+ * `EufyProvider` reports normalized facts here; this class owns the current
+ * connection state, camera registry, detection hold timers, retained snapshot
+ * metadata, and stream lifecycle counters. `GatewayServer` reads snapshots and
+ * forwards emitted events over SSE. It deliberately owns no Eufy credentials
+ * and performs no network or media-protocol work, so state policy can be
+ * tested without a real camera or cloud account.
+ */
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 
@@ -13,6 +23,7 @@ import type {
   InventoryDiagnostic,
 } from "./types.js";
 
+/** Mutable internal representation; callers receive immutable snapshots. */
 interface MutableCameraState {
   identity: CameraIdentity;
   motionDetected: boolean;
@@ -25,6 +36,14 @@ interface MutableCameraState {
   streamLastError: string | null;
 }
 
+/**
+ * In-memory source of truth for camera state and lifecycle events.
+ *
+ * The class owns no network resources. Callers register identities, report
+ * provider observations, and subscribe to the `event` EventEmitter channel.
+ * Detection flags are cleared after the configured hold period unless a newer
+ * provider notification refreshes them.
+ */
 export class GatewayState extends EventEmitter {
   readonly #cameras = new Map<string, MutableCameraState>();
   readonly #pushDiagnostics: PushDiagnostic[] = [];
@@ -34,10 +53,12 @@ export class GatewayState extends EventEmitter {
   #connectionState: ConnectionState = "starting";
   #connectionDetail: string | null = null;
 
+  /** Create state with a short hold period for transient detection flags. */
   constructor(private readonly detectionHoldMilliseconds = 10_000) {
     super();
   }
 
+  /** Add a camera or refresh its discovered metadata and return its state. */
   registerCamera(identity: CameraIdentity): CameraState {
     const existing = this.#cameras.get(identity.serial);
     if (existing) {
@@ -58,12 +79,14 @@ export class GatewayState extends EventEmitter {
     return this.#emitCamera(identity.serial);
   }
 
+  /** Restore persisted image metadata without emitting a detection event. */
   restoreSnapshot(serial: string, snapshot: SnapshotInfo): void {
     const camera = this.#requireCamera(serial);
     camera.snapshot = snapshot;
     this.#emitCamera(serial);
   }
 
+  /** Record motion and hold the visible flag long enough for HA to observe it. */
   recordMotion(serial: string, detected: boolean, occurredAt = new Date()): void {
     const camera = this.#requireCamera(serial);
     camera.motionDetected = detected;
@@ -82,6 +105,7 @@ export class GatewayState extends EventEmitter {
     this.#emitCamera(serial);
   }
 
+  /** Record person recognition, which takes precedence over same-moment motion. */
   recordPerson(serial: string, detected: boolean, personName: string | null, occurredAt = new Date()): void {
     const camera = this.#requireCamera(serial);
     camera.personDetected = detected;
@@ -101,6 +125,7 @@ export class GatewayState extends EventEmitter {
     this.#emitCamera(serial);
   }
 
+  /** Publish new retained-image metadata and notify SSE subscribers. */
   updateSnapshot(serial: string, snapshot: SnapshotInfo): void {
     const camera = this.#requireCamera(serial);
     camera.snapshot = snapshot;
@@ -108,6 +133,7 @@ export class GatewayState extends EventEmitter {
     this.#emitCamera(serial);
   }
 
+  /** Update shared stream lifecycle and viewer count for one camera. */
   updateStream(serial: string, state: StreamState, viewers: number, error: string | null = null): void {
     const camera = this.#requireCamera(serial);
     camera.streamState = state;
@@ -121,37 +147,45 @@ export class GatewayState extends EventEmitter {
     this.#emitCamera(serial);
   }
 
+  /** Publish provider connectivity and an optional safe diagnostic message. */
   updateConnection(state: ConnectionState, detail: string | null = null): void {
     this.#connectionState = state;
     this.#connectionDetail = detail;
     this.emit("event", { type: "connection-updated", state, detail } satisfies GatewayEvent);
   }
 
+  /** Return the latest provider connection state for health and UI pages. */
   getConnection(): { state: ConnectionState; detail: string | null } {
     return { state: this.#connectionState, detail: this.#connectionDetail };
   }
 
+  /** Keep a bounded diagnostic history without retaining raw push payloads. */
   recordPushDiagnostic(diagnostic: PushDiagnostic): void {
     this.#pushDiagnostics.push(diagnostic);
     if (this.#pushDiagnostics.length > 50) this.#pushDiagnostics.shift();
   }
 
+  /** Return a copy of the bounded push diagnostic history. */
   listPushDiagnostics(): PushDiagnostic[] {
     return [...this.#pushDiagnostics];
   }
 
+  /** Replace the current inventory explanation after provider discovery. */
   updateInventoryDiagnostics(diagnostics: InventoryDiagnostic[]): void {
     this.#inventoryDiagnostics = [...diagnostics];
   }
 
+  /** Return a copy of the latest inventory diagnostics. */
   listInventoryDiagnostics(): InventoryDiagnostic[] {
     return [...this.#inventoryDiagnostics];
   }
 
+  /** Return immutable snapshots for every known camera. */
   listCameras(): CameraState[] {
     return [...this.#cameras.keys()].map((serial) => this.getCamera(serial));
   }
 
+  /** Return one camera or throw when the serial is not known. */
   getCamera(serial: string): CameraState {
     const camera = this.#requireCamera(serial);
     return {
@@ -173,10 +207,12 @@ export class GatewayState extends EventEmitter {
     };
   }
 
+  /** Check camera existence without throwing. */
   hasCamera(serial: string): boolean {
     return this.#cameras.has(serial);
   }
 
+  /** Cancel pending detection timers during process shutdown. */
   close(): void {
     for (const timer of this.#motionClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#personClearTimers.values()) clearTimeout(timer);
@@ -222,6 +258,7 @@ function isRecentPersonDetection(detection: Detection | null, occurredAt: Date):
   return ageMilliseconds >= 0 && ageMilliseconds <= 10_000;
 }
 
+/** Convert Eufy's placeholder person labels into a nullable name. */
 export function normalizePersonName(value: string | null | undefined): string | null {
   const candidate = value?.trim();
   if (!candidate || /^(unknown|unknown person|no person)$/i.test(candidate)) return null;

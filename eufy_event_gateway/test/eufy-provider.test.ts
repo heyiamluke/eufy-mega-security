@@ -1,3 +1,10 @@
+/**
+ * Tests the provider's pure Mega-to-domain transformations.
+ *
+ * The cases cover inventory field aliases, country-to-region compatibility,
+ * safe diagnostics, and the conservative person-name rules without starting
+ * a real account or push receiver.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

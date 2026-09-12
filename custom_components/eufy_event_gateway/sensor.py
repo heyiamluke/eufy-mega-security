@@ -1,4 +1,11 @@
-"""Recognized-person entities for Eufy Mega Security."""
+"""Last-recognized-person sensors for Eufy Mega Security.
+
+The gateway keeps the last detection because a person event is transient. The
+sensor reports a name only when Eufy marked the detection as recognized and
+exposes the event kind and timestamp as attributes for automations. It does
+not perform recognition itself and deliberately leaves generic labels such as
+`Someone` unknown.
+"""
 
 from __future__ import annotations
 
@@ -31,22 +38,25 @@ async def async_setup_entry(
 
 
 class EufyRecognizedPersonSensor(EufyGatewayEntity, SensorEntity):
-    """Remember the last detection and expose a name only when Eufy supplied one."""
+    """Expose the last recognized person while retaining detection metadata."""
 
     _attr_name = "Last recognized person"
     _attr_icon = "mdi:face-recognition"
 
     def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create a stable person sensor for one camera."""
         super().__init__(coordinator, serial)
         self._attr_unique_id = f"{serial}_last_recognized_person"
 
     @property
     def native_value(self) -> str | None:
+        """Return the recognized name, or None for motion/unknown detections."""
         detection = self.camera.get("lastDetection") or {}
         return detection.get("personName") if detection.get("recognized") else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the normalized event kind, time, and recognition flag."""
         detection = self.camera.get("lastDetection") or {}
         return {
             "detection_kind": detection.get("kind"),

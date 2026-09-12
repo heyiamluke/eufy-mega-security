@@ -1,7 +1,21 @@
+/**
+ * Isolates the older SmartLife/Thing account and relay protocol.
+ *
+ * This client documents request signing, device metadata, and relay token
+ * formats encountered during early camera research. It is not production
+ * authentication or streaming, is not selected by `EufyProvider`, and must not
+ * reintroduce the expiring Web Portal PIN flow. Its value is historical
+ * protocol evidence for a future transport experiment.
+ */
 import { createCipheriv, createDecipheriv, createHash, createHmac, publicEncrypt, createPublicKey, randomBytes } from "node:crypto";
 
+/** Legacy Thing account session required by the isolated transport. */
 export interface ThingAccountSession { readonly sid: string; readonly ecode: string; readonly uid: string; readonly deviceFingerprint: string; }
+
+/** Legacy Thing device metadata, including the local camera key. */
 export interface ThingDevice { readonly deviceId: string; readonly name: string; readonly category: string; readonly localKey: string; readonly productId: string | null; readonly online: boolean; }
+
+/** Legacy stream credentials and relay data returned for one device. */
 export interface ThingStreamConfig { readonly deviceId: string; readonly localKey: string; readonly password: string; readonly motoId: string; readonly p2pConfig: Record<string, unknown>; readonly session: Record<string, unknown>; readonly tcpRelay: Record<string, unknown>; readonly iceServers: readonly unknown[]; }
 
 const PACKAGE_NAME = "com.tuya.smartlife";
@@ -15,6 +29,11 @@ const APP_VERSION = "7.10.3";
 const SDK_VERSION = "5.2.0";
 const SIGN_FIELDS = new Set(["a", "v", "lat", "lon", "lang", "deviceId", "appVersion", "ttid", "isH5", "h5Token", "os", "clientId", "postData", "time", "requestId", "et", "n4h5", "sid", "chKey", "sp"]);
 
+/**
+ * Legacy SmartLife/Thing API client used only by native transport research.
+ * It deliberately remains separate from MegaClient because the services have
+ * different login credentials, request signatures, and device identifiers.
+ */
 export class ThingGatewayClient {
   readonly #region: string;
   readonly #fingerprint: string;

@@ -1,7 +1,20 @@
+/**
+ * Implements one first-party Eufy PPCS UDP media session.
+ *
+ * PPCS is Eufy's peer-to-peer camera transport, not RTSP and not a Home
+ * Assistant protocol. This class performs LAN/cloud lookup, `CAM_CHECK`,
+ * command-frame reassembly, HomeBase gateway-info decryption, level-two key
+ * setup, heartbeat, video-key exchange, and Annex-B H.264 output. It consumes
+ * DSK/cipher material prepared by `EufyProvider` and exposes a readable byte
+ * stream plus safe counters, so the rest of the gateway never handles PPCS
+ * packet layout or camera encryption directly.
+ */
 import { createCipheriv, createDecipheriv, createECDH, createHmac, generateKeyPairSync, privateDecrypt, randomBytes } from "node:crypto";
 import { createSocket, type RemoteInfo, type Socket } from "node:dgram";
 import { PassThrough } from "node:stream";
 
+// PPCS wraps command payloads in an XZYH header. The outer D1 datagrams and
+// these inner command frames use different sequence numbers and byte order.
 const MAGIC = Buffer.from("XZYH", "ascii");
 const REQ = {
   lookup: Buffer.from([0xf1, 0x26]),
@@ -21,6 +34,7 @@ const RESP = {
 } as const;
 const DATA = { data: Buffer.from([0xd1, 0]), video: Buffer.from([0xd1, 1]) } as const;
 
+/** Station and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
   readonly stationSerial: string;
   readonly p2pDid: string;
@@ -35,10 +49,18 @@ export interface PpcsCameraOptions {
 }
 
 /**
- * A deliberately small, first-party PPCS implementation. It handles the
- * HomeBase camera path: DSK lookup, CAM_CHECK, level-1 gateway-info decrypt,
- * level-2 media start, and Annex-B H.264 extraction. It has no dependency on
- * eufy-security-client or the expiring Web Portal PIN.
+ * One bounded, first-party PPCS camera session that emits Annex-B video on
+ * `output`.
+ *
+ * It handles the HomeBase camera path: DSK lookup, CAM_CHECK, level-one
+ * gateway-info decryption, level-two media start, and Annex-B H.264
+ * extraction. It has no dependency on eufy-security-client or the expiring
+ * Web Portal PIN.
+ *
+ * `start` resolves after the peer answers the lookup, not after the first video
+ * frame. A camera can therefore be reachable while still failing later during
+ * key unwrap or media start. The public stats object makes that distinction
+ * visible in diagnostics.
  */
 export class FirstPartyPpcsSession {
   readonly output = new PassThrough();
@@ -58,9 +80,15 @@ export class FirstPartyPpcsSession {
   #lastSequenceByType = new Map<number, number>();
   #heartbeat: ReturnType<typeof setInterval> | null = null;
 
+  /** Create a session; no socket is bound until {@link start} runs. */
   constructor(options: PpcsCameraOptions) { this.#options = options; }
 
+  /** Bind UDP, perform lookup and handshake, then start heartbeats. */
   async start(): Promise<void> {
+
+    // Bind an ephemeral UDP port, then try LAN and cloud lookup addresses. A
+    // successful CAM_ID response means the peer is reachable, not that video
+    // has started yet.
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("PPCS camera lookup timed out")), 20_000);
       this.#socket.once("error", (error) => { clearTimeout(timeout); reject(error); });
@@ -84,6 +112,7 @@ export class FirstPartyPpcsSession {
     this.#heartbeat.unref?.();
   }
 
+  /** End the peer session, timers, socket, and output stream idempotently. */
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
@@ -152,6 +181,9 @@ export class FirstPartyPpcsSession {
       const payload = pending.subarray(16, 16 + size);
       this.stats.frameHeaders++;
       pending = pending.subarray(16 + size);
+
+      // 1100 carries the encrypted HomeBase gateway details. 1300 carries
+      // media frames after the level-2 request has been accepted.
       if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
       else if (command === 1300) { this.stats.videoFrames++; this.#writeVideo(payload, signCode); }
     }
@@ -204,6 +236,9 @@ export class FirstPartyPpcsSession {
       mValue3: 1003,
       payload: { ClientOS: "Android", accountId: this.#options.accountId ?? "", camera_type: 0, entrytype: 0, key, streamtype: 1 },
     });
+
+    // The level-2 body is AES-GCM encrypted. The RSA modulus inside the JSON
+    // lets the camera establish the per-stream video key for frame payloads.
     const level2Sequence = this.#level2Seq++;
     const body = encryptLevel2(Buffer.from(value), this.#level2Key, level2Sequence);
     const streamId = this.#options.channel === 0 || this.#options.channel === 255 ? 0 : 10 + (this.#level2Seq & 127);

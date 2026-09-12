@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.15
+
+- Add a first-day developer guide covering the repository architecture, Mega authentication, inventory, push events, snapshots, PPCS streaming, and Home Assistant conversion.
+- Add a detailed Mega platform and protocol reference with endpoint, payload, encryption, and media-flow documentation.
+- Expand file-level TypeScript, Python, probe, and test documentation so maintainers can understand ownership, lifecycle, and protocol boundaries from the source.
+- Add direct links to the developer documentation from the public and app READMEs.
+
+## 0.1.14
+
+- Add contributor, security, and repository file-map documentation.
+- Document the internal `eufy_event_gateway` compatibility identifiers separately from the Eufy Mega Security branding.
+- Expand source comments around the Mega, PPCS, state, storage, and Home Assistant integration boundaries.
+- Clarify that a battery camera with no charge can complete the PPCS handshake without producing video.
+
 ## 0.1.13
 
 - Rename the project, Home Assistant integration, and HACS repository to Eufy Mega Security.
