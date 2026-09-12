@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to Eufy Event Gateway",
+        "title": "Connect to Eufy Mega Security",
         "description": "Enter the address Home Assistant uses to reach the local gateway.",
         "data": {
           "url": "Gateway URL",

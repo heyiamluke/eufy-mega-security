@@ -1,4 +1,4 @@
-"""Shared entity support for the Eufy Event Gateway."""
+"""Shared entity support for Eufy Mega Security."""
 
 from __future__ import annotations
 

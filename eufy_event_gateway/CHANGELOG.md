@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.13
+
+- Rename the project, Home Assistant integration, and HACS repository to Eufy Mega Security.
+
 ## 0.1.12
 
 - Add a gateway-owned first-party PPCS camera transport with level-2 key negotiation.

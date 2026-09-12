@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.13
+
+- Rename the project, Home Assistant integration, and HACS repository to Eufy Mega Security.
+
 ## 0.1.12
 
 - Add the gateway-owned first-party PPCS transport for live H.264 streams and fresh camera snapshots.

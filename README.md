@@ -1,10 +1,10 @@
-# Eufy Event Gateway for Home Assistant
+# Eufy Mega Security for Home Assistant
 
-[![My Home Assistant](https://img.shields.io/badge/Home%20Assistant-%2341BDF5.svg?style=flat&logo=home-assistant&label=My)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mscodemonkey&repository=eufy-event-gateway&category=integration)
-[![MIT licence](https://img.shields.io/badge/licence-MIT-blue.svg)](https://github.com/mscodemonkey/eufy-event-gateway/blob/main/LICENSE)
+[![My Home Assistant](https://img.shields.io/badge/Home%20Assistant-%2341BDF5.svg?style=flat&logo=home-assistant&label=My)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mscodemonkey&repository=eufy-mega-security&category=integration)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-blue.svg)](https://github.com/mscodemonkey/eufy-mega-security/blob/main/LICENSE)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mscodemonkey/eufy-event-gateway/main/custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Event Gateway icon">
+  <img src="https://raw.githubusercontent.com/mscodemonkey/eufy-mega-security/main/custom_components/eufy_event_gateway/brand/icon.png" width="128" height="128" alt="Eufy Mega Security icon">
 </p>
 
 Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.
@@ -36,8 +36,8 @@ The actions work in Home Assistant automations and through Node-RED's Home Assis
 
 This repository contains two parts, and Home Assistant needs both:
 
-1. **Eufy Event Gateway app** — signs in through Eufy's current Mega service, receives push/HomeBase events, and retains snapshots.
-2. **Eufy Event Gateway integration** — turns the gateway data into normal Home Assistant camera, binary-sensor, and sensor entities.
+1. **Eufy Mega Security app** — signs in through Eufy's current Mega service, receives push/HomeBase events, and retains snapshots.
+2. **Eufy Mega Security integration** — turns the gateway data into normal Home Assistant camera, binary-sensor, and sensor entities.
 
 On Home Assistant OS or Supervised, the app generates its own private API token and passes it directly to the integration through Supervisor discovery. The gateway port is closed to the LAN by default.
 
@@ -58,9 +58,9 @@ The project does not need to be accepted into HACS's default catalogue. Add it a
 
 1. Open **HACS** in Home Assistant.
 2. Open the three-dot menu and choose **Custom repositories**.
-3. Enter `https://github.com/mscodemonkey/eufy-event-gateway`.
+3. Enter `https://github.com/mscodemonkey/eufy-mega-security`.
 4. Select **Integration** as the category and add it.
-5. Find **Eufy Event Gateway**, choose **Download**, and restart Home Assistant.
+5. Find **Eufy Mega Security**, choose **Download**, and restart Home Assistant.
 
 If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/config/custom_components/eufy_event_gateway` and restart Home Assistant.
 
@@ -68,8 +68,8 @@ If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/confi
 
 1. Open **Settings > Apps > App Store**.
 2. Open the repository manager from the top-right menu.
-3. Add `https://github.com/mscodemonkey/eufy-event-gateway`.
-4. Find **Eufy Event Gateway** under the new repository and select **Install**.
+3. Add `https://github.com/mscodemonkey/eufy-mega-security`.
+4. Find **Eufy Mega Security** under the new repository and select **Install**.
 5. On its **Configuration** tab, enter the dedicated Eufy guest username, password, and country code.
 6. Start the app and enable **Start on boot** and **Watchdog**.
 
@@ -82,12 +82,12 @@ Mega events and the native camera transport use the gateway's Mega session. If E
 After the app connects:
 
 1. Open **Settings > Devices & services**.
-2. A discovered **Eufy Event Gateway** card should appear.
+2. A discovered **Eufy Mega Security** card should appear.
 3. Select **Configure** and submit the confirmation.
 
 The app address and generated API token are transferred privately. You do not need to copy either value.
 
-If discovery does not appear, first confirm the app log reports a healthy gateway. Then choose **Add integration**, search for **Eufy Event Gateway**, and use the manual gateway details only if you deliberately exposed a standalone gateway.
+If discovery does not appear, first confirm the app log reports a healthy gateway. Then choose **Add integration**, search for **Eufy Mega Security**, and use the manual gateway details only if you deliberately exposed a standalone gateway.
 
 ## Automations and Node-RED
 
@@ -173,7 +173,7 @@ cd eufy_event_gateway
 npm ci
 npm run check
 npm run build
-docker build -t eufy-event-gateway:test .
+docker build -t eufy-mega-security:test .
 ```
 
 ## Licence

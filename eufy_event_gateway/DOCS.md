@@ -1,4 +1,4 @@
-# Eufy Event Gateway
+# Eufy Mega Security
 
 This app runs the local Eufy gateway beside Home Assistant. It signs in through Eufy's current Mega service, receives Eufy and HomeBase events continuously, and retains the last useful camera image.
 
@@ -14,7 +14,7 @@ The app generates its own API token on first start and sends the private connect
 
 The app stores its authenticated Eufy session and retained snapshots in its private `/data` volume so they survive restarts and are included in Home Assistant backups.
 
-After the app starts, open **Settings > Devices & services**. Home Assistant should show a discovered **Eufy Event Gateway** integration. Select **Configure** to create its camera and detection entities.
+After the app starts, open **Settings > Devices & services**. Home Assistant should show a discovered **Eufy Mega Security** integration. Select **Configure** to create its camera and detection entities.
 
 Mega events and native camera transport use the gateway's Mega session. If Eufy requests a CAPTCHA or sends an email code, open the app's **Web UI** and complete the prompt. The authenticated session persists in the app's private data volume, so routine upgrades and restarts do not repeat the challenge.
 

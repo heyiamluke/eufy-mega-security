@@ -1,4 +1,4 @@
-"""Eufy Event Gateway integration."""
+"""Eufy Mega Security integration."""
 
 from __future__ import annotations
 

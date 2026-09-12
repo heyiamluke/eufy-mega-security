@@ -17,7 +17,7 @@ import type { WebApiIdentity, WebAuthResult, WebSession } from "./web-types.js";
 const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
 const WEB_PIN_TIMESTAMP_REQUIRED = 170003;
-const USER_AGENT = "Mozilla/5.0 Home Assistant Eufy Event Gateway";
+const USER_AGENT = "Mozilla/5.0 Home Assistant Eufy Mega Security";
 const EU_API_HOSTS = new Set([
   "security-app-eu.eufylife.com",
   "security-app-eu-qa.eufylife.com",

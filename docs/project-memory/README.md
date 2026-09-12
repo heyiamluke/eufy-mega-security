@@ -14,6 +14,8 @@ The Home Assistant app advertises a stable internal discovery hostname (`local-e
 
 ## Delivery state
 
+v0.1.13 renames the user-facing project, Home Assistant integration, and HACS repository to Eufy Mega Security while preserving the internal `eufy_event_gateway` domain and discovery hostname for existing installations.
+
 v0.1.12 adds the gateway-only first-party PPCS proof and wires that transport into on-demand camera streaming. An existing valid Mega session is migrated once from the previous client state, then saved in the gateway-owned session format. New Mega authentication supports email verification and the app's CAPTCHA interface when Eufy requires either challenge. The separate web session remains independently scoped and stored for the web transport code.
 
 Never log or expose credentials, session tokens, signing identities, raw signed media URLs, complete push payloads, or device serial numbers in diagnostics.
