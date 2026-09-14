@@ -33,7 +33,7 @@ export class SimulatedProvider implements CameraProvider {
       serial: SimulatedProvider.serial,
       name: "Simulated driveway",
       model: "T8142-compatible simulator",
-      sources: ["legacy"],
+      sources: ["simulated"],
       upstreamIsCamera: true,
       acceptedAsCamera: true,
       megaDeviceType: null,

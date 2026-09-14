@@ -21,7 +21,7 @@ The service name is a historical internal identifier. The user-facing name is **
 
 Mega is an observed application protocol, not a public stable SDK. Eufy can change endpoint names, response fields, error codes, encryption details, or device behaviour without notice. The code therefore keeps all Mega-specific work under `eufy_event_gateway/src/mega` and converts untrusted responses into typed, bounded values before they reach the rest of the gateway.
 
-The word “Mega” is easy to confuse with Eufy's older **Thing** or SmartLife service. They are different account systems with different credentials, signing rules, device IDs, and transport paths. The older Thing implementation remains in this repository only as isolated research code. Production startup uses `MegaClient`, not `ThingGatewayClient`.
+The word “Mega” is easy to confuse with Eufy's older **Thing** or SmartLife service. They are different account systems with different credentials, signing rules, device IDs, and transport paths. Production startup uses `MegaClient`; the retired Thing and Web Portal experiments are no longer part of the repository.
 
 ## What is PPCS?
 
@@ -159,7 +159,6 @@ The gateway does not mirror the entire Eufy account. It asks for the smallest us
 | `get_devs_list` | device serial, name, model, category, type, parent station, channel, P2P DID/connection, cipher ID, admin user | `MegaInventoryDevice` and `CameraIdentity` | provider, domain state |
 | `get_dsk_keys` | station serial and short-lived DSK key | in-memory station-key map with expiry | PPCS lookup |
 | `get_ciphers` | cipher ID and ECC private key | in-memory cipher-key map | HomeBase level-two PPCS unwrap |
-| MQTT registration | endpoint, mutual-TLS certificate/key, root CA, thing name | `MegaMqttInfo` | isolated legacy experiments only |
 | push registration | Firebase registration token | private `mega-push.json` state | `MegaPushReceiver` |
 | push event | camera/station serials, event/message type, person label, picture URL and diagnostic IDs | `MegaPushEvent` | provider and diagnostics |
 | event-image URL | HTTPS response bytes | JPEG bytes after decode | `SnapshotStore`, Home Assistant |
@@ -197,7 +196,7 @@ The camera row must contain a channel and be attached to a station that supplies
 
 The PPCS session begins with UDP lookup. The cloud lookup address is decoded from the Eufy connection string; a LAN broadcast is also attempted. Once a `CAM_ID` response identifies the peer, the session sends the camera command that requests media.
 
-For a camera that owns its media path, the command is encrypted with a key derived from station serial and P2P DID. For a HomeBase-attached camera, the `1100` gateway-info frame is decrypted, its cipher ID is used to fetch the ECC private key from Mega, and an ECIES-wrapped level-two AES key is unwrapped. The session then sends a level-two AES-GCM JSON request containing the channel, account ID, stream type, and an ephemeral RSA modulus. The camera uses that modulus to establish a per-stream video key.
+For a camera that owns its media path, the command is encrypted with a key derived from station serial and P2P DID. For a HomeBase-attached camera, the `1100` gateway-info frame is decrypted, its cipher ID is used to fetch the ECC private key from Mega, and an ECIES-wrapped level-two AES key is unwrapped. The session then sends a level-two AES-GCM JSON request containing the channel, account ID, stream type, and an ephemeral RSA modulus. The camera uses that modulus to establish a per-stream video key. Captured devices return that encrypted key as a fixed 128-byte field, so the session uses an ephemeral RSA-1024 key for wire compatibility. A larger key must not be substituted until the camera protocol is proven to accept it.
 
 PPCS data datagrams are acknowledged and reassembled by type and sequence. `XZYH` command frames carry media payloads. The session removes the PPCS framing and writes Annex-B H.264 NAL units to its output stream. It does not convert the camera to RTSP.
 
@@ -299,5 +298,5 @@ Use a real Eufy account only for the probe or a focused integration test. Keep t
 - **Mega:** Eufy's current cloud account/API family used by the native application.
 - **PPCS:** Eufy's peer-to-peer UDP camera media protocol.
 - **SSE:** Server-Sent Events, the one-way HTTP stream used from gateway to Home Assistant for state changes.
-- **Thing/SmartLife:** Eufy's older account and transport family retained only for isolated research code.
+- **Thing/SmartLife:** Eufy's older account and transport family. Its unused experiments were removed in v0.1.20.
 - **Web Portal Access PIN:** a separate, expiring web transport credential. Production Mega/PPCS does not use it.

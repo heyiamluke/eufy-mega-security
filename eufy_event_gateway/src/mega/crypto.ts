@@ -3,10 +3,10 @@
  *
  * These functions reproduce the observed native-app formats for bootstrap
  * keys, ECDH identity exchange, request signatures, AES envelopes, encrypted
- * passwords, login hashes, and user tokens. They perform no I/O and retain no
- * session state. Fixtures can therefore test byte-for-byte protocol behaviour
- * without contacting Eufy, while MegaClient owns ordering, persistence, rate
- * limiting, and error interpretation.
+ * passwords, credential verifiers, and user tokens. They perform no I/O and
+ * retain no session state. Fixtures can therefore test byte-for-byte protocol
+ * behaviour without contacting Eufy, while MegaClient owns ordering,
+ * persistence, rate limiting, and error interpretation.
  */
 import {
   createCipheriv,
@@ -15,6 +15,7 @@ import {
   createHash,
   createHmac,
   randomBytes,
+  scryptSync,
   type ECDH,
 } from "node:crypto";
 
@@ -111,12 +112,13 @@ export function encryptPassword(password: string): { encrypted: string; clientPu
   return { encrypted, clientPublicKey: ecdh.getPublicKey("hex") };
 }
 
-/** Derive the local-session guard that detects changed account credentials. */
-export function loginHash(openUdid: string, email: string, password: string): string {
-  return createHash("sha256").update(`${openUdid}:${email}:${password}`).digest("hex");
+/** Derive a slow account-bound verifier used to reject sessions saved for different credentials. */
+export function credentialVerifier(openUdid: string, email: string, password: string): string {
+  const salt = `eufy-mega-session:${openUdid}:${email.toLowerCase()}`;
+  return scryptSync(password, salt, 32).toString("hex");
 }
 
-/** Build the gtoken header value from a Mega user ID. */
+/** Build Eufy's required MD5-formatted gtoken identifier from a public user ID. */
 export function megaUserToken(userId: string): string {
   return createHash("md5").update(userId).digest("hex");
 }

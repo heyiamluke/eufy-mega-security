@@ -39,21 +39,11 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | Path | Purpose |
 | --- | --- |
 | `src/mega/client.ts` | Production Mega account client: domain discovery, ECDH identity exchange, encrypted login/requests, session reuse, inventory, DSK/cipher lookup, push registration, and bounded media download. |
-| `src/mega/crypto.ts` | Pure Mega key exchange, request signing, AES envelope, password encryption, login-hash, and token primitives. |
+| `src/mega/crypto.ts` | Pure Mega key exchange, request signing, AES envelope, password encryption, credential-verifier, and token primitives. |
 | `src/mega/types.ts` | Checked response and persisted-session contracts; not a raw undocumented API schema. |
-| `src/mega/session-store.ts` | Private, atomic native Mega session persistence with one-time legacy migration. |
+| `src/mega/session-store.ts` | Private, atomic Mega session persistence with strict current-schema validation. |
 | `src/mega/push.ts` | Firebase receiver registration, persistent ID storage, nested notification parsing, event normalization, and safe diagnostics. |
 | `src/mega/image.ts` | JPEG detection and decoding of Eufy event-image wrappers, including encrypted legacy bytes. |
-| `src/mega/web-client.ts` | Separate Web API session used only by the challenge page and legacy WebRTC experiment. |
-| `src/mega/web-crypto.ts` | Cryptographic helpers for the Web API session; intentionally separate from Mega crypto. |
-| `src/mega/web-session-store.ts` | Private persistence for the expiring Web API session. |
-| `src/mega/web-types.ts` | Types for the Web API's authentication, device, and signalling responses. |
-| `src/mega/native-mqtt.ts` | Legacy Thing mutual-TLS MQTT connection and framing, retained for research and not selected in production. |
-| `src/mega/native-p2p.ts` | Legacy Thing/P2P message framing and signalling helpers for packet experiments. |
-| `src/mega/native-media.ts` | Legacy native relay encryption/framing helpers used by the isolated transport research. |
-| `src/mega/native-relay.ts` | Legacy relay TCP connection and handshake implementation. |
-| `src/mega/native-relay-session.ts` | Legacy KCP control/video session over the relay. |
-| `src/mega/thing-gateway.ts` | Legacy SmartLife/Thing account client, deliberately outside the production Mega path. |
 
 ### Video and media
 
@@ -62,9 +52,6 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `src/stream/first-party-ppcs.ts` | Production Eufy PPCS UDP lookup, CAM_CHECK, HomeBase key unwrap, media request, H.264 extraction, and heartbeat. PPCS means Eufy's peer-to-peer camera transport. |
 | `src/stream/live-stream-manager.ts` | Shares a provider H.264 source, feeds FFmpeg for snapshots/clips, bounds recordings, and stops idle sessions. |
 | `src/stream/jpeg-parser.ts` | Reassembles complete JPEG frames from arbitrary FFmpeg stdout chunks. |
-| `src/stream/h264-rtp.ts` | Reassembles H.264 NAL units from RTP packets for the isolated WebRTC path. |
-| `src/stream/web-rtc-stream.ts` | Legacy Web API WebRTC signalling and RTP media session, not production Mega/PPCS. |
-| `src/stream/native-stream-session.ts` | Composes the legacy MQTT, P2P, relay, KCP, and FFmpeg path for research only. |
 | `scripts/ppcs-probe.ts` | Safe standalone proof tool that enumerates cameras and records PPCS byte/frame results. |
 
 ## Home Assistant integration
