@@ -67,6 +67,10 @@ export class FirstPartyPpcsSession {
   readonly stats = { camId: 0, dataDatagrams: 0, frameHeaders: 0, gatewayInfo: 0, level2: 0, videoFrames: 0, firstDataHex: "", cipherId: 0, level2Error: "", commands: [] as number[], responseLengths: [] as number[], startHex: "", types: [] as number[] };
   readonly #options: PpcsCameraOptions;
   readonly #socket: Socket = createSocket("udp4");
+
+  // Eufy's observed video-key frame is exactly 128 bytes, which binds this
+  // ephemeral per-stream key pair to RSA-1024 until compatible hardware proves
+  // a larger modulus is accepted. This is a protocol constraint, not a stored key.
   readonly #rsa = generateKeyPairSync("rsa", { modulusLength: 1024 });
   #remote: { host: string; port: number } | null = null;
   #seq = 0;

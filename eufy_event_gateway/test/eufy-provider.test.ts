@@ -1,9 +1,8 @@
 /**
  * Tests the provider's pure Mega-to-domain transformations.
  *
- * The cases cover inventory field aliases, country-to-region compatibility,
- * safe diagnostics, and the conservative person-name rules without starting
- * a real account or push receiver.
+ * The cases cover inventory field aliases, safe diagnostics, and conservative
+ * person-name rules without starting a real account or push receiver.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,7 +12,6 @@ import {
   inventoryLogSummaries,
   parseMegaInventory,
   personNameFromPush,
-  thingRegion,
 } from "../src/provider/eufy-provider.js";
 
 const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Parameters<typeof personNameFromPush>[0] => ({
@@ -21,11 +19,6 @@ const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Pa
   personName: null,
   content: null,
   ...overrides,
-});
-
-test("routes Australian Thing accounts through the Singapore cluster", () => {
-  assert.equal(thingRegion("AU"), "sg");
-  assert.equal(thingRegion("US"), "us");
 });
 
 test("uses a structured person name when Eufy supplies one", () => {

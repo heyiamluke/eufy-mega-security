@@ -1,6 +1,6 @@
 {
   "name": "eufy-ha-gateway",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "private": true,
   "description": "Event-first Eufy camera gateway for Home Assistant",
   "type": "module",
@@ -19,13 +19,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@eneris/push-receiver": "^4.3.1",
-    "werift": "^0.24.4",
-    "ws": "^8.21.3"
+    "@eneris/push-receiver": "^4.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
-    "@types/ws": "^8.18.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

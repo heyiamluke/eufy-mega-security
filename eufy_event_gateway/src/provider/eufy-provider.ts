@@ -111,8 +111,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
     const dsk = station ? this.#dskKeys.get(station.serial) : null;
 
-    // The production path is deliberately first-party Mega/PPCS. Older
-    // transports remain in their own modules and are not selected here.
+    // The production path is deliberately first-party Mega/PPCS.
     if (station?.p2pDid && station.p2pConnection && dsk && device.channel !== null) {
       this.#ppcsStreams.get(serial)?.close();
       const stream = new FirstPartyPpcsSession({
@@ -311,12 +310,6 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       if (this.#pushSnapshotQueues.get(event.cameraSerial) === current) this.#pushSnapshotQueues.delete(event.cameraSerial);
     });
   }
-}
-
-/** Map an account country to the regional Thing service name used by legacy diagnostics. */
-export function thingRegion(country: string): string {
-  const normalized = country.trim().toLowerCase();
-  return normalized === "au" ? "sg" : normalized;
 }
 
 /** Download and decode the image referenced by one normalized push event. */

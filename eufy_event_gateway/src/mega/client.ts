@@ -1,12 +1,11 @@
 /**
  * Owns the gateway's direct connection to Eufy's current Mega cloud API.
  *
- * This client implements domain discovery, ECDH identity exchange, encrypted
- * It discovers regional hosts, performs the per-host ECDH identity exchange,
- * encrypts and signs requests, handles login challenge states, persists a
- * reusable session, retrieves inventory/DSK/cipher material, registers push,
- * and downloads bounded HTTPS media. It returns checked domain values to
- * `EufyProvider`; it deliberately knows nothing about Home Assistant entities,
+ * This client discovers regional hosts, performs the per-host ECDH identity
+ * exchange, encrypts and signs requests, handles login challenge states,
+ * persists a reusable session, retrieves inventory/DSK/cipher material,
+ * registers push, and downloads bounded HTTPS media. It returns checked values
+ * to `EufyProvider`; it deliberately knows nothing about Home Assistant entities,
  * SSE, or the PPCS packet stream. Keeping those concerns out of this class is
  * what makes the Mega layer reusable by a probe or another application.
  */
@@ -18,7 +17,7 @@ import {
   encryptEnvelope,
   encryptPassword,
   finishKeyExchange,
-  loginHash,
+  credentialVerifier,
   megaUserToken,
   EUFYLIFE_PRESET_KEY,
   MEGA_PRESET_KEY,
@@ -28,7 +27,7 @@ import {
   sharedSigningKey,
 } from "./crypto.js";
 import { MegaSessionStore } from "./session-store.js";
-import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaMqttInfo, MegaResult, MegaSession } from "./types.js";
+import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaResult, MegaSession } from "./types.js";
 
 // These codes are returned by the Mega passport endpoint. They are kept here
 // instead of in the UI so every caller gets the same challenge behaviour.
@@ -76,10 +75,7 @@ export class MegaClient {
     this.#fetch = options.fetch ?? globalThis.fetch;
     this.#now = options.now ?? Date.now;
     this.#minimumRequestIntervalMs = options.minimumRequestIntervalMs ?? 3_000;
-    this.#store = new MegaSessionStore(
-      join(options.persistentDirectory, "mega-session.json"),
-      join(options.persistentDirectory, "persistent.json"),
-    );
+    this.#store = new MegaSessionStore(join(options.persistentDirectory, "mega-session.json"));
   }
 
   /** Return the pending image challenge, if login requested one. */
@@ -172,30 +168,6 @@ export class MegaClient {
       /Mega request failed \(401:.*token not exist/i.test(error.message));
   }
 
-  /**
-   * Fetch the mutual-TLS credentials used by the native app's Thing MQTT
-   * transport. This is deliberately separate from the web portal session:
-   * native P2P signalling does not use the expiring Web Portal PIN.
-   */
-
-  async mqttInfo(): Promise<MegaMqttInfo> {
-    this.#requireAuthentication();
-    const result = await this.#call("openapi", "/app/devicemanage/get_user_mqtt_info", {});
-    const value = this.#decodeResult(result, this.#clusterHost("openapi"));
-    if (!isRecord(value)) throw new Error("Mega returned invalid MQTT credentials");
-    const endpointAddress = stringValue(value.endpoint_addr);
-    const thingName = stringValue(value.thing_name);
-    const userId = stringValue(value.user_id);
-    const appName = stringValue(value.app_name);
-    const certificatePem = stringValue(value.certificate_pem);
-    const privateKey = stringValue(value.private_key);
-    const rootCaPem = stringValue(value.aws_root_ca1_pem);
-    if (!endpointAddress || !thingName || !userId || !appName || !certificatePem || !privateKey || !rootCaPem) {
-      throw new Error("Mega returned incomplete MQTT credentials");
-    }
-    return { endpointAddress, thingName, userId, appName, certificatePem, privateKey, rootCaPem };
-  }
-
   /** Fetch the short-lived DSK lookup keys used by Eufy's native PPCS camera path. */
   async dskKeys(stationSerials: readonly string[]): Promise<Record<string, { readonly key: string; readonly expiresAt: number | null }>> {
     this.#requireAuthentication();
@@ -263,10 +235,20 @@ export class MegaClient {
 
   async #restore(): Promise<void> {
     const restored = await this.#store.load();
-    if (!restored) return;
-    const expectedHash = loginHash(restored.openUdid, this.#email, this.#password);
-    if (restored.country.toLowerCase() !== this.#country || restored.loginHash !== expectedHash) {
-      this.#session = emptySession(this.#country, restored.openUdid, expectedHash);
+    if (!restored) {
+      const openUdid = await this.#store.loadRetiredOpenUdid();
+      if (openUdid) {
+        this.#session = emptySession(
+          this.#country,
+          openUdid,
+          credentialVerifier(openUdid, this.#email, this.#password),
+        );
+      }
+      return;
+    }
+    const expectedVerifier = credentialVerifier(restored.openUdid, this.#email, this.#password);
+    if (restored.country.toLowerCase() !== this.#country || restored.credentialVerifier !== expectedVerifier) {
+      this.#session = emptySession(this.#country, restored.openUdid, expectedVerifier);
       return;
     }
     this.#session = restored;
@@ -283,7 +265,7 @@ export class MegaClient {
     if (!domain || !isStringRecord(result.data.product_domains)) throw new Error("Mega returned an invalid domain profile");
     const openUdid = this.#session?.openUdid ?? randomIdentifier();
     this.#session = {
-      ...(this.#session ?? emptySession(this.#country, openUdid, loginHash(openUdid, this.#email, this.#password))),
+      ...(this.#session ?? emptySession(this.#country, openUdid, credentialVerifier(openUdid, this.#email, this.#password))),
       megaDomain: domain,
       domains: result.data.product_domains,
     };
@@ -468,12 +450,12 @@ export class MegaClient {
   }
 }
 
-function emptySession(country: string, openUdid: string, hash: string): MegaSession {
+function emptySession(country: string, openUdid: string, verifier: string): MegaSession {
   return {
-    version: 1,
+    version: 2,
     country,
     openUdid,
-    loginHash: hash,
+    credentialVerifier: verifier,
     authToken: "",
     tokenExpiresAt: 0,
     userId: "",

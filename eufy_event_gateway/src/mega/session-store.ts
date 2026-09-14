@@ -1,11 +1,10 @@
 /**
  * Owns on-disk persistence for the native Mega session.
  *
- * The store reads the current session schema and one older layout, validates
- * the shape before returning it, and writes restrictive, atomically replaced
- * JSON. It stores session metadata and derived host key material only; plaintext
- * passwords, CAPTCHA answers, verification codes, and media bytes are never
- * persisted here.
+ * The store validates the current session schema before returning it and writes
+ * restrictive, atomically replaced JSON. It stores session metadata and
+ * derived host key material only; plaintext passwords, CAPTCHA answers,
+ * verification codes, and media bytes are never persisted here.
  */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -13,22 +12,25 @@ import { dirname } from "node:path";
 import type { MegaIdentity, MegaSession } from "./types.js";
 
 /**
- * Atomic file store for native Mega sessions and one-time legacy migration.
- * It intentionally stores only session metadata and derived host key material,
- * not raw passwords or CAPTCHA answers.
+ * Atomic file store for native Mega sessions.
+ * It intentionally rejects older schemas whose credential guard used a fast
+ * password hash, requiring one fresh login after the security upgrade.
  */
 export class MegaSessionStore {
 
-  /** Create a store with the current path and optional legacy fallback. */
-  constructor(private readonly path: string, private readonly legacyPath?: string) {}
+  /** Create a store for the current private session path. */
+  constructor(private readonly path: string) {}
 
-  /** Load a valid current session, then try the legacy shape if needed. */
+  /** Load a valid current session or return null for missing, malformed, or retired schemas. */
   async load(): Promise<MegaSession | null> {
-    const current = await readJson(this.path);
-    const parsed = parseSession(current);
-    if (parsed) return parsed;
-    if (!this.legacyPath) return null;
-    return parseLegacySession(await readJson(this.legacyPath));
+    return parseSession(await readJson(this.path));
+  }
+
+  /** Recover only the non-secret device identifier from a retired version 1 session. */
+  async loadRetiredOpenUdid(): Promise<string | null> {
+    const value = await readJson(this.path);
+    if (!isRecord(value) || value.version !== 1 || typeof value.openUdid !== "string") return null;
+    return value.openUdid.length > 0 ? value.openUdid : null;
   }
 
   /** Persist a session with restrictive permissions and atomic replacement. */
@@ -52,42 +54,24 @@ async function readJson(path: string): Promise<unknown> {
 }
 
 function parseSession(value: unknown): MegaSession | null {
-  if (!isRecord(value) || value.version !== 1) return null;
+  if (!isRecord(value) || value.version !== 2) return null;
   return validatedSession(value);
-}
-
-function parseLegacySession(value: unknown): MegaSession | null {
-  if (!isRecord(value) || !isRecord(value.megaApi)) return null;
-  const legacy = value.megaApi;
-  return validatedSession({
-    version: 1,
-    country: legacy.ab,
-    openUdid: legacy.openudid,
-    loginHash: legacy.login_hash,
-    authToken: legacy.cloud_token,
-    tokenExpiresAt: legacy.cloud_token_expiration,
-    userId: legacy.user_id,
-    megaDomain: typeof legacy.megaDomain === "string" && legacy.megaDomain.length > 0
-      ? legacy.megaDomain
-      : `mega-${Object.keys(isRecord(legacy.identities) ? legacy.identities : {}).some((host) => host.includes("-us-")) ? "us" : "eu"}-pr.eufy.com`,
-    domains: legacy.domains,
-    identities: legacy.identities,
-  });
 }
 
 function validatedSession(value: Record<string, unknown>): MegaSession | null {
   const identities = parseIdentities(value.identities);
   if (
     typeof value.country !== "string" || typeof value.openUdid !== "string" ||
-    typeof value.loginHash !== "string" || typeof value.authToken !== "string" ||
+    typeof value.credentialVerifier !== "string" || !/^[0-9a-f]{64}$/i.test(value.credentialVerifier) ||
+    typeof value.authToken !== "string" ||
     typeof value.tokenExpiresAt !== "number" || typeof value.userId !== "string" ||
     typeof value.megaDomain !== "string" || !isStringRecord(value.domains) || !identities
   ) return null;
   return {
-    version: 1,
+    version: 2,
     country: value.country,
     openUdid: value.openUdid,
-    loginHash: value.loginHash,
+    credentialVerifier: value.credentialVerifier,
     authToken: value.authToken,
     tokenExpiresAt: value.tokenExpiresAt,
     userId: value.userId,
