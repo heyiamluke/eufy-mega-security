@@ -14,7 +14,7 @@ The Home Assistant app advertises the Supervisor-assigned app hostname discovere
 
 ## Delivery state
 
-v0.1.19 adds camera inventory types 19, 31, and 91 after v0.1.18 support logs identified the T8160/S330, T8410/T8410C, and T8213 rows that an affected installation received from Mega. This makes all five reported cameras eligible for registration while continuing to exclude the type 18 HomeBase parent.
+v0.1.19 adds camera inventory types 19, 31, and 91 after v0.1.18 support logs identified the T8160/S330, T8410/T8410C, and T8213 rows that an affected installation received from Mega. The reporter then confirmed that all five cameras were discovered with sensor entities, retained images, and live streams working through an S380/T8030 HomeBase. Type 18 remains excluded as the HomeBase parent.
 
 v0.1.18 makes copied support logs self-identifying. Every gateway-owned line carries a UTC timestamp, severity, release version, per-process run ID, component, and stable event name. Explicit start, listening, stop, and fatal events reveal restart boundaries; expected readiness-probe failures are suppressed. Grouped inventory lines expose model, type, category, acceptance, station, and stream-readiness decisions without device names or serial numbers. The logging boundary accepts only human-readable messages, redacts common credentials and account email addresses, and keeps stack frames attached to the same version and run without logging raw provider objects.
 

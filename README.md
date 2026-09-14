@@ -166,7 +166,15 @@ EUFY_GATEWAY_PROVIDER=simulated npm run dev
 
 ## Supported and known limitations
 
-Validated inventory currently includes HomeBase 3, three EufyCam 2C cameras, a video doorbell, and a powered T817L camera.
+The project has been tested against EufyCam 2C cameras, a T8210 video doorbell, and a powered T817L camera. A community tester has also confirmed the following setup working with v0.1.19:
+
+- HomeBase 3, S380 / T8030;
+- two eufyCam S330 cameras, reported by Mega as T8160;
+- Video Doorbell T8213;
+- Indoor Cam Pan & Tilt T8410;
+- Indoor Cam Pan & Tilt T8410C.
+
+All five cameras in that setup were discovered with their sensor entities, retained images, and live streams working. HomeBase 3 provides parent metadata and does not appear as a camera entity.
 
 - Eufy's cloud, push, and HomeBase protocols are undocumented and can change without notice.
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
