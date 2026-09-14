@@ -423,7 +423,13 @@ export function inventoryLogSummaries(
 
 /** Return whether Mega metadata identifies a device as a supported camera. */
 export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "category" | "deviceType">): boolean {
-  return device.category === "eufy_security" && (device.deviceType === 7 || device.deviceType === 8 || device.deviceType === 10031);
+  return device.category === "eufy_security"
+    && (device.deviceType === 7
+      || device.deviceType === 8
+      || device.deviceType === 19
+      || device.deviceType === 31
+      || device.deviceType === 91
+      || device.deviceType === 10031);
 }
 
 /** Extract a recognized name only from push events that represent a person. */

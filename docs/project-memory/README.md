@@ -6,13 +6,15 @@ The Home Assistant integration talks only to the companion gateway over its auth
 
 As of v0.1.12, production authentication, device discovery, push-token registration, push normalization, media download, event-image decoding, and first-party PPCS camera streaming use gateway-owned implementations. `eufy-security-client` is not a runtime dependency. Generic Firebase Cloud Messaging delivery is provided by `@eneris/push-receiver`; no Eufy account or device behavior is delegated to it. The standard WebRTC peer implementation remains available only for the separate web transport code.
 
-The supported Mega camera inventory types validated against the project hardware are 7 (video doorbell), 8 (HomeBase battery camera), and 10031 (T817L). HomeBase type 18 is retained only as parent metadata and is not registered as a camera.
+The supported Mega camera inventory types are 7 (video doorbell), 8 (HomeBase battery camera), 19 (T8160/S330), 31 (T8410/T8410C), 91 (T8213), and 10031 (T817L). Types 19, 31, and 91 were identified from privacy-safe v0.1.18 inventory logs; their HomeBase relationship and complete PPCS prerequisites were present. HomeBase type 18 is retained only as parent metadata and is not registered as a camera.
 
 The gateway's live transport is now proven directly through Eufy's first-party Mega/PPCS UDP path. The probe obtains station DSK keys and ECC cipher material from Eufy's APIs, performs PPCS lookup/handshake, requests camera video, writes raw H.264, and decodes a first-frame JPEG. It deliberately does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. A five-camera probe produced H.264 and JPEG bytes for Path, Back door, Doorbell, and Front of House. Garden and Pool completed the PPCS and level-2 handshakes but was out of battery during the no-video probe, so no protocol failure is established. In Home Assistant, the recreated integration exposes five cameras and Path has produced a live image and fresh snapshot. Event sensors and retained event snapshots remain independent of live-stream support.
 
 The Home Assistant app advertises the Supervisor-assigned app hostname discovered from inside the container. This keeps the integration connected across local app rebuilds, repository installs, and restarts without hard-coding a repository-specific slug.
 
 ## Delivery state
+
+v0.1.19 adds camera inventory types 19, 31, and 91 after v0.1.18 support logs identified the T8160/S330, T8410/T8410C, and T8213 rows that an affected installation received from Mega. This makes all five reported cameras eligible for registration while continuing to exclude the type 18 HomeBase parent.
 
 v0.1.18 makes copied support logs self-identifying. Every gateway-owned line carries a UTC timestamp, severity, release version, per-process run ID, component, and stable event name. Explicit start, listening, stop, and fatal events reveal restart boundaries; expected readiness-probe failures are suppressed. Grouped inventory lines expose model, type, category, acceptance, station, and stream-readiness decisions without device names or serial numbers. The logging boundary accepts only human-readable messages, redacts common credentials and account email addresses, and keeps stack frames attached to the same version and run without logging raw provider objects.
 
