@@ -22,6 +22,13 @@ export EUFY_GATEWAY_API_TOKEN="$(cat "$token_file")"
 export EUFY_GATEWAY_HOST=0.0.0.0
 export EUFY_GATEWAY_PORT=3218
 export EUFY_GATEWAY_DATA_DIR=/data/runtime
+export EUFY_GATEWAY_RUN_ID="${EUFY_GATEWAY_RUN_ID:-$(node -e 'process.stdout.write(require("node:crypto").randomUUID().slice(0, 8))')}"
+
+launcher_error() {
+  timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  printf '%s ERROR version=%s run=%s component=launcher event=%s %s\n' \
+    "$timestamp" "${EUFY_GATEWAY_VERSION:-development}" "$EUFY_GATEWAY_RUN_ID" "$1" "$2" >&2
+}
 
 node /app/dist/main.js &
 gateway_pid=$!
@@ -40,10 +47,10 @@ graceful_shutdown() {
 trap graceful_shutdown INT TERM
 
 attempt=0
-until curl -fsS http://127.0.0.1:3218/live >/dev/null; do
+until curl -fsS http://127.0.0.1:3218/live >/dev/null 2>&1; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 60 ] || ! kill -0 "$gateway_pid" 2>/dev/null; then
-    echo "Gateway did not become healthy" >&2
+    launcher_error gateway_start_failed "Gateway did not become healthy"
     stop_gateway
     exit 1
   fi
@@ -65,8 +72,8 @@ if ! curl -fsS \
   -H "Authorization: Bearer $SUPERVISOR_TOKEN" \
   -H "Content-Type: application/json" \
   -d "$discovery_payload" \
-  http://supervisor/discovery >/dev/null; then
-  echo "Gateway is healthy, but Supervisor discovery failed" >&2
+  http://supervisor/discovery >/dev/null 2>&1; then
+  launcher_error supervisor_discovery_failed "Gateway is healthy, but Supervisor discovery failed"
 fi
 
 set +e

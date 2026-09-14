@@ -266,13 +266,15 @@ The Home Assistant-specific pieces are `GatewayState`, `GatewayServer`, the Pyth
 
 ## Where to start when something breaks
 
-1. Check `/health` and the gateway log. “Authentication required” is different from “connected but no camera stream.”
+1. Check `/health` and the gateway log. Start at the most recent `gateway_start` event and follow only lines with that `run` value. The UTC timestamp orders events, and `version` identifies the running release. “Authentication required” is different from “connected but no camera stream.”
 2. Check `/api/diagnostics/inventory`. Confirm the camera was accepted as a supported Mega device and whether `streamSupported` is true.
 3. Check `/api/diagnostics/push`. Confirm an event arrived, the camera serial matched inventory, and a picture URL was present.
 4. Run `npm run poc:ppcs` and inspect safe counters. A `camId` without `videoFrames` means lookup succeeded but media did not reach the output; record battery and network state before changing code.
 5. For a retained-image problem, inspect `SnapshotStore` and the event-image decoder. For a live-view problem, inspect `FirstPartyPpcsSession` and `LiveStreamManager`. For an entity problem, inspect the Python client/coordinator and the normalized JSON first.
 
 Do not start by adding Eufy parsing to Home Assistant. If the gateway does not expose the needed normalized fact, fix the Eufy-side boundary and its test first.
+
+Application code must use the component logger from `src/logging.ts` instead of writing directly to `console` or the process streams. Give each condition a stable snake-case event name and pass only bounded, human-readable text that is safe to share. The logger rejects arbitrary metadata objects and redacts common credentials and account email addresses, but callers remain responsible for excluding session data, device serial numbers, signed media URLs, and raw cloud responses.
 
 ## Local development
 

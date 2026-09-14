@@ -13,9 +13,12 @@ import { PassThrough } from "node:stream";
 import { RTCPeerConnection } from "werift";
 import WebSocket, { type RawData } from "ws";
 
+import { createLogger } from "../logging.js";
 import type { WebClient } from "../mega/web-client.js";
 import { decryptWebEnvelope, encryptWebEnvelope } from "../mega/web-crypto.js";
 import { H264RtpDepacketizer } from "./h264-rtp.js";
+
+const logger = createLogger("web-stream");
 
 /** Device metadata required to open a legacy WebRTC camera session. */
 export interface WebRtcDevice {
@@ -85,7 +88,7 @@ export class WebRtcStream {
       const timer = setTimeout(() => reject(new Error("Timed out opening Eufy live signalling")), 20_000);
       socket.once("open", () => {
         clearTimeout(timer);
-        console.info("Eufy live signalling opened");
+        logger.info("signalling_opened", "Eufy live signalling opened");
         this.#sendRaw({ code: 200, action: 1, data: this.#sign });
         this.#authTimeout = setTimeout(() => this.#fail(new Error("Eufy live signalling authentication timed out")), 10_000);
         resolve();
@@ -142,7 +145,7 @@ export class WebRtcStream {
     if (action === 1) {
       if (this.#authTimeout) clearTimeout(this.#authTimeout);
       this.#authTimeout = null;
-      console.info("Eufy live signalling authenticated");
+      logger.info("signalling_authenticated", "Eufy live signalling authenticated");
       this.#sendPing();
       this.#sendMessage({}, "call");
       return;
@@ -246,7 +249,7 @@ export class WebRtcStream {
 
   #fail(error: unknown): void {
     const failure = error instanceof Error ? error : new Error("Eufy live stream failed");
-    console.warn(`Eufy live stream failed: ${failure.message}`);
+    logger.warn("live_stream_failed", `Eufy live stream failed: ${failure.message}`);
     if (!this.output.destroyed) this.output.destroy(failure);
     this.close();
   }

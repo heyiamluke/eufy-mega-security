@@ -8,7 +8,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { inventoryDiagnostics, parseMegaInventory, personNameFromPush, thingRegion } from "../src/provider/eufy-provider.js";
+import {
+  inventoryDiagnostics,
+  inventoryLogSummaries,
+  parseMegaInventory,
+  personNameFromPush,
+  thingRegion,
+} from "../src/provider/eufy-provider.js";
 
 const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Parameters<typeof personNameFromPush>[0] => ({
   eventType: null,
@@ -70,4 +76,38 @@ test("reports all first-party Mega camera types and excludes the HomeBase", () =
   assert.deepEqual(inventoryDiagnostics(devices).map(({ serial, acceptedAsCamera }) => [serial, acceptedAsCamera]), [
     ["doorbell", true], ["battery", true], ["wired", true], ["homebase", false],
   ]);
+});
+
+test("groups safe inventory evidence without names or serial numbers", () => {
+  const devices = parseMegaInventory({ devices: [
+    {
+      device_sn: "private-camera-one", device_name: "Private place", device_model: "S330",
+      parent_sn: "private-homebase", device_type: 8, device_channel: 1, category: "eufy_security",
+    },
+    {
+      device_sn: "private-camera-two", device_name: "Another private place", device_model: "S330",
+      parent_sn: "private-homebase", device_type: 8, device_channel: 2, category: "eufy_security",
+    },
+    {
+      device_sn: "private-homebase", device_name: "Private HomeBase", device_model: "S380",
+      device_type: 18, category: "eufy_security", p2p_did: "private-did", p2p_conn: "private-connection",
+    },
+  ] });
+
+  const summaries = inventoryLogSummaries(devices, new Set(["private-homebase"]));
+
+  assert.deepEqual(summaries, [
+    {
+      count: 2, model: "S330", deviceType: 8, category: "eufy_security", hasParent: true,
+      hasChannel: true, acceptedAsCamera: true, stationPresent: true, stationPpcsReady: true,
+      stationDskReady: true, streamSupported: true,
+    },
+    {
+      count: 1, model: "S380", deviceType: 18, category: "eufy_security", hasParent: false,
+      hasChannel: false, acceptedAsCamera: false, stationPresent: false, stationPpcsReady: false,
+      stationDskReady: false, streamSupported: false,
+    },
+  ]);
+  assert.equal(JSON.stringify(summaries).includes("private-camera"), false);
+  assert.equal(JSON.stringify(summaries).includes("Private place"), false);
 });

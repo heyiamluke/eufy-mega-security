@@ -12,6 +12,7 @@ import { join } from "node:path";
 
 import { loadConfig } from "./config.js";
 import { GatewayState } from "./domain/gateway-state.js";
+import { createLogger, getLogIdentity } from "./logging.js";
 import { EufyProvider } from "./provider/eufy-provider.js";
 import type { CameraProvider, ProviderEvents } from "./provider/provider.js";
 import type { CaptchaProvider } from "./provider/provider.js";
@@ -20,6 +21,21 @@ import { GatewayServer } from "./server.js";
 import { StartupSnapshotWarmup } from "./startup-snapshot-warmup.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
 import { LiveStreamManager } from "./stream/live-stream-manager.js";
+
+const logger = createLogger("gateway");
+const providerLogger = createLogger("provider");
+const processLogger = createLogger("process");
+const logIdentity = getLogIdentity();
+
+function fatal(event: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : "Unknown process failure";
+  processLogger.error(event, `Eufy gateway is stopping after an unexpected process failure: ${message}`, error);
+  process.exit(1);
+}
+
+process.once("uncaughtException", (error) => fatal("uncaught_exception", error));
+process.once("unhandledRejection", (error) => fatal("unhandled_rejection", error));
+logger.info("gateway_start", `Eufy Mega Security starting with Node.js ${process.version}`);
 
 const config = loadConfig();
 const state = new GatewayState();
@@ -54,7 +70,7 @@ const startupSnapshots = new StartupSnapshotWarmup(
   (serial) => streams.captureStartupSnapshot(serial),
   (error) => {
     const message = error instanceof Error ? error.message : "Snapshot capture failed";
-    console.warn(`Initial camera snapshot unavailable: ${message}`);
+    logger.warn("initial_snapshot_unavailable", `Initial camera snapshot unavailable: ${message}`);
   },
 );
 
@@ -72,8 +88,8 @@ const providerEvents: ProviderEvents = {
     state.updateConnection(connectionState, detail);
     if (connectionState === "connected") startupSnapshots.start();
     const suffix = detail ? `: ${detail}` : "";
-    if (connectionState === "error") console.error(`Eufy connection ${connectionState}${suffix}`);
-    else console.log(`Eufy connection ${connectionState}${suffix}`);
+    if (connectionState === "error") providerLogger.error("connection_error", `Eufy connection ${connectionState}${suffix}`);
+    else providerLogger.info(`connection_${connectionState.replace("-", "_")}`, `Eufy connection ${connectionState}${suffix}`);
   },
   motion(serial, detected) {
     if (state.hasCamera(serial)) state.recordMotion(serial, detected);
@@ -101,18 +117,22 @@ const providerEvents: ProviderEvents = {
 
 const server = new GatewayServer(config, state, snapshots, streams, simulatedProvider, captchaProvider);
 await server.listen();
-console.log(`Eufy gateway listening on http://${config.host}:${config.port} (${config.provider} provider)`);
+logger.info(
+  "gateway_listening",
+  `Eufy gateway ${logIdentity.version} listening on http://${config.host}:${config.port} (${config.provider} provider)`,
+);
 
 void provider.start(providerEvents).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Provider failed to start";
   state.updateConnection("error", message);
-  console.error(`Eufy provider failed: ${message}`);
+  providerLogger.error("provider_start_failed", `Eufy provider failed: ${message}`);
 });
 
 let shuttingDown = false;
-async function shutdown(): Promise<void> {
+async function shutdown(reason: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
+  logger.info("gateway_stop", `Eufy gateway stopping: ${reason}`);
   startupSnapshots.stop();
   state.close();
   await server.close();
@@ -120,5 +140,5 @@ async function shutdown(): Promise<void> {
   await provider.close();
 }
 
-process.on("SIGINT", () => void shutdown().finally(() => process.exit(0)));
-process.on("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
+process.on("SIGINT", () => void shutdown("sigint").finally(() => process.exit(0)));
+process.on("SIGTERM", () => void shutdown("supervisor_sigterm").finally(() => process.exit(0)));
