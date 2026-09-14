@@ -60,6 +60,7 @@ const MAX_RECORDING_BYTES = 256 * 1024 * 1024;
  */
 export class LiveStreamManager extends EventEmitter {
   readonly #sessions = new Map<string, Session>();
+  #closed = false;
 
   /** Create a manager with state, image storage, provider, and idle grace. */
   constructor(
@@ -98,6 +99,7 @@ export class LiveStreamManager extends EventEmitter {
 
   /** Capture one fresh JPEG through the shared source and return its metadata. */
   async captureSnapshot(serial: string, timeoutMilliseconds = 20_000): Promise<SnapshotInfo> {
+    if (this.#closed) throw new Error("Gateway closed before snapshot capture started");
     const session = this.#session(serial);
     const previousRevision = this.state.getCamera(serial).snapshot?.revision ?? 0;
     this.#cancelStop(session);
@@ -111,6 +113,15 @@ export class LiveStreamManager extends EventEmitter {
       nextSnapshot.cancel();
       session.leases -= 1;
       this.#scheduleStopIfUnused(serial, session);
+    }
+  }
+
+  /** Capture one startup image and release its unused source immediately. */
+  async captureStartupSnapshot(serial: string, timeoutMilliseconds = 20_000): Promise<SnapshotInfo> {
+    try {
+      return await this.captureSnapshot(serial, timeoutMilliseconds);
+    } finally {
+      await this.#stopNowIfUnused(serial, this.#session(serial));
     }
   }
 
@@ -181,6 +192,9 @@ export class LiveStreamManager extends EventEmitter {
 
   /** Stop every source and release FFmpeg processes during shutdown. */
   async close(): Promise<void> {
+    if (this.#closed) return;
+    this.#closed = true;
+    this.emit("closed");
     await Promise.all(
       [...this.#sessions.entries()].map(async ([serial, session]) => {
         if (session.stopTimer) clearTimeout(session.stopTimer);
@@ -200,6 +214,7 @@ export class LiveStreamManager extends EventEmitter {
   }
 
   #scheduleStopIfUnused(serial: string, session: Session): void {
+    if (this.#closed) return;
     if (session.clients.size === 0 && session.leases === 0 && session.owned && !session.stopTimer) {
       session.stopTimer = setTimeout(() => {
         session.stopTimer = null;
@@ -213,6 +228,25 @@ export class LiveStreamManager extends EventEmitter {
     }
   }
 
+  async #stopNowIfUnused(serial: string, session: Session): Promise<void> {
+    if (session.clients.size > 0 || session.leases > 0 || !session.owned) return;
+    this.#cancelStop(session);
+    session.state = "stopping";
+    this.#updateState(serial, session);
+    try {
+      await this.controller.stopStream(serial);
+      if (session.state === "stopping") {
+        this.#cleanupSource(session);
+        session.state = "idle";
+        session.owned = false;
+        this.#updateState(serial, session);
+      }
+    } catch (error) {
+      session.state = "error";
+      this.#updateState(serial, session, errorMessage(error));
+    }
+  }
+
   #cancelStop(session: Session): void {
     if (!session.stopTimer) return;
     clearTimeout(session.stopTimer);
@@ -220,6 +254,7 @@ export class LiveStreamManager extends EventEmitter {
   }
 
   async #ensureStarted(serial: string, session: Session): Promise<void> {
+    if (this.#closed) throw new Error("Gateway closed before camera stream started");
     if (session.state !== "idle" && session.state !== "error") return;
     session.state = "starting";
     session.owned = true;
@@ -255,11 +290,17 @@ export class LiveStreamManager extends EventEmitter {
         cleanup();
         reject(new Error("Timed out waiting for a fresh camera frame"));
       }, timeoutMilliseconds);
+      const closed = () => {
+        cleanup();
+        reject(new Error("Gateway closed while waiting for a fresh camera frame"));
+      };
       cleanup = () => {
         clearTimeout(timeout);
         this.state.off("event", listener);
+        this.off("closed", closed);
       };
       this.state.on("event", listener);
+      this.once("closed", closed);
     });
     return { promise, cancel: cleanup };
   }

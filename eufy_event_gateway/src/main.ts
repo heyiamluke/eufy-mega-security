@@ -17,6 +17,7 @@ import type { CameraProvider, ProviderEvents } from "./provider/provider.js";
 import type { CaptchaProvider } from "./provider/provider.js";
 import { SimulatedProvider } from "./provider/simulated-provider.js";
 import { GatewayServer } from "./server.js";
+import { StartupSnapshotWarmup } from "./startup-snapshot-warmup.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
 import { LiveStreamManager } from "./stream/live-stream-manager.js";
 
@@ -48,6 +49,14 @@ if (config.provider === "simulated") {
 }
 
 const streams = new LiveStreamManager(state, snapshots, provider, config.streamGraceMilliseconds);
+const startupSnapshots = new StartupSnapshotWarmup(
+  (serial) => state.hasCamera(serial) && state.getCamera(serial).snapshot !== null,
+  (serial) => streams.captureStartupSnapshot(serial),
+  (error) => {
+    const message = error instanceof Error ? error.message : "Snapshot capture failed";
+    console.warn(`Initial camera snapshot unavailable: ${message}`);
+  },
+);
 
 // Provider callbacks are the only bridge from Eufy-specific code into the
 // gateway state. This keeps the HTTP server and Home Assistant API unaware of
@@ -57,9 +66,11 @@ const providerEvents: ProviderEvents = {
     state.registerCamera(identity);
     const stored = snapshots.getInfo(identity.serial);
     if (stored) state.restoreSnapshot(identity.serial, stored);
+    else if (identity.streamSupported) startupSnapshots.enqueue(identity.serial);
   },
   connection(connectionState, detail) {
     state.updateConnection(connectionState, detail);
+    if (connectionState === "connected") startupSnapshots.start();
     const suffix = detail ? `: ${detail}` : "";
     if (connectionState === "error") console.error(`Eufy connection ${connectionState}${suffix}`);
     else console.log(`Eufy connection ${connectionState}${suffix}`);
@@ -102,6 +113,7 @@ let shuttingDown = false;
 async function shutdown(): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
+  startupSnapshots.stop();
   state.close();
   await server.close();
   await streams.close();

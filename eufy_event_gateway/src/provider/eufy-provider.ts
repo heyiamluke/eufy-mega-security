@@ -13,7 +13,6 @@ import { join } from "node:path";
 
 import type { InventoryDiagnostic } from "../domain/types.js";
 import { MegaClient } from "../mega/client.js";
-import { WebClient } from "../mega/web-client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
@@ -54,7 +53,6 @@ export interface MegaInventoryDevice {
  */
 export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #client: MegaClient;
-  readonly #webClient: WebClient;
   readonly #devices = new Map<string, MegaInventoryDevice>();
   readonly #ppcsStreams = new Map<string, FirstPartyPpcsSession>();
   readonly #dskKeys = new Map<string, { readonly key: string; readonly expiresAt: number | null }>();
@@ -63,17 +61,10 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   #push: MegaPushReceiver | null = null;
   #events: ProviderEvents | null = null;
   #captchaChallenge: CaptchaChallenge | null = null;
-  #captchaTarget: "mega" | "web" | null = null;
   #verificationRequired = false;
 
   constructor(private readonly config: EufyProviderConfig) {
     this.#client = new MegaClient({
-      email: config.username,
-      password: config.password,
-      country: config.country,
-      persistentDirectory: config.persistentDirectory,
-    });
-    this.#webClient = new WebClient({
       email: config.username,
       password: config.password,
       country: config.country,
@@ -86,10 +77,10 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     const auth = await this.#client.connect(this.config.verifyCode);
     if (auth.state !== "authenticated") {
       this.#captchaChallenge = auth.captcha ?? null;
-      this.#captchaTarget = auth.state === "captcha-required" ? "mega" : null;
+      this.#verificationRequired = auth.state === "verification-required";
       const detail = auth.state === "captcha-required"
         ? "Open the add-on web interface to complete Eufy's CAPTCHA"
-        : "Eufy requested an email verification code; add it to the add-on configuration and restart";
+        : "Open the add-on web interface to enter Eufy's email verification code";
       events.connection("authentication-required", detail);
       return;
     }
@@ -161,29 +152,25 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
 
   async submitCaptcha(answer: string): Promise<void> {
     if (!this.#captchaChallenge || !this.#events) throw new Error("No Eufy CAPTCHA is waiting for an answer");
-    const result = this.#captchaTarget === "web"
-      ? await this.#webClient.connect(answer)
-      : await this.#client.connect(undefined, answer);
+    const result = await this.#client.connect(undefined, answer);
     if (result.state === "captcha-required") {
       this.#captchaChallenge = result.captcha ?? null;
       throw new Error("Eufy did not accept the CAPTCHA answer");
     }
     if (result.state === "verification-required") {
       this.#captchaChallenge = null;
-      this.#captchaTarget = null;
       this.#verificationRequired = true;
       this.#events.connection("authentication-required", "Eufy sent a six-digit verification code; enter it in the add-on web interface");
       return;
     }
     this.#captchaChallenge = null;
-    this.#captchaTarget = null;
     this.#verificationRequired = false;
     await this.#completeStartup(this.#events);
   }
 
   async submitVerification(code: string): Promise<void> {
     if (!this.#verificationRequired || !this.#events) throw new Error("No Eufy verification is waiting for a code");
-    const result = await this.#webClient.submitVerification(code);
+    const result = await this.#client.connect(code);
     if (result.state !== "authenticated") throw new Error("Eufy did not accept the verification code");
     this.#verificationRequired = false;
     await this.#completeStartup(this.#events);
@@ -199,8 +186,11 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       const auth = await this.#client.connect(undefined, undefined, true);
       if (auth.state !== "authenticated") {
         this.#captchaChallenge = auth.captcha ?? null;
-        this.#captchaTarget = "mega";
-        events.connection("authentication-required", "Eufy requires authentication before camera discovery can continue");
+        this.#verificationRequired = auth.state === "verification-required";
+        const detail = auth.state === "captcha-required"
+          ? "Open the add-on web interface to complete Eufy's CAPTCHA"
+          : "Open the add-on web interface to enter Eufy's email verification code";
+        events.connection("authentication-required", detail);
         return;
       }
       inventory = await this.#client.inventory();

@@ -75,7 +75,7 @@ Identity setup uses P-256 ECDH (`prime256v1`). The client starts with a Mega pre
 
 Login encrypts the password with Eufy's published login public key and a fresh client key pair. The plaintext password never enters the request body. A successful response yields an auth token, user ID, and expiry. The session store also records the country, account login hash, open device identifier, domains, and host identities so a restart can reuse a valid session.
 
-The session file is private JSON with mode `0600` and is replaced atomically. It contains secret session material, so it must stay in the gateway's private data volume and must never be attached to an issue or committed to Git. Passwords, CAPTCHA answers, and email verification codes are not persisted.
+The session file is private JSON with mode `0600` and is replaced atomically. It contains secret session material, so it must stay in the gateway's private data volume and must never be attached to an issue or committed to Git. When Eufy requests email verification, the limited token and user ID returned by that login are saved before the client exposes the challenge. This lets either the active Web UI or one documented app restart submit the code with the same limited session. Passwords, CAPTCHA answers, and email verification codes are not stored in the session file.
 
 ## Login challenges
 
@@ -85,7 +85,7 @@ Mega may return one of three useful states:
 - `captcha-required`: Mega returned an image and challenge ID;
 - `verification-required`: Eufy sent a six-digit code to the account email.
 
-The provider exposes those states to the gateway Web UI. The answer/code lives in memory long enough to submit it. The gateway then calls `MegaClient` or the separate `WebClient` as appropriate and resumes inventory/push startup. The challenge page is not the production media protocol and should not be confused with the old expiring Web Portal Access PIN.
+The provider exposes those states to the gateway Web UI. The answer or code lives in memory long enough to submit it through the same `MegaClient` that received the challenge, after which normal inventory and push startup resumes. The limited pre-verification Mega session is also persisted so the app-configuration fallback can survive one restart without losing the token that requested the code. The challenge page is not the production media protocol and should not be confused with the old expiring Web Portal Access PIN.
 
 ## Inventory: raw values to safe camera identity
 
@@ -141,6 +141,8 @@ The bytes can be:
 `decodeEventImage()` handles those formats locally. `EufyProvider` checks that the result is a JPEG before calling `GatewayState` and `SnapshotStore`. `SnapshotStore` writes a hashed serial filename, an index entry containing capture time/content type/revision, and replaces files atomically.
 
 Home Assistant reads the retained image through `GET /api/cameras/{serial}/snapshot`. A retained image does not wake a battery camera and remains useful while the device sleeps. A fresh snapshot is different: Home Assistant calls `capture_snapshot`, the gateway starts a live PPCS source, FFmpeg extracts one JPEG, and the result replaces the retained image.
+
+The first time a discovered camera has no retained image, startup schedules the same fresh-snapshot path after the provider reports that it is connected. The gateway handles these captures sequentially to avoid opening several battery-camera sessions together. A failed or sleeping camera is left without a snapshot and retried on a later startup; its failure does not block the rest of the queue.
 
 ## PPCS: the native media path
 

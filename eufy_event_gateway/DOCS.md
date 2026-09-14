@@ -8,11 +8,13 @@ This app runs the local Eufy gateway beside Home Assistant. It signs in through 
 - **Password**: that account's Eufy password.
 - **Country**: the two-letter Eufy account country, such as `AU`.
 - **Native camera transport**: live-view work uses the gateway-owned Mega/PPCS UDP path and does not use the separate SmartLife/Thing login or an expiring Web Portal Access PIN.
-- **Verification code**: leave this empty unless the log says Eufy requires an emailed code. Enter the code, restart once, then remove it after the app connects.
+- **Verification code**: this field is always visible. Leave it empty unless Eufy requests an emailed code, then enter the code, restart once, and remove it after the app connects.
 
 The app generates its own API token on first start and sends the private connection details to the integration through Supervisor discovery. The gateway port is not exposed to the LAN and no token needs to be copied or entered manually.
 
 The app stores its authenticated Eufy session and retained snapshots in its private `/data` volume so they survive restarts and are included in Home Assistant backups.
+
+After the first successful discovery, the app captures one snapshot from each camera that does not already have a retained image. It handles cameras sequentially so startup does not open every live connection at once. A sleeping camera may remain blank until an event or manual stream supplies an image, but it does not block the remaining cameras.
 
 After the app starts, open **Settings > Devices & services**. Home Assistant should show a discovered **Eufy Mega Security** integration. Select **Configure** to create its camera and detection entities.
 

@@ -26,18 +26,25 @@ export EUFY_GATEWAY_DATA_DIR=/data/runtime
 node /app/dist/main.js &
 gateway_pid=$!
 
-shutdown() {
+stop_gateway() {
   kill -TERM "$gateway_pid" 2>/dev/null || true
   wait "$gateway_pid" 2>/dev/null || true
 }
-trap shutdown INT TERM
+
+graceful_shutdown() {
+  trap - INT TERM
+  stop_gateway
+  exit 0
+}
+
+trap graceful_shutdown INT TERM
 
 attempt=0
 until curl -fsS http://127.0.0.1:3218/live >/dev/null; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 60 ] || ! kill -0 "$gateway_pid" 2>/dev/null; then
     echo "Gateway did not become healthy" >&2
-    shutdown
+    stop_gateway
     exit 1
   fi
   sleep 1
@@ -62,4 +69,8 @@ if ! curl -fsS \
   echo "Gateway is healthy, but Supervisor discovery failed" >&2
 fi
 
+set +e
 wait "$gateway_pid"
+gateway_status=$?
+set -e
+exit "$gateway_status"

@@ -14,6 +14,10 @@ The Home Assistant app advertises the Supervisor-assigned app hostname discovere
 
 ## Delivery state
 
+v0.1.17 shows the empty verification-code field directly in app configuration without an optional-field toggle. After the provider connects, cameras without a retained image receive sequential first-run snapshot captures; sleeping or failed cameras do not block the remaining queue and remain eligible on a later startup. The app entrypoint traps Supervisor termination, waits for the gateway process, and exits successfully so an intentional stop is not reported as exit code 143.
+
+v0.1.16 fixes first-sign-in email verification across the app restart documented for the configuration-field fallback. The gateway persists Eufy's limited pre-verification Mega session before returning the challenge, then submits the code with that same token after restart. The Web UI also routes email verification through the active Mega client rather than the separate legacy web session.
+
 v0.1.15 adds the first-day developer guide, the detailed Mega platform reference, and the file-level source/test documentation needed for outside testers and contributors. The public and app READMEs link directly to those documents. This release does not change the runtime protocol path.
 
 v0.1.13 renames the user-facing project, Home Assistant integration, and HACS repository to Eufy Mega Security while preserving the internal `eufy_event_gateway` domain, service namespace, app slug, and discovery service for existing installations. Those internal identifiers are intentional compatibility names, not stale user-facing branding.

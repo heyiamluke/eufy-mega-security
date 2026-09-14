@@ -6,13 +6,72 @@
  * bounded media download without contacting Eufy.
  */
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { MegaClient } from "../src/mega/client.js";
 import { decryptEnvelope, encryptEnvelope, loginHash, sharedAesKey } from "../src/mega/crypto.js";
+
+test("retains the limited verification session across an app restart", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-verification-"));
+  const sessionPath = join(directory, "mega-session.json");
+  const sharedKey = "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100";
+  const host = "app-openapi-eu-pr.eufy.com";
+  await writeFile(sessionPath, JSON.stringify({
+    version: 1, country: "au", openUdid: "fresh-device",
+    loginHash: loginHash("fresh-device", "user@example.invalid", "password"),
+    authToken: "", tokenExpiresAt: 0, userId: "", megaDomain: "mega-eu-pr.eufy.com", domains: {},
+    identities: { [host]: { keyIdent: "identity", sharedKey, clientPublicKey: "public" } },
+  }));
+  const requests: Array<{ path: string; token: string | null }> = [];
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    const token = new Headers(init?.headers).get("x-auth-token");
+    requests.push({ path, token });
+    if (path === "/passport/login" && !token) {
+      return new Response(JSON.stringify({
+        code: 26052,
+        msg: "Verification required",
+        data: {
+          auth_token: "limited-token", user_id: "user", token_expires_at: 2_000_000_000,
+          fa_info: { step: 26052 },
+        },
+      }));
+    }
+    if (path === "/app/sendmsg/verify_code") {
+      return new Response(JSON.stringify({ code: 0, data: {} }));
+    }
+    if (path === "/passport/login") {
+      return new Response(JSON.stringify({
+        code: 0,
+        data: { auth_token: "full-token", user_id: "user", token_expires_at: 2_000_000_000 },
+      }));
+    }
+    throw new Error(`Unexpected Mega request: ${path}`);
+  };
+
+  try {
+    const firstProcess = new MegaClient({
+      email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory,
+      minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000, fetch: fakeFetch,
+    });
+    assert.deepEqual(await firstProcess.connect(), { state: "verification-required" });
+    assert.equal(requests[1]?.token, "limited-token");
+    assert.equal(JSON.parse(await readFile(sessionPath, "utf8")).authToken, "limited-token");
+
+    const restartedProcess = new MegaClient({
+      email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory,
+      minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000, fetch: fakeFetch,
+    });
+    assert.deepEqual(await restartedProcess.connect("123456"), { state: "authenticated" });
+    assert.equal(requests.at(-1)?.token, "limited-token");
+    assert.equal(JSON.parse(await readFile(sessionPath, "utf8")).authToken, "full-token");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("uses the supported Mega inventory request and decrypts its response", async () => {
   const directory = await mkdtemp(join(tmpdir(), "mega-client-"));

@@ -143,6 +143,7 @@ export class MegaClient {
         biz_type: 1004,
         transaction: `${this.#now()}`,
       }, false);
+      await this.#save();
       return { state: "verification-required" };
     }
     if (!isSuccess(result.code) || !this.isAuthenticated) {
