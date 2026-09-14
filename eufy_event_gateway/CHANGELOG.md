@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.19
+
+- Discover T8160/S330, T8410/T8410C, and T8213 cameras from the Mega inventory types reported by affected installations.
+- Keep the type 18 HomeBase as parent metadata instead of exposing it as a camera.
+
 ## 0.1.18
 
 - Prefix every gateway support-log line with a UTC timestamp, severity, release version, process run ID, component, and event name.
