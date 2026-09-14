@@ -11,7 +11,7 @@ import test from "node:test";
 import {
   decryptEnvelope,
   encryptEnvelope,
-  loginHash,
+  credentialVerifier,
   megaUserToken,
   requestSignature,
   sharedAesKey,
@@ -31,10 +31,18 @@ test("round-trips a Mega AES envelope with a fixed IV", () => {
   assert.equal(decryptEnvelope(envelope, key), '{"house_id":""}');
 });
 
-test("derives the Mega AES and signature halves independently", () => {
+test("derives the Mega AES, signature, credential, and token values independently", () => {
   const shared = "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100";
   assert.equal(sharedAesKey(shared).toString("hex"), "00112233445566778899aabbccddeeff");
   assert.equal(sharedSigningKey(shared), "00112233445566778899aabbccddeeff");
-  assert.equal(loginHash("device", "user@example.invalid", "password").length, 64);
+  assert.equal(credentialVerifier("device", "user@example.invalid", "password").length, 64);
+  assert.notEqual(
+    credentialVerifier("device", "user@example.invalid", "password"),
+    credentialVerifier("other-device", "user@example.invalid", "password"),
+  );
+  assert.notEqual(
+    credentialVerifier("device", "user@example.invalid", "password"),
+    credentialVerifier("device", "user@example.invalid", "other-password"),
+  );
   assert.equal(megaUserToken("user-id").length, 32);
 });

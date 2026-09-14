@@ -93,7 +93,7 @@ export interface InventoryDiagnostic {
   readonly serial: string;
   readonly name: string;
   readonly model: string;
-  readonly sources: readonly ("legacy" | "mega")[];
+  readonly sources: readonly ("mega" | "simulated")[];
   readonly upstreamIsCamera: boolean;
   readonly acceptedAsCamera: boolean;
   readonly megaDeviceType: number | null;

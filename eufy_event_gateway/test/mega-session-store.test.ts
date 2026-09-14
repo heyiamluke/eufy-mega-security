@@ -1,8 +1,8 @@
 /**
- * Protects the native Mega session store's persistence contract.
+ * Protects the Mega session store's persistence contract.
  *
  * The cases cover restrictive permissions, atomic replacement, malformed data,
- * and one-time migration from the older local session shape.
+ * and rejection of retired schemas that used a fast password hash.
  */
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -11,26 +11,30 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { MegaSessionStore } from "../src/mega/session-store.js";
+import type { MegaSession } from "../src/mega/types.js";
 
-test("migrates a valid stored Mega session and writes its private replacement", async () => {
+const session: MegaSession = {
+  version: 2,
+  country: "au",
+  openUdid: "device",
+  credentialVerifier: "a".repeat(64),
+  authToken: "token",
+  tokenExpiresAt: 2_000_000_000,
+  userId: "user",
+  megaDomain: "mega-eu-pr.eufy.com",
+  domains: { house: "house" },
+  identities: { host: { keyIdent: "id", sharedKey: "key", clientPublicKey: "public" } },
+};
+
+test("writes and reloads a private current session", async () => {
   const directory = await mkdtemp(join(tmpdir(), "mega-session-"));
-  const legacyPath = join(directory, "persistent.json");
-  const currentPath = join(directory, "mega-session.json");
+  const path = join(directory, "mega-session.json");
   try {
-    await writeFile(legacyPath, JSON.stringify({ megaApi: {
-      ab: "au", openudid: "device", login_hash: "hash", cloud_token: "token",
-      cloud_token_expiration: 2_000_000_000, user_id: "user", megaDomain: "mega-eu-pr.eufy.com",
-      domains: { house: "house" },
-      identities: { host: { keyIdent: "id", sharedKey: "key", clientPublicKey: "public" } },
-    } }));
-    const store = new MegaSessionStore(currentPath, legacyPath);
-    const session = await store.load();
-    assert.equal(session?.authToken, "token");
-    assert.equal(session?.country, "au");
-    assert.ok(session);
+    const store = new MegaSessionStore(path);
     await store.save(session);
-    assert.equal((await stat(currentPath)).mode & 0o777, 0o600);
-    assert.equal(JSON.parse(await readFile(currentPath, "utf8")).version, 1);
+    assert.deepEqual(await store.load(), session);
+    assert.equal((await stat(path)).mode & 0o777, 0o600);
+    assert.equal(JSON.parse(await readFile(path, "utf8")).version, 2);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -47,15 +51,19 @@ test("ignores malformed session data", async () => {
   }
 });
 
-test("derives the Mega cluster when a legacy session omitted megaDomain", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "mega-session-domain-"));
+test("rejects the retired session schema", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-session-retired-"));
   try {
-    await writeFile(join(directory, "persistent.json"), JSON.stringify({ megaApi: {
-      ab: "au", openudid: "device", login_hash: "hash", cloud_token: "token", cloud_token_expiration: 2_000_000_000,
-      user_id: "user", domains: {}, identities: { "app-openapi-us-pr.eufy.com": { keyIdent: "id", sharedKey: "key", clientPublicKey: "public" } },
-    } }));
-    const session = await new MegaSessionStore(join(directory, "mega-session.json"), join(directory, "persistent.json")).load();
-    assert.equal(session?.megaDomain, "mega-us-pr.eufy.com");
+    const path = join(directory, "mega-session.json");
+    await writeFile(path, JSON.stringify({
+      ...session,
+      version: 1,
+      loginHash: "b".repeat(64),
+      credentialVerifier: undefined,
+    }));
+    const store = new MegaSessionStore(path);
+    assert.equal(await store.load(), null);
+    assert.equal(await store.loadRetiredOpenUdid(), "device");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

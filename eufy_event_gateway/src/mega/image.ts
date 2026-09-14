@@ -54,6 +54,9 @@ function imageKey(serial: string, p2pDid: string, code: string): string {
   const suffix = idSuffix(p2pDid);
   const offset = (Number.parseInt(serial.at(-1) ?? "0", 16) + 10) % 10;
   const base = `${serial.substring(offset)}${suffix}`;
+
+  // MD5 is one fixed transformation inside Eufy's legacy image wire format;
+  // it is not used here for password storage, signatures, or trust decisions.
   const seed = createHash("md5").update(`${1000 - suffix}${Number.parseInt(code.substring(2), 10)}`).digest("hex").toUpperCase();
   const bytes = [...createHash("sha256").update(`01${base}${seed}`).digest()];
   const start = bytes[10]!;

@@ -16,8 +16,7 @@ The gateway uses Mega for:
 - device and HomeBase inventory;
 - station DSK keys and HomeBase ECC cipher keys;
 - Firebase push-token registration;
-- event notifications and event-image URLs;
-- optional retrieval of the older Thing MQTT credential bundle for research.
+- event notifications and event-image URLs.
 
 The gateway uses PPCS for camera media. A useful mental model is:
 
@@ -27,7 +26,7 @@ PPCS UDP              = the peer-to-peer camera connection carrying live H.264
 Gateway HTTP/SSE      = the stable contract exposed to Home Assistant
 ```
 
-Mega and the old Thing/SmartLife platform are not interchangeable. They use different account sessions, identifiers, signatures, encryption envelopes, and media paths. Production startup uses `MegaClient`; the Thing modules remain isolated research code.
+Mega and the old Thing/SmartLife platform are not interchangeable. They use different account sessions, identifiers, signatures, encryption envelopes, and media paths. Production startup uses `MegaClient`. The unused Thing and Web Portal transport experiments were removed in v0.1.20 so they cannot be mistaken for supported paths.
 
 ## Service domains and operations
 
@@ -51,7 +50,6 @@ The production operations are:
 | DSK lookup | `/app/devicerelation/get_dsk_keys` | Obtain station secrets for PPCS lookup | PPCS session |
 | Cipher lookup | `/v3/app/cipher/get_ciphers` | Obtain ECC private keys for HomeBase level-two setup | PPCS session |
 | Push registration | `/app/push/register_push_token` | Register the Firebase receiver | push receiver |
-| MQTT information | `/app/devicemanage/get_user_mqtt_info` | Preserve the legacy Thing experiment's credential boundary | research only |
 
 The actual host is selected from the discovered product-domain map. Hard-coding one global Eufy host would break accounts in other regions and is one reason host discovery belongs in `MegaClient`.
 
@@ -73,9 +71,11 @@ Normal request bodies are JSON-serialized, encrypted, and sent as text. Headers 
 
 Identity setup uses P-256 ECDH (`prime256v1`). The client starts with a Mega preset key, sends an encrypted client public key, receives an encrypted server public key and key identifier, and derives two values: the AES material used for envelopes and the signing material used for request headers. The resulting `MegaIdentity` is cached per host in the private session file.
 
-Login encrypts the password with Eufy's published login public key and a fresh client key pair. The plaintext password never enters the request body. A successful response yields an auth token, user ID, and expiry. The session store also records the country, account login hash, open device identifier, domains, and host identities so a restart can reuse a valid session.
+Two protocol fields retain older hash names without using them as security controls. Mega requires `gtoken` to be the MD5 digest of the public user ID, and Eufy's older event-image wrapper includes MD5 as one step in its fixed key transformation. Neither operation stores a password, verifies a credential, signs a request, or makes a trust decision. They must remain byte-compatible with Eufy's wire format.
 
-The session file is private JSON with mode `0600` and is replaced atomically. It contains secret session material, so it must stay in the gateway's private data volume and must never be attached to an issue or committed to Git. When Eufy requests email verification, the limited token and user ID returned by that login are saved before the client exposes the challenge. This lets either the active Web UI or one documented app restart submit the code with the same limited session. Passwords, CAPTCHA answers, and email verification codes are not stored in the session file.
+Login encrypts the password with Eufy's published login public key and a fresh client key pair. The plaintext password never enters the request body. A successful response yields an auth token, user ID, and expiry. The session store also records the country, a `scrypt` credential verifier, open device identifier, domains, and host identities so a restart can reuse a valid session without storing the password.
+
+The session file is private JSON with mode `0600` and is replaced atomically. It contains secret session material, so it must stay in the gateway's private data volume and must never be attached to an issue or committed to Git. Version 2 replaces the old fast password-derived guard; version 1 credentials and tokens are deliberately rejected, so the first start after upgrading to v0.1.20 requires a fresh Eufy sign-in. The non-secret device identifier is carried forward to avoid registering an unnecessary new client. When Eufy requests email verification, the limited token and user ID returned by that login are saved before the client exposes the challenge. This lets either the active Web UI or one documented app restart submit the code with the same limited session. Passwords, CAPTCHA answers, and email verification codes are not stored in the session file.
 
 ## Login challenges
 

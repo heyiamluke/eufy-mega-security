@@ -17,10 +17,10 @@ export interface MegaIdentity {
 
 /** Persisted native Mega session and its account-scoped host identities. */
 export interface MegaSession {
-  readonly version: 1;
+  readonly version: 2;
   readonly country: string;
   readonly openUdid: string;
-  readonly loginHash: string;
+  readonly credentialVerifier: string;
   readonly authToken: string;
   readonly tokenExpiresAt: number;
   readonly userId: string;
@@ -73,15 +73,4 @@ export interface MegaCaptcha {
 export interface MegaAuthResult {
   readonly state: "authenticated" | "verification-required" | "captcha-required";
   readonly captcha?: MegaCaptcha;
-}
-
-/** Native MQTT certificate and endpoint bundle returned by Mega. */
-export interface MegaMqttInfo {
-  readonly endpointAddress: string;
-  readonly thingName: string;
-  readonly userId: string;
-  readonly appName: string;
-  readonly certificatePem: string;
-  readonly privateKey: string;
-  readonly rootCaPem: string;
 }
