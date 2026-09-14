@@ -4,6 +4,7 @@
 
 - Discover T8160/S330, T8410/T8410C, and T8213 cameras from the Mega inventory types reported by affected installations.
 - Keep the type 18 HomeBase as parent metadata instead of exposing it as a camera.
+- Thanks to @AbeltjeNL for patiently testing the setup and sharing the inventory log that identified the missing device types.
 
 ## 0.1.18
 
