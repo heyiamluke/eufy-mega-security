@@ -95,6 +95,16 @@ The app address and generated API token are transferred privately. You do not ne
 
 If discovery does not appear, first confirm the app log reports a healthy gateway. Then choose **Add integration**, search for **Eufy Mega Security**, and use the manual gateway details only if you deliberately exposed a standalone gateway.
 
+## Support logs
+
+Gateway log lines begin with a UTC timestamp and identify the running release, process invocation, component, and event. For example:
+
+```text
+2026-09-15T04:32:08.417Z INFO version=0.1.18 run=7f31c2ab component=provider event=connection_connected Eufy connection connected
+```
+
+The `run` value changes whenever the app process starts. It separates restarts that use the same release, while `version` distinguishes current failures from messages retained from an older app image. Inventory logs group devices by model and classification so maintainers can diagnose unsupported types and missing stream prerequisites without receiving device names or serial numbers. When requesting support, copy the complete log from the most recent `gateway_start` event through the failure instead of selecting only the final error. The gateway redacts common credential fields and account email addresses, but review logs before posting them publicly.
+
 ## Automations and Node-RED
 
 Motion and person detections are ordinary Home Assistant binary sensors, so they appear directly in Node-RED's **Events: state** node. Snapshot and recording requests are ordinary Home Assistant actions, so use an **Action** node with one of:

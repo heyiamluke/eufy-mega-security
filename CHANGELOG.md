@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.18
+
+- Prefix every gateway support-log line with a UTC timestamp, severity, release version, process run ID, component, and event name.
+- Record explicit process start, listening, stop, and fatal-error events so copied logs preserve restart boundaries.
+- Report grouped Mega inventory classifications and stream-readiness fields without device names or serial numbers.
+- Suppress expected readiness-probe connection noise and redact common credentials and account email addresses from gateway diagnostics.
+
 ## 0.1.17
 
 - Show the verification-code field directly in app configuration instead of hiding it behind the optional-field control.

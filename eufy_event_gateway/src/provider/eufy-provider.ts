@@ -12,11 +12,14 @@
 import { join } from "node:path";
 
 import type { InventoryDiagnostic } from "../domain/types.js";
+import { createLogger } from "../logging.js";
 import { MegaClient } from "../mega/client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
+
+const logger = createLogger("provider");
 
 /** Credentials, storage, and transport limits for one Mega account. */
 export interface EufyProviderConfig {
@@ -41,6 +44,21 @@ export interface MegaInventoryDevice {
   readonly p2pConnection: string | null;
   readonly cipherId: number | null;
   readonly adminUserId: string | null;
+}
+
+/** Safe, grouped inventory evidence suitable for copied support logs. */
+export interface InventoryLogSummary {
+  readonly count: number;
+  readonly model: string;
+  readonly deviceType: number | null;
+  readonly category: string | null;
+  readonly hasParent: boolean;
+  readonly hasChannel: boolean;
+  readonly acceptedAsCamera: boolean;
+  readonly stationPresent: boolean;
+  readonly stationPpcsReady: boolean;
+  readonly stationDskReady: boolean;
+  readonly streamSupported: boolean;
 }
 
 /**
@@ -113,7 +131,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
               if (Number.isInteger(id) && key) this.#cipherKeys.set(id, key);
             }
           } catch (error) {
-            console.warn(`Mega cipher lookup unavailable: ${safeError(error)}`);
+            logger.warn("cipher_lookup_unavailable", `Mega cipher lookup unavailable: ${safeError(error)}`);
           }
           return this.#cipherKeys.get(cipherId);
         },
@@ -182,7 +200,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       inventory = await this.#client.inventory();
     } catch (error) {
       if (!this.#client.isSessionInvalidError(error)) throw error;
-      console.warn("Mega session was invalidated; signing in again");
+      logger.warn("session_invalidated", "Mega session was invalidated; signing in again");
       const auth = await this.#client.connect(undefined, undefined, true);
       if (auth.state !== "authenticated") {
         this.#captchaChallenge = auth.captcha ?? null;
@@ -207,7 +225,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       try {
         for (const [serial, key] of Object.entries(await this.#client.dskKeys(stationSerials))) this.#dskKeys.set(serial, key);
       } catch (error) {
-        console.warn(`Mega DSK lookup unavailable: ${safeError(error)}`);
+        logger.warn("dsk_lookup_unavailable", `Mega DSK lookup unavailable: ${safeError(error)}`);
       }
     }
     for (const device of devices) {
@@ -221,7 +239,31 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         streamSupported: Boolean(station?.p2pDid && station.p2pConnection && device.channel !== null && station && this.#dskKeys.has(station.serial)),
       });
     }
-    events.inventory(inventoryDiagnostics(devices));
+    const diagnostics = inventoryDiagnostics(devices);
+    const summaries = inventoryLogSummaries(devices, new Set(this.#dskKeys.keys()));
+    logger.info(
+      "inventory_loaded",
+      `Mega inventory loaded: devices=${devices.length} accepted=${diagnostics.filter(({ acceptedAsCamera }) => acceptedAsCamera).length} groups=${summaries.length}`,
+    );
+    for (const summary of summaries) {
+      logger.info(
+        "inventory_group",
+        [
+          `count=${summary.count}`,
+          `model=${JSON.stringify(summary.model)}`,
+          `device_type=${summary.deviceType ?? "missing"}`,
+          `category=${summary.category ?? "missing"}`,
+          `accepted=${summary.acceptedAsCamera}`,
+          `has_parent=${summary.hasParent}`,
+          `has_channel=${summary.hasChannel}`,
+          `station_present=${summary.stationPresent}`,
+          `station_ppcs_ready=${summary.stationPpcsReady}`,
+          `station_dsk_ready=${summary.stationDskReady}`,
+          `stream_supported=${summary.streamSupported}`,
+        ].join(" "),
+      );
+    }
+    events.inventory(diagnostics);
 
     this.#push?.close();
     this.#push = new MegaPushReceiver(
@@ -262,7 +304,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       const picture = await downloadPushSnapshot(this.#client, event, this.#devices);
       if (picture) events.snapshot(event.cameraSerial, picture.data, "image/jpeg");
     }).catch((error: unknown) => {
-      console.warn(`Eufy push snapshot unavailable for ${event.cameraSerial}: ${safeError(error)}`);
+      logger.warn("push_snapshot_unavailable", `Eufy push snapshot unavailable: ${safeError(error)}`);
     });
     this.#pushSnapshotQueues.set(event.cameraSerial, current);
     void current.finally(() => {
@@ -338,6 +380,45 @@ export function inventoryDiagnostics(devices: readonly MegaInventoryDevice[]): I
     megaDeviceType: device.deviceType,
     category: device.category,
   }));
+}
+
+/**
+ * Group inventory classifications without exposing names or device serials.
+ *
+ * @param devices Normalized Mega inventory rows.
+ * @param dskStationSerials Stations whose short-lived PPCS key was retrieved.
+ * @returns Groups that explain camera acceptance and live-stream readiness.
+ */
+export function inventoryLogSummaries(
+  devices: readonly MegaInventoryDevice[],
+  dskStationSerials: ReadonlySet<string>,
+): InventoryLogSummary[] {
+  const bySerial = new Map(devices.map((device) => [device.serial, device]));
+  const groups = new Map<string, InventoryLogSummary>();
+  for (const device of devices) {
+    const station = device.parentSerial ? bySerial.get(device.parentSerial) : undefined;
+    const values = {
+      model: device.model,
+      deviceType: device.deviceType,
+      category: device.category,
+      hasParent: device.parentSerial.length > 0,
+      hasChannel: device.channel !== null,
+      acceptedAsCamera: isSupportedMegaCamera(device),
+      stationPresent: station !== undefined,
+      stationPpcsReady: Boolean(station?.p2pDid && station.p2pConnection),
+      stationDskReady: Boolean(station && dskStationSerials.has(station.serial)),
+      streamSupported: Boolean(
+        station?.p2pDid
+        && station.p2pConnection
+        && device.channel !== null
+        && dskStationSerials.has(station.serial)
+      ),
+    };
+    const key = JSON.stringify(values);
+    const existing = groups.get(key);
+    groups.set(key, { count: (existing?.count ?? 0) + 1, ...values });
+  }
+  return [...groups.values()];
 }
 
 /** Return whether Mega metadata identifies a device as a supported camera. */

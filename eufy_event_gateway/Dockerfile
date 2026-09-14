@@ -3,6 +3,8 @@ FROM node:24-alpine
 ARG BUILD_VERSION
 ARG BUILD_ARCH
 
+ENV EUFY_GATEWAY_VERSION=$BUILD_VERSION
+
 LABEL \
   io.hass.version="$BUILD_VERSION" \
   io.hass.type="app" \
