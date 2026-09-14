@@ -134,11 +134,11 @@ Before encrypted requests, the client performs an ECDH exchange using `prime256v
 
 The plaintext password is never sent in an API request. `encryptPassword()` uses Eufy's published login public key and a fresh client key pair. The login request contains the encrypted password, the client public key, country, login identifiers, and empty challenge fields unless the user has just supplied a CAPTCHA answer or email verification code.
 
-The response supplies an account token, user ID, and token expiry. The client stores the session metadata and derived host key material in `mega-session.json`. It stores no password, CAPTCHA answer, or email verification code.
+The response supplies an account token, user ID, and token expiry. The client stores the session metadata and derived host key material in `mega-session.json`. A limited token returned with an email-verification challenge is saved before the challenge is exposed, allowing the documented configuration-and-restart fallback to submit the code with the same session. The session file stores no password, CAPTCHA answer, or email verification code.
 
 ### 4. Challenge states
 
-Mega can require an image CAPTCHA or a six-digit email verification code. These are represented as explicit `MegaAuthResult` states. The gateway's local Web UI presents the current challenge, holds the answer in memory, submits it to the appropriate client, and then completes normal startup. A challenge page is a gateway convenience, not a second Eufy account system.
+Mega can require an image CAPTCHA or a six-digit email verification code. These are represented as explicit `MegaAuthResult` states. The gateway's local Web UI presents the current challenge, holds the answer in memory, submits it through the same Mega client and session, and then completes normal startup. A challenge page is a gateway convenience, not a second Eufy account system.
 
 ### 5. Authenticated request envelopes
 

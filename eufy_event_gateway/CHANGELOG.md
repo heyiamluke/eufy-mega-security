@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.17
+
+- Show the verification-code field directly in app configuration instead of hiding it behind the optional-field control.
+- Capture retained images sequentially for newly discovered cameras that have no snapshot.
+- Exit cleanly after Supervisor sends `SIGTERM` instead of reporting the gateway process's signal status as app exit code 143.
+
+## 0.1.16
+
+- Preserve Eufy's limited pre-verification Mega session across the documented app restart so email-code submission retains its required token.
+- Submit Web UI email verification through the active Mega client instead of the separate legacy web session.
+- Add regression coverage for verification-required login, app restart, and successful code submission.
+
 ## 0.1.15
 
 - Add a first-day developer guide covering the repository architecture, Mega authentication, inventory, push events, snapshots, PPCS streaming, and Home Assistant conversion.

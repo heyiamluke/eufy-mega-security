@@ -77,9 +77,11 @@ If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/confi
 5. On its **Configuration** tab, enter the dedicated Eufy guest username, password, and country code.
 6. Start the app and enable **Start on boot** and **Watchdog**.
 
-If the log says Eufy requested email verification, enter the temporary code in **Verification code**, restart the app once, and remove the code after it connects. Never post credentials, verification codes, or app logs containing private account details in a GitHub issue.
+Mega events and the native camera transport use the gateway's Mega session. If Eufy requests a CAPTCHA or sends a six-digit email code, open the app's **Web UI** and complete the prompt there without restarting the app. The gateway stores the resulting Mega session so routine app upgrades and restarts do not repeat authentication.
 
-Mega events and the native camera transport use the gateway's Mega session. If Eufy requests a CAPTCHA or sends a six-digit email code, open the app's **Web UI** and complete the prompt there. The gateway stores the resulting Mega session so routine app upgrades and restarts do not repeat authentication. Challenge answers and email codes are kept in memory only and are not written to the app configuration or logs.
+As a fallback for email verification, enter the temporary code in **Verification code** and restart the app once. The gateway retains Eufy's limited pre-verification session across that restart, so the code is submitted with the token that requested it. Remove the code after the app connects. Web UI challenge answers and codes are kept in memory only; the configuration fallback keeps the code in the app's private options until you remove it. Never post credentials, verification codes, or app logs containing private account details in a GitHub issue.
+
+On first discovery, the gateway captures one live snapshot from each camera that has no retained image. Cameras are warmed one at a time, and a sleeping or unavailable camera does not prevent the remaining cameras from starting. Later restarts reuse retained images instead of waking every camera again.
 
 ## Connect it to Home Assistant
 

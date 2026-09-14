@@ -69,6 +69,57 @@ test("releases its state listener after a capture timeout", async () => {
   await manager.close();
 });
 
+test("cancels a pending snapshot promptly when the gateway closes", async () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  const manager = new LiveStreamManager(
+    state,
+    {} as never,
+    { async startStream() {}, async stopStream() {} },
+    5,
+  );
+
+  const capture = manager.captureSnapshot(camera.serial, 60_000);
+  const rejected = assert.rejects(capture, /Gateway closed/);
+  await new Promise((resolve) => setImmediate(resolve));
+  await manager.close();
+  await rejected;
+  assert.equal(state.listenerCount("event"), 0);
+});
+
+test("releases a startup snapshot source before the next camera is warmed", async () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  let manager: LiveStreamManager;
+  let stops = 0;
+  manager = new LiveStreamManager(
+    state,
+    {} as never,
+    {
+      async startStream() {
+        manager.attachSource(camera.serial, new PassThrough());
+        setTimeout(() => state.updateSnapshot(camera.serial, {
+          capturedAt: new Date().toISOString(),
+          contentType: "image/jpeg",
+          source: "live",
+          revision: 1,
+        }), 5);
+      },
+      async stopStream() {
+        stops += 1;
+        manager.markStopped(camera.serial);
+      },
+    },
+    1_000,
+  );
+
+  const snapshot = await manager.captureStartupSnapshot(camera.serial, 50);
+  assert.equal(snapshot.revision, 1);
+  assert.equal(stops, 1);
+  assert.equal(state.getCamera(camera.serial).stream.state, "idle");
+  await manager.close();
+});
+
 test("records for a bounded duration and releases the on-demand stream", async () => {
   const state = new GatewayState();
   state.registerCamera(camera);
