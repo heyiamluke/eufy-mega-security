@@ -2,6 +2,8 @@
 
 ## 0.1.22
 
+- Add the first standalone PPCS route for the Wired Wall Light Cam S100 (`T84A1`, Mega type 151). The gateway now uses an eligible parentless camera's own peer connection and DSK key rather than requiring a HomeBase.
+- Add privacy-safe inventory diagnostics for HomeBase, direct, and unavailable stream routes so support logs identify the missing PPCS prerequisite without exposing device identity or connection values.
 - Run the Home Assistant app on the host network so local PPCS UDP discovery can reach Eufy devices on the LAN while keeping the gateway API port unmapped by default.
 - Correct the HomeBase local-lookup and camera-check PPCS request headers.
 - Convert HomeBase storage figures from the device's MiB values to bytes before publishing them to Home Assistant.

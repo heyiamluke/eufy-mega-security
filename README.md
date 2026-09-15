@@ -32,6 +32,7 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 - ✅ Battery camera T817L: live streams and snapshots produced on real hardware.
 - ✅ eufyCam S330 (Mega model T8160): discovered with sensors, retained images, and live streaming through HomeBase 3.
 - 🟠 SoloCam C20 (Mega model T8134): device type 63 now passes camera discovery. Its events, snapshots, and live stream still need confirmation on real hardware.
+- 🟠 Wired Wall Light Cam S100 (Mega model T84A1): type 151 and a direct PPCS route are in the code. Discovery, live video, snapshots, and events still need confirmation on real hardware.
 - ✅ Indoor Cam Pan & Tilt T8410: discovered with sensors, a retained image, and a live stream through HomeBase 3.
 - ✅ Indoor Cam Pan & Tilt T8410C: discovered with sensors, a retained image, and a live stream through HomeBase 3.
 
@@ -202,6 +203,7 @@ See [device support](#device-support) for the tested setups and features still a
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
 - Live video uses Eufy's native camera transport. Eufy may require account verification the first time that session is created.
 - The app handles authentication challenges in its Web UI, then reuses the valid Mega session across upgrades and restarts.
+- The S100/T84A1 direct PPCS route is awaiting real-device validation. Its direct Wi-Fi topology is different from a HomeBase-attached camera.
 - The app currently publishes source builds for `amd64` and `aarch64`; installation may take several minutes.
 
 ## Privacy and security

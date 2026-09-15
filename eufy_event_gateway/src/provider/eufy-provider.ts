@@ -63,7 +63,16 @@ export interface InventoryLogSummary {
   readonly stationPresent: boolean;
   readonly stationPpcsReady: boolean;
   readonly stationDskReady: boolean;
+  readonly streamRoute: "homebase" | "direct" | "unavailable";
+  readonly peerPpcsReady: boolean;
+  readonly peerDskReady: boolean;
   readonly streamSupported: boolean;
+}
+
+/** Selects the peer that owns a camera's PPCS connection and DSK key. */
+export interface PpcsStreamRoute {
+  readonly peer: MegaInventoryDevice;
+  readonly homeBaseAttached: boolean;
 }
 
 /**
@@ -116,32 +125,35 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   async startStream(serial: string): Promise<void> {
     const device = this.#devices.get(serial);
     if (!device || !isSupportedMegaCamera(device)) throw new Error(`Unknown Eufy camera: ${serial}`);
-    const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
-    const dsk = station ? this.#dskKeys.get(station.serial) : null;
+    const route = ppcsStreamRoute(device, this.#devices);
+    const peer = route?.peer;
+    const dsk = peer ? this.#dskKeys.get(peer.serial) : null;
 
     // The production path is deliberately first-party Mega/PPCS.
-    if (station?.p2pDid && station.p2pConnection && dsk && device.channel !== null) {
+    if (route && peer?.p2pDid && peer.p2pConnection && dsk && device.channel !== null) {
       this.#ppcsStreams.get(serial)?.close();
       const stream = new FirstPartyPpcsSession({
-        stationSerial: station.serial, p2pDid: station.p2pDid, appConnection: station.p2pConnection,
+        stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model, accountId: device.adminUserId,
-        homeBaseAttached: Boolean(device.parentSerial),
-        resolveCipherKey: async (cipherId) => {
-          const cached = this.#cipherKeys.get(cipherId);
-          if (cached) return cached;
-          if (!station.adminUserId) return undefined;
-          try {
-            const ciphers = await this.#client.getCiphers([cipherId], station.adminUserId, station.serial);
-            for (const cipher of ciphers) {
-              const id = typeof cipher.cipher_id === "number" ? cipher.cipher_id : Number(cipher.cipher_id);
-              const key = typeof cipher.ecc_private_key === "string" ? cipher.ecc_private_key : "";
-              if (Number.isInteger(id) && key) this.#cipherKeys.set(id, key);
+        homeBaseAttached: route.homeBaseAttached,
+        ...(route.homeBaseAttached ? {
+          resolveCipherKey: async (cipherId: number) => {
+            const cached = this.#cipherKeys.get(cipherId);
+            if (cached) return cached;
+            if (!peer.adminUserId) return undefined;
+            try {
+              const ciphers = await this.#client.getCiphers([cipherId], peer.adminUserId, peer.serial);
+              for (const cipher of ciphers) {
+                const id = typeof cipher.cipher_id === "number" ? cipher.cipher_id : Number(cipher.cipher_id);
+                const key = typeof cipher.ecc_private_key === "string" ? cipher.ecc_private_key : "";
+                if (Number.isInteger(id) && key) this.#cipherKeys.set(id, key);
+              }
+            } catch (error) {
+              logger.warn("cipher_lookup_unavailable", `Mega cipher lookup unavailable: ${safeError(error)}`);
             }
-          } catch (error) {
-            logger.warn("cipher_lookup_unavailable", `Mega cipher lookup unavailable: ${safeError(error)}`);
-          }
-          return this.#cipherKeys.get(cipherId);
-        },
+            return this.#cipherKeys.get(cipherId);
+          },
+        } : {}),
         maxSeconds: this.config.maxStreamSeconds,
       });
       this.#ppcsStreams.set(serial, stream);
@@ -255,23 +267,22 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     }
     this.#dskKeys.clear();
     this.#cipherKeys.clear();
-    const stationSerials = [...new Set(devices.filter((device) => !device.parentSerial && device.p2pDid).map((device) => device.serial))];
-    if (stationSerials.length > 0) {
+    const peerSerials = [...new Set(devices.filter((device) => (!device.parentSerial || device.parentSerial === device.serial) && device.p2pDid).map((device) => device.serial))];
+    if (peerSerials.length > 0) {
       try {
-        for (const [serial, key] of Object.entries(await this.#client.dskKeys(stationSerials))) this.#dskKeys.set(serial, key);
+        for (const [serial, key] of Object.entries(await this.#client.dskKeys(peerSerials))) this.#dskKeys.set(serial, key);
       } catch (error) {
         logger.warn("dsk_lookup_unavailable", `Mega DSK lookup unavailable: ${safeError(error)}`);
       }
     }
     for (const device of devices) {
       if (!isSupportedMegaCamera(device)) continue;
-      const station = device.parentSerial ? this.#devices.get(device.parentSerial) : null;
       events.camera({
         serial: device.serial,
         name: device.name,
         model: device.model,
         stationSerial: device.parentSerial,
-        streamSupported: Boolean(station?.p2pDid && station.p2pConnection && device.channel !== null && station && this.#dskKeys.has(station.serial)),
+        streamSupported: isPpcsStreamSupported(device, this.#devices, new Set(this.#dskKeys.keys())),
       });
     }
     this.#stations.clear();
@@ -300,6 +311,9 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
           `station_present=${summary.stationPresent}`,
           `station_ppcs_ready=${summary.stationPpcsReady}`,
           `station_dsk_ready=${summary.stationDskReady}`,
+          `stream_route=${summary.streamRoute}`,
+          `peer_ppcs_ready=${summary.peerPpcsReady}`,
+          `peer_dsk_ready=${summary.peerDskReady}`,
           `stream_supported=${summary.streamSupported}`,
         ].join(" "),
       );
@@ -581,6 +595,11 @@ export function inventoryLogSummaries(
   const groups = new Map<string, InventoryLogSummary>();
   for (const device of devices) {
     const station = device.parentSerial ? bySerial.get(device.parentSerial) : undefined;
+    const route = isSupportedMegaCamera(device) ? ppcsStreamRoute(device, bySerial) : null;
+    const peer = route?.peer;
+    const streamRoute: InventoryLogSummary["streamRoute"] = route
+      ? route.homeBaseAttached ? "homebase" : "direct"
+      : "unavailable";
     const values = {
       model: device.model,
       deviceType: device.deviceType,
@@ -591,12 +610,10 @@ export function inventoryLogSummaries(
       stationPresent: station !== undefined,
       stationPpcsReady: Boolean(station?.p2pDid && station.p2pConnection),
       stationDskReady: Boolean(station && dskStationSerials.has(station.serial)),
-      streamSupported: Boolean(
-        station?.p2pDid
-        && station.p2pConnection
-        && device.channel !== null
-        && dskStationSerials.has(station.serial)
-      ),
+      streamRoute,
+      peerPpcsReady: Boolean(peer?.p2pDid && peer.p2pConnection),
+      peerDskReady: Boolean(peer && dskStationSerials.has(peer.serial)),
+      streamSupported: isPpcsStreamSupported(device, bySerial, dskStationSerials),
     };
     const key = JSON.stringify(values);
     const existing = groups.get(key);
@@ -611,10 +628,46 @@ export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "categor
     && (device.deviceType === 7
       || device.deviceType === 8
       || device.deviceType === 19
+      || device.deviceType === 151
       || device.deviceType === 31
       || device.deviceType === 63
       || device.deviceType === 91
       || device.deviceType === 10031);
+}
+
+/**
+ * Identify the peer that provides PPCS connectivity for one camera.
+ *
+ * A HomeBase child uses its parent station. A parentless row or a row that
+ * names itself as its station is a standalone camera and owns its own peer
+ * connection. A missing non-self parent remains unavailable rather than being
+ * guessed as a direct camera.
+ */
+export function ppcsStreamRoute(
+  device: MegaInventoryDevice,
+  devicesBySerial: ReadonlyMap<string, MegaInventoryDevice>,
+): PpcsStreamRoute | null {
+  if (!device.parentSerial || device.parentSerial === device.serial) {
+    return { peer: device, homeBaseAttached: false };
+  }
+  const station = devicesBySerial.get(device.parentSerial);
+  return station ? { peer: station, homeBaseAttached: true } : null;
+}
+
+/** Return whether the selected PPCS peer has every prerequisite to stream. */
+export function isPpcsStreamSupported(
+  device: MegaInventoryDevice,
+  devicesBySerial: ReadonlyMap<string, MegaInventoryDevice>,
+  dskPeerSerials: ReadonlySet<string>,
+): boolean {
+  if (!isSupportedMegaCamera(device)) return false;
+  const route = ppcsStreamRoute(device, devicesBySerial);
+  return Boolean(
+    route?.peer.p2pDid
+    && route.peer.p2pConnection
+    && device.channel !== null
+    && dskPeerSerials.has(route.peer.serial),
+  );
 }
 
 /**
