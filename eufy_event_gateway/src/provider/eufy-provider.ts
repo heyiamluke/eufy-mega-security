@@ -636,12 +636,16 @@ export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "categor
       || device.deviceType === 8
       || device.deviceType === 19
       || device.deviceType === 23
+      || device.deviceType === 26
+      || device.deviceType === 47
+      || device.deviceType === 48
       || device.deviceType === 151
       || device.deviceType === 31
       || device.deviceType === 63
       || device.deviceType === 91
       || device.deviceType === 94
       || device.deviceType === 104
+      || device.deviceType === 10005
       || device.deviceType === 10031);
 }
 
