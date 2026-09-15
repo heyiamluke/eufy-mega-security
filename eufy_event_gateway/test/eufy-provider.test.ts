@@ -103,7 +103,7 @@ test("accepts T8161 inventory through a ready HomeBase 3", () => {
   assert.equal(summaries[0]?.streamSupported, true);
 });
 
-test("admits issue 22 cameras through their inventoried HomeBase peers", () => {
+test("admits issue 22 cameras through their inventoried parent peers", () => {
   const devices = parseMegaInventory({ devices: [
     { device_sn: "doorbell", device_model: "T8214", parent_sn: "station-one", device_type: 94,
       device_channel: 1, category: "eufy_security" },
