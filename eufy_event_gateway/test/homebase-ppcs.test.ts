@@ -1,0 +1,78 @@
+/**
+ * Tests HomeBase PPCS request framing and privacy-safe state normalization.
+ *
+ * These cases lock down the discovery headers and generation-specific station
+ * parameters without opening a socket or retaining disk paths and serial
+ * numbers from the device response.
+ */
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  HOMEBASE_PPCS_REQUEST_HEADERS,
+  isHomeBaseResultFrame,
+  parseHomeBaseState,
+} from "../src/stream/homebase-ppcs.js";
+
+test("uses PPCS local-lookup and camera-check request headers", () => {
+  assert.equal(HOMEBASE_PPCS_REQUEST_HEADERS.localLookup.toString("hex"), "f130");
+  assert.equal(HOMEBASE_PPCS_REQUEST_HEADERS.check.toString("hex"), "f141");
+});
+
+test("reads the command-result flag from the inner frame type byte", () => {
+  const frame = Buffer.alloc(16);
+  frame[10] = 1;
+  assert.equal(isHomeBaseResultFrame(frame), false);
+  frame[14] = 1;
+  assert.equal(isHomeBaseResultFrame(frame), true);
+});
+
+test("normalizes HomeBase state and separate physical storage devices", () => {
+  const result = parseHomeBaseState({
+    main_sw_version: "3.6.0.1",
+    params: [
+      { dev_type: 255, param_type: 1224, param_value: "2" },
+      { dev_type: 255, param_type: 1151, param_value: 1 },
+      { dev_type: 255, param_type: 1235, param_value: 20 },
+      { dev_type: 255, param_type: 1292, param_value: 10 },
+      { dev_type: 255, param_type: 1281, param_value: 2 },
+      { dev_type: 1, param_type: 1224, param_value: 63 },
+    ],
+  }, {
+    emmc_info: { disk_size: 1_000, disk_used: 250, work_status: 0, disk_path: "/private/emmc" },
+    hdd_info: {
+      disk_size: 10_000,
+      disk_used: 4_000,
+      work_status: 1,
+      serial_number: "private-drive-serial",
+    },
+  });
+
+  assert.deepEqual(result, {
+    firmware: "3.6.0.1",
+    guardMode: 2,
+    effectiveMode: 1,
+    alarmVolume: 20,
+    promptVolume: 10,
+    alarmTone: 2,
+    storage: {
+      emmc: { status: "normal", totalBytes: 1_048_576_000, freeBytes: 786_432_000 },
+      hdd: { status: "non_original", totalBytes: 10_485_760_000, freeBytes: 6_291_456_000 },
+    },
+  });
+  assert.equal(JSON.stringify(result).includes("private"), false);
+});
+
+test("accepts a JSON-encoded storage body and rejects unsupported values", () => {
+  const result = parseHomeBaseState({
+    params: [
+      { dev_type: 255, param_type: 1224, param_value: 99 },
+      { dev_type: 255, param_type: 1235, param_value: 0 },
+    ],
+  }, JSON.stringify({ emmc_info: { disk_size: 100, disk_used: 200 } }));
+
+  assert.equal(result.guardMode, null);
+  assert.equal(result.alarmVolume, null);
+  assert.deepEqual(result.storage?.emmc, { status: "reported", totalBytes: 104_857_600, freeBytes: 0 });
+  assert.equal(result.storage?.hdd, null);
+});

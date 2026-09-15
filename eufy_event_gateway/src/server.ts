@@ -15,7 +15,7 @@ import type { GatewayConfig } from "./config.js";
 import { GatewayState } from "./domain/gateway-state.js";
 import type { GatewayEvent } from "./domain/types.js";
 import { SimulatedProvider } from "./provider/simulated-provider.js";
-import type { CaptchaProvider } from "./provider/provider.js";
+import type { CameraProvider, CaptchaProvider } from "./provider/provider.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
 import { LiveStreamManager } from "./stream/live-stream-manager.js";
 
@@ -36,6 +36,7 @@ export class GatewayServer {
     private readonly state: GatewayState,
     private readonly snapshots: SnapshotStore,
     private readonly streams: LiveStreamManager,
+    private readonly provider: CameraProvider,
     private readonly simulatedProvider: SimulatedProvider | null,
     private readonly captchaProvider: CaptchaProvider | null = null,
   ) {}
@@ -102,6 +103,9 @@ export class GatewayServer {
       if (request.method === "GET" && url.pathname === "/api/cameras") {
         return json(response, 200, { cameras: this.state.listCameras() });
       }
+      if (request.method === "GET" && url.pathname === "/api/stations") {
+        return json(response, 200, { stations: this.state.listStations() });
+      }
       if (request.method === "GET" && url.pathname === "/api/diagnostics/push") {
         return json(response, 200, { events: this.state.listPushDiagnostics() });
       }
@@ -110,6 +114,12 @@ export class GatewayServer {
       }
       if (request.method === "GET" && segments[0] === "api" && segments[1] === "cameras" && segments.length === 3) {
         return this.#cameraJson(segments[2]!, response);
+      }
+      if (request.method === "GET" && segments[0] === "api" && segments[1] === "stations" && segments.length === 3) {
+        return this.#stationJson(segments[2]!, response);
+      }
+      if (request.method === "POST" && segments[0] === "api" && segments[1] === "stations" && segments.length === 4) {
+        return await this.#stationCommand(request, segments[2]!, segments[3]!, response);
       }
       if (
         request.method === "POST" &&
@@ -208,6 +218,30 @@ export class GatewayServer {
   #cameraJson(serial: string, response: ServerResponse): void {
     if (!this.state.hasCamera(serial)) return json(response, 404, { error: "Camera not found" });
     return json(response, 200, this.state.getCamera(serial));
+  }
+
+  #stationJson(serial: string, response: ServerResponse): void {
+    if (!this.state.hasStation(serial)) return json(response, 404, { error: "HomeBase not found" });
+    return json(response, 200, this.state.getStation(serial));
+  }
+
+  async #stationCommand(
+    request: IncomingMessage,
+    serial: string,
+    command: string,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (!this.state.hasStation(serial)) return json(response, 404, { error: "HomeBase not found" });
+    const body = await readJson(request);
+    let station;
+    if (command === "refresh") station = await this.provider.refreshStation(serial);
+    else if (command === "guard-mode") station = await this.provider.setGuardMode(serial, requiredInteger(body.mode));
+    else if (command === "alarm-volume") station = await this.provider.setAlarmVolume(serial, requiredInteger(body.value));
+    else if (command === "prompt-volume") station = await this.provider.setPromptVolume(serial, requiredInteger(body.value));
+    else if (command === "alarm-tone") station = await this.provider.setAlarmTone(serial, requiredInteger(body.value));
+    else return json(response, 404, { error: "Not found" });
+    this.state.registerStation(station);
+    return json(response, 200, station);
   }
 
   async #snapshot(serial: string, response: ServerResponse): Promise<void> {
@@ -348,6 +382,11 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 
 function safeError(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected gateway error";
+}
+
+function requiredInteger(value: unknown): number {
+  if (!Number.isSafeInteger(value)) throw new SyntaxError("Expected an integer value");
+  return value as number;
 }
 
 /** Validate a bearer header without leaking token material in an error path. */

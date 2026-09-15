@@ -174,7 +174,7 @@ The project has been tested against EufyCam 2C cameras, a T8210 video doorbell, 
 - Indoor Cam Pan & Tilt T8410;
 - Indoor Cam Pan & Tilt T8410C.
 
-All five cameras in that setup were discovered with their sensor entities, retained images, and live streams working. HomeBase 3 provides parent metadata and does not appear as a camera entity.
+All five cameras in that setup were discovered with their sensor entities, retained images, and live streams working. HomeBase 3 does not appear as a camera. In v0.1.21 it has its own device with an alarm panel, configured and effective guard modes, siren state, PPCS connection diagnostics, storage sensors, volume controls, and alarm tone. The HomeBase control path still needs confirmation on real hardware before release.
 
 - Eufy's cloud, push, and HomeBase protocols are undocumented and can change without notice.
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
@@ -186,6 +186,7 @@ All five cameras in that setup were discovered with their sensor entities, retai
 
 - Eufy credentials, sessions, generated API tokens, and snapshots stay in the app's private persistent data volume.
 - The app's API port is not exposed to the LAN by default.
+- Local PPCS discovery requires the app to use Home Assistant's host network so UDP broadcasts can reach Eufy devices on the LAN.
 - Process liveness is checked separately from Eufy connectivity, so an email-code prompt or temporary Eufy outage does not create a restart loop.
 - API, snapshot, and event endpoints require authentication when the gateway is remotely reachable.
 - Diagnostics intentionally exclude passwords, access tokens, signing keys, notification text, media URLs, and raw payloads.

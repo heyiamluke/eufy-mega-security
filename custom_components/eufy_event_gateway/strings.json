@@ -1,5 +1,24 @@
 {
   "title": "Eufy Mega Security",
+  "entity": {
+    "alarm_control_panel": {
+      "eufy_home_base_alarm": {"name": "Alarm"}
+    },
+    "binary_sensor": {
+      "eufy_station_connection": {"name": "Connection"}
+    },
+    "number": {
+      "eufy_station_alarm_volume": {"name": "Alarm volume"},
+      "eufy_station_prompt_volume": {"name": "Prompt volume"}
+    },
+    "select": {
+      "eufy_guard_mode_select": {"name": "Guard mode"},
+      "eufy_alarm_tone_select": {"name": "Alarm tone"}
+    },
+    "sensor": {
+      "eufy_effective_mode_sensor": {"name": "Effective mode"}
+    }
+  },
   "config": {
     "step": {
       "user": {

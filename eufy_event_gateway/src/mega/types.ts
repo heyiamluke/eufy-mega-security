@@ -52,7 +52,8 @@ export interface MegaDevice {
   readonly p2p_did?: string;
   readonly p2p_license?: string;
   readonly push_did?: string;
-  readonly member?: { readonly admin_user_id?: string };
+  readonly member?: { readonly admin_user_id?: string; readonly nick_name?: string };
+  readonly main_sw_version?: string;
   readonly params?: ReadonlyArray<{ readonly param_type?: number; readonly param_value?: string }>;
   readonly [key: string]: unknown;
 }

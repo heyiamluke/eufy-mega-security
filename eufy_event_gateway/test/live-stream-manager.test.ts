@@ -134,6 +134,7 @@ test("records for a bounded duration and releases the on-demand stream", async (
       async startStream() {
         source = new PassThrough();
         manager.attachSource(camera.serial, source);
+        source.write(Buffer.from("h264"));
         writes = setInterval(() => source.write(Buffer.from("h264")), 10);
       },
       async stopStream() {

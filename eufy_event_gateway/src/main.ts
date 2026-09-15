@@ -84,6 +84,9 @@ const providerEvents: ProviderEvents = {
     if (stored) state.restoreSnapshot(identity.serial, stored);
     else if (identity.streamSupported) startupSnapshots.enqueue(identity.serial);
   },
+  station(station) {
+    state.registerStation(station);
+  },
   connection(connectionState, detail) {
     state.updateConnection(connectionState, detail);
     if (connectionState === "connected") startupSnapshots.start();
@@ -115,7 +118,7 @@ const providerEvents: ProviderEvents = {
   },
 };
 
-const server = new GatewayServer(config, state, snapshots, streams, simulatedProvider, captchaProvider);
+const server = new GatewayServer(config, state, snapshots, streams, provider, simulatedProvider, captchaProvider);
 await server.listen();
 logger.info(
   "gateway_listening",

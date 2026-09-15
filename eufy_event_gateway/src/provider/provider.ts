@@ -11,11 +11,12 @@
  */
 import type { Readable } from "node:stream";
 
-import type { CameraIdentity, InventoryDiagnostic, PushDiagnostic } from "../domain/types.js";
+import type { CameraIdentity, HomeBaseState, InventoryDiagnostic, PushDiagnostic } from "../domain/types.js";
 
 /** Callbacks through which a provider reports normalized observations. */
 export interface ProviderEvents {
   camera(identity: CameraIdentity): void;
+  station(state: HomeBaseState): void;
   connection(state: "connected" | "disconnected" | "authentication-required" | "error", detail: string | null): void;
   motion(serial: string, detected: boolean): void;
   person(serial: string, detected: boolean, personName: string | null): void;
@@ -31,6 +32,11 @@ export interface CameraProvider {
   start(events: ProviderEvents): Promise<void>;
   startStream(serial: string): Promise<void>;
   stopStream(serial: string): Promise<void>;
+  refreshStation(serial: string): Promise<HomeBaseState>;
+  setGuardMode(serial: string, mode: number): Promise<HomeBaseState>;
+  setAlarmVolume(serial: string, value: number): Promise<HomeBaseState>;
+  setPromptVolume(serial: string, value: number): Promise<HomeBaseState>;
+  setAlarmTone(serial: string, value: number): Promise<HomeBaseState>;
   close(): Promise<void>;
 }
 

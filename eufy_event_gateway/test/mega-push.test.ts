@@ -18,9 +18,26 @@ test("normalizes a nested HomeBase 3 Mega notification", () => {
     cameraSerial: "camera", stationSerial: "station", cameraName: "Path", eventType: 3111,
     messageType: 1, notificationStyle: null, personName: "Alex", content: "Alex has been detected.",
     pictureUrl: "https://example.invalid/image", filePath: null, fetchId: null, senseId: null,
+    guardMode: null, effectiveMode: null, alarmType: null,
   });
 });
 
 test("rejects notifications without a device identity", () => {
   assert.equal(parsePushEvent({ payload: "{}" }), null);
+});
+
+test("normalizes HomeBase guard and alarm push state without retaining unrelated data", () => {
+  const result = parsePushEvent({ payload: JSON.stringify({
+    station_sn: "station",
+    event_type: 9,
+    station_guard_mode: 2,
+    current_mode: 1,
+    alarm_type: 3,
+    account_email: "private@example.invalid",
+  }) });
+
+  assert.equal(result?.guardMode, 2);
+  assert.equal(result?.effectiveMode, 1);
+  assert.equal(result?.alarmType, 3);
+  assert.equal(JSON.stringify(result).includes("private@example.invalid"), false);
 });

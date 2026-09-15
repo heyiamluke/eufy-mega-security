@@ -27,7 +27,9 @@ class GatewayAuthenticationError(GatewayClientError):
 class GatewayClient:
     """Access normalized gateway state without retaining Eufy credentials."""
 
-    def __init__(self, session: ClientSession, base_url: str, api_token: str = "") -> None:
+    def __init__(
+        self, session: ClientSession, base_url: str, api_token: str = ""
+    ) -> None:
         """Create a client from HA's shared HTTP session and gateway settings."""
         self._session = session
         self.base_url = base_url.rstrip("/")
@@ -39,7 +41,57 @@ class GatewayClient:
         cameras = payload.get("cameras")
         if not isinstance(cameras, list):
             raise GatewayClientError("Gateway returned an invalid camera list")
-        return [camera for camera in cameras if isinstance(camera, dict) and isinstance(camera.get("serial"), str)]
+        return [
+            camera
+            for camera in cameras
+            if isinstance(camera, dict) and isinstance(camera.get("serial"), str)
+        ]
+
+    async def stations(self) -> list[dict[str, Any]]:
+        """Fetch the HomeBase stations known to the gateway."""
+        payload = await self._json("/api/stations")
+        stations = payload.get("stations")
+        if not isinstance(stations, list):
+            raise GatewayClientError("Gateway returned an invalid station list")
+        return [
+            station
+            for station in stations
+            if isinstance(station, dict) and isinstance(station.get("serial"), str)
+        ]
+
+    async def station(self, serial: str) -> dict[str, Any]:
+        """Fetch one HomeBase state by serial for an explicit readback."""
+        payload = await self._json(f"/api/stations/{serial}")
+        station = payload.get("station", payload)
+        if not isinstance(station, dict) or not isinstance(station.get("serial"), str):
+            raise GatewayClientError("Gateway returned an invalid station response")
+        return station
+
+    async def set_station_guard_mode(self, serial: str, mode: int) -> dict[str, Any]:
+        """Set a station's configured guard mode and return confirmed state."""
+        return await self._station_command(
+            f"/api/stations/{serial}/guard-mode", {"mode": mode}
+        )
+
+    async def set_station_alarm_volume(self, serial: str, value: int) -> dict[str, Any]:
+        """Set a station's alarm volume and return confirmed state."""
+        return await self._station_command(
+            f"/api/stations/{serial}/alarm-volume", {"value": value}
+        )
+
+    async def set_station_prompt_volume(
+        self, serial: str, value: int
+    ) -> dict[str, Any]:
+        """Set a station's prompt volume and return confirmed state."""
+        return await self._station_command(
+            f"/api/stations/{serial}/prompt-volume", {"value": value}
+        )
+
+    async def set_station_alarm_tone(self, serial: str, value: int) -> dict[str, Any]:
+        """Set a station's alarm tone and return confirmed state."""
+        return await self._station_command(
+            f"/api/stations/{serial}/alarm-tone", {"value": value}
+        )
 
     async def snapshot(self, serial: str) -> bytes | None:
         """Read the last retained still, returning None when no image exists."""
@@ -78,7 +130,9 @@ class GatewayClient:
                 self._raise_for_status(response)
                 data = await response.read()
                 if len(data) < 12 or data[4:8] != b"ftyp":
-                    raise GatewayClientError("Gateway returned an invalid MP4 recording")
+                    raise GatewayClientError(
+                        "Gateway returned an invalid MP4 recording"
+                    )
                 return data
         except (ClientError, TimeoutError) as error:
             if isinstance(error, GatewayClientError):
@@ -111,9 +165,26 @@ class GatewayClient:
                 raise
             raise GatewayClientError(str(error)) from error
 
-    async def _json(self, path: str, method: str = "GET") -> dict[str, Any]:
+    async def _station_command(
+        self, path: str, payload: dict[str, int]
+    ) -> dict[str, Any]:
+        """Send a station command and extract its confirmed station state."""
+        response = await self._json(path, method="POST", payload=payload)
+        station = response.get("station", response)
+        if not isinstance(station, dict) or not isinstance(station.get("serial"), str):
+            raise GatewayClientError("Gateway returned an invalid station response")
+        return station
+
+    async def _json(
+        self, path: str, method: str = "GET", payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         try:
-            async with self._session.request(method, self._url(path), headers=self._headers) as response:
+            request_kwargs: dict[str, Any] = {"headers": self._headers}
+            if payload is not None:
+                request_kwargs["json"] = payload
+            async with self._session.request(
+                method, self._url(path), **request_kwargs
+            ) as response:
                 self._raise_for_status(response)
                 payload = await response.json()
                 if not isinstance(payload, dict):
