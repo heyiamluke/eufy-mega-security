@@ -70,6 +70,26 @@ test("releases its state listener after a capture timeout", async () => {
   await manager.close();
 });
 
+test("reports a frame timeout without an unhandled rejection during slow stream startup", async () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  const manager = new LiveStreamManager(
+    state,
+    {} as never,
+    {
+      async startStream() {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      },
+      async stopStream() {},
+    },
+    5,
+  );
+
+  await assert.rejects(manager.captureSnapshot(camera.serial, 5), /Timed out waiting for a fresh camera frame/);
+  assert.equal(state.listenerCount("event"), 0);
+  await manager.close();
+});
+
 test("cancels a pending snapshot promptly when the gateway closes", async () => {
   const state = new GatewayState();
   state.registerCamera(camera);
@@ -163,6 +183,26 @@ test("rejects a recording when camera video never arrives", async () => {
     state,
     {} as never,
     { async startStream() {}, async stopStream() {} },
+    5,
+    async (h264) => h264,
+  );
+
+  await assert.rejects(manager.recordClip(camera.serial, 1, 5), /Timed out waiting for camera video/);
+  await manager.close();
+});
+
+test("reports a video timeout without an unhandled rejection during slow stream startup", async () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  const manager = new LiveStreamManager(
+    state,
+    {} as never,
+    {
+      async startStream() {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      },
+      async stopStream() {},
+    },
     5,
     async (h264) => h264,
   );

@@ -106,6 +106,10 @@ export class LiveStreamManager extends EventEmitter {
     session.leases += 1;
     this.#updateState(serial, session);
     const nextSnapshot = this.#waitForSnapshot(serial, previousRevision, timeoutMilliseconds);
+
+    // PPCS startup can outlast the frame timer. Handle an early timeout now,
+    // while still propagating it when startup settles and capture awaits it.
+    void nextSnapshot.promise.catch(() => undefined);
     try {
       await this.#ensureStarted(serial, session);
       return await nextSnapshot.promise;
@@ -143,6 +147,10 @@ export class LiveStreamManager extends EventEmitter {
       durationSeconds * 1_000,
       startTimeoutMilliseconds,
     );
+
+    // Video can time out before PPCS startup returns; keep that rejection
+    // handled until the recording operation awaits it.
+    void recording.promise.catch(() => undefined);
     try {
       await this.#ensureStarted(serial, session);
       return await this.remuxClip(await recording.promise);
