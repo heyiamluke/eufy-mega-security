@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.26
+
+- Prevent a camera frame or clip timeout from exiting the gateway when PPCS stream startup is still pending. The capture still reports its timeout. The HomeBase Professional S1 crash-loop reported in issue #28 needs confirmation on the affected installation.
+- Recognize eufyCam S3 Pro (`T8162`, Mega type 26), Floodlight Cam E340 (`T8425`, type 47), SoloCam S340 (`T8170`, type 48), and Solar Wall Light Cam S120 (`T81A0`, type 10005) as cameras through their inventoried HomeBase peer.
+- Keep the HomeBase Professional S1 (`T9000`, type 27) as PPCS connection metadata for its cameras. This release does not add station controls or settings for T9000 because its local command protocol has not been verified.
+- Discovery, push events, snapshots, and live video for the four newly admitted cameras still need real-device testing.
+
 ## 0.1.25
 
 - Recognize the Video Doorbell E340 (`T8214`, Mega type 94) and Indoor Cam S350 (`T8416`, type 104) as camera entities through their inventoried parent connections.
