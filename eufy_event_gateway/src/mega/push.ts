@@ -7,6 +7,7 @@
  * decides whether an event is motion/person and whether its picture URL is
  * downloaded. Raw payloads never cross the provider boundary or enter
  * diagnostics because they can contain tokens, URLs, and account metadata.
+ * Deliveries that cannot be normalized produce only a payload-free receipt log.
  */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -14,7 +15,10 @@ import { dirname } from "node:path";
 import { PushReceiver } from "@eneris/push-receiver";
 import type { Types } from "@eneris/push-receiver/dist/client.js";
 
+import { createLogger } from "../logging.js";
 import type { MegaClient } from "./client.js";
+
+const logger = createLogger("push");
 
 const FIREBASE = {
   projectId: "batterycam-3250a",
@@ -90,6 +94,7 @@ export class MegaPushReceiver {
       }
       const event = parsePushEvent(message.data);
       if (event) this.onEvent(event);
+      else logger.info("push_unparsed", "Firebase notification received without a usable Eufy device identity");
     });
     await receiver.connect();
     if (!receiver.fcmToken) throw new Error("FCM did not issue a push token");
