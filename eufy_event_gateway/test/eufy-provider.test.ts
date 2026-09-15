@@ -1,8 +1,9 @@
 /**
  * Tests the provider's pure Mega-to-domain transformations.
  *
- * The cases cover inventory field aliases, safe diagnostics, and conservative
- * person-name rules without starting a real account or push receiver.
+ * The cases cover inventory field aliases, safe diagnostics and push logs,
+ * and conservative person-name rules without starting a real account or push
+ * receiver.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -12,6 +13,7 @@ import {
   inventoryLogSummaries,
   parseMegaInventory,
   personNameFromPush,
+  safePushLogSummary,
 } from "../src/provider/eufy-provider.js";
 
 const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Parameters<typeof personNameFromPush>[0] => ({
@@ -94,6 +96,51 @@ test("accepts SoloCam C20 inventory through a ready HomeBase 3", () => {
   assert.equal(summaries[0]?.acceptedAsCamera, true);
   assert.equal(summaries[0]?.streamSupported, true);
   assert.equal(summaries[1]?.acceptedAsCamera, false);
+});
+
+test("logs safe motion routing for a T8210 without private push fields", () => {
+  const event = {
+    eventType: 3101, messageType: 1, notificationStyle: 2, alarmType: null,
+    pictureUrl: "https://example.invalid/private?access_token=secret",
+    cameraSerial: "PRIVATE-SERIAL", cameraName: "Front Porch", personName: "Alex",
+    content: "Alex rang the bell",
+  };
+  const summary = safePushLogSummary(event, {
+    model: "T8210", category: "eufy_security", deviceType: 7,
+  }, true, true);
+  assert.match(summary, /model=T8210 .*event_type=3101 message_type=1 notification_style=2 handling=motion picture_present=true/);
+  for (const privateValue of ["PRIVATE-SERIAL", "Front Porch", "Alex", "secret", "example.invalid"]) {
+    assert.equal(summary.includes(privateValue), false);
+  }
+});
+
+test("logs an unhandled T8210 notification without assuming it was a doorbell press", () => {
+  const summary = safePushLogSummary({
+    eventType: 3001, messageType: 9, notificationStyle: null,
+    pictureUrl: null, alarmType: null,
+  }, { model: "T8210", category: "eufy_security", deviceType: 7 }, true, false);
+  assert.match(summary, /model=T8210 device_known=true camera_accepted=true station_present=true station_managed=false/);
+  assert.match(summary, /event_type=3001 message_type=9 notification_style=missing handling=unhandled picture_present=false/);
+});
+
+test("does not report unsupported HomeBase inventory as a handled camera event", () => {
+  const summary = safePushLogSummary({
+    eventType: 3101, messageType: 1, notificationStyle: null,
+    pictureUrl: null, alarmType: null,
+  }, { model: "T8010", category: "eufy_security", deviceType: 0 }, true, false);
+  assert.match(summary, /model=T8010 device_known=true camera_accepted=false station_present=true station_managed=false/);
+  assert.match(summary, /handling=unhandled/);
+});
+
+test("rejects arbitrary inventory labels and invalid push codes from copyable logs", () => {
+  const summary = safePushLogSummary({
+    eventType: -1, messageType: 999_999, notificationStyle: null,
+    pictureUrl: null, alarmType: null,
+  }, { model: "Front Porch private@example.invalid", category: "eufy_security", deviceType: 7 }, false, false);
+  assert.match(summary, /model=unknown/);
+  assert.match(summary, /event_type=missing message_type=missing notification_style=missing handling=unhandled/);
+  assert.equal(summary.includes("Front Porch"), false);
+  assert.equal(summary.includes("private@example.invalid"), false);
 });
 
 test("groups safe inventory evidence without names or serial numbers", () => {

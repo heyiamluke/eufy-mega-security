@@ -7,7 +7,9 @@
  * and verified JPEG snapshots. A live request creates a first-party PPCS
  * session and exposes only its byte stream to `LiveStreamManager`. This is the
  * sole production translation point from Eufy-specific data to normalized
- * provider callbacks; Home Assistant-specific naming stays downstream.
+ * provider callbacks; Home Assistant-specific naming stays downstream. The
+ * provider also emits field-limited push summaries for support logs without
+ * forwarding private event fields into the logger.
  */
 import { join } from "node:path";
 
@@ -327,6 +329,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
 
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
     const station = this.#stations.get(event.stationSerial);
+    const stationIdentity = this.#devices.get(event.stationSerial);
     if (station && event.eventType === 9) {
       const updated = {
         ...station,
@@ -356,6 +359,15 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       hasFetchId: event.fetchId !== null,
       hasSenseId: event.senseId !== null,
     });
+    logger.info(
+      "push_received",
+      safePushLogSummary(
+        event,
+        this.#devices.get(event.cameraSerial) ?? null,
+        stationIdentity !== undefined && !stationIdentity.parentSerial,
+        station !== undefined,
+      ),
+    );
     if (!this.#devices.has(event.cameraSerial) || !isCameraDetection(event.eventType)) return;
     if (event.eventType === 3101) events.motion(event.cameraSerial, true);
     else events.person(event.cameraSerial, true, personName);
@@ -603,6 +615,47 @@ export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "categor
       || device.deviceType === 63
       || device.deviceType === 91
       || device.deviceType === 10031);
+}
+
+/**
+ * Summarize push routing for copyable logs without private device or event fields.
+ *
+ * @param stationPresent Whether the station serial matched any Mega inventory row.
+ * @param stationManaged Whether the station has a supported local control entity.
+ */
+export function safePushLogSummary(
+  event: Pick<MegaPushEvent, "eventType" | "messageType" | "notificationStyle" | "pictureUrl" | "alarmType">,
+  device: Pick<MegaInventoryDevice, "model" | "category" | "deviceType"> | null,
+  stationPresent: boolean,
+  stationManaged: boolean,
+): string {
+  const deviceKnown = device !== null;
+  const cameraAccepted = device !== null && isSupportedMegaCamera(device);
+  let handling = "unhandled";
+  if (stationManaged && event.eventType === 9) handling = "station_guard";
+  else if (stationManaged && event.eventType === 10 && event.alarmType !== null) handling = "station_alarm";
+  else if (cameraAccepted && isCameraDetection(event.eventType)) {
+    handling = event.eventType === 3101 ? "motion" : "person";
+  }
+  const model = device?.model && /^T[0-9]{4}(?:[A-Z]{1,2}|-[A-Z]{1,2})?$/.test(device.model)
+    ? device.model
+    : "unknown";
+  return [
+    `model=${model}`,
+    `device_known=${deviceKnown}`,
+    `camera_accepted=${cameraAccepted}`,
+    `station_present=${stationPresent}`,
+    `station_managed=${stationManaged}`,
+    `event_type=${safePushCode(event.eventType)}`,
+    `message_type=${safePushCode(event.messageType)}`,
+    `notification_style=${safePushCode(event.notificationStyle)}`,
+    `handling=${handling}`,
+    `picture_present=${event.pictureUrl !== null}`,
+  ].join(" ");
+}
+
+function safePushCode(value: number | null): number | "missing" {
+  return value !== null && Number.isSafeInteger(value) && value >= 0 && value <= 65_535 ? value : "missing";
 }
 
 /** Extract a recognized name only from push events that represent a person. */
