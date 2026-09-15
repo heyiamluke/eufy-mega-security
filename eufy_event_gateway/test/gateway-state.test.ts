@@ -93,3 +93,33 @@ test("extends a detection pulse when another true event arrives", async () => {
   await new Promise((resolve) => setTimeout(resolve, 15));
   assert.equal(state.getCamera(camera.serial).personDetected, false);
 });
+
+test("retains immutable HomeBase snapshots and emits station updates", () => {
+  const state = new GatewayState();
+  const events: unknown[] = [];
+  state.on("event", (event) => events.push(event));
+  const station = {
+    serial: "homebase-1",
+    name: "HomeBase",
+    model: "T8030",
+    firmware: "3.6.0.1",
+    available: true,
+    connected: true,
+    guardMode: 0,
+    effectiveMode: 0,
+    alarmActive: false,
+    alarmVolume: 20,
+    promptVolume: 10,
+    alarmTone: 2,
+    storage: {
+      emmc: { status: "normal", totalBytes: 100, freeBytes: 40 },
+      hdd: null,
+    },
+  };
+
+  state.registerStation(station);
+  station.storage.emmc.freeBytes = 0;
+
+  assert.equal(state.getStation(station.serial).storage.emmc?.freeBytes, 40);
+  assert.equal((events[0] as { type: string }).type, "station-updated");
+});

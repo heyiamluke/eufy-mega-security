@@ -3,9 +3,9 @@
 This package keeps Home Assistant deliberately thin. The add-on gateway owns
 Eufy authentication, event decoding, snapshot persistence, and media sessions.
 The integration creates one authenticated HTTP/SSE client and one coordinator,
-forwards the camera, motion, person, and snapshot platforms, and listens for
-normalized gateway updates. It never stores the Eufy account password or
-reimplements a Mega endpoint.
+forwards the camera, detection, HomeBase security, settings, and diagnostic
+platforms, and listens for normalized gateway updates. It never stores the
+Eufy account password or reimplements a Mega endpoint.
 """
 
 from __future__ import annotations
@@ -46,7 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: EufyGatewayConfigEntry
+) -> bool:
     """Cancel the SSE listener and unload all entity platforms."""
     await entry.runtime_data.coordinator.async_shutdown()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

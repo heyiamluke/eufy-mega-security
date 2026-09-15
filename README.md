@@ -16,6 +16,31 @@ Motion and person detections arrive as Home Assistant entities, HomeBase 3 famil
 > [!IMPORTANT]
 > This is an early community project built against real EufyCam 2C, HomeBase 3, and Doorbell hardware. It is not affiliated with Anker or Eufy and should not be your only security system.
 
+## Device support
+
+Green ticks mark behaviour tested on real hardware. Amber marks features we have developed but still need to verify. A tick does not mean every feature of a device is supported.
+
+### HomeBase
+
+- ✅ HomeBase 3 S380 / T8030: a community tester confirmed it as the parent of a working camera setup. Its new alarm and settings controls are still awaiting hardware tests.
+- 🟠 HomeBase 3 S380 / T8030 controls: the integration adds an alarm panel, configured and effective guard modes, siren state, connection and storage diagnostics, volume controls, and alarm tone. The command path, storage units and status meanings, writable ranges, and siren stop codes still need real-device confirmation before release.
+- HomeBase 2: I do not have one to test against right now. Support matters, but I want to verify it myself before asking anyone else to test it.
+
+### Cameras
+
+- ✅ EufyCam 2C: camera support tested by the project maintainer.
+- ✅ Battery camera T817L: live streams and snapshots produced on real hardware.
+- ✅ eufyCam S330 (Mega model T8160): discovered with sensors, retained images, and live streaming through HomeBase 3.
+- ✅ Indoor Cam Pan & Tilt T8410: discovered with sensors, a retained image, and a live stream through HomeBase 3.
+- ✅ Indoor Cam Pan & Tilt T8410C: discovered with sensors, a retained image, and a live stream through HomeBase 3.
+
+### Doorbells
+
+- ✅ Video Doorbell T8210: live streams and snapshots produced on real hardware.
+- ✅ Video Doorbell T8213: discovered with sensors, retained images, and a live stream through HomeBase 3.
+
+If a tested device behaves differently for you, [open an issue](https://github.com/mscodemonkey/eufy-mega-security/issues) with its model number and what happened. Do not post serial numbers, credentials, or verification codes.
+
 ## What it provides
 
 For every discovered camera, the integration creates:
@@ -166,15 +191,7 @@ EUFY_GATEWAY_PROVIDER=simulated npm run dev
 
 ## Supported and known limitations
 
-The project has been tested against EufyCam 2C cameras, a T8210 video doorbell, and a powered T817L camera. A community tester has also confirmed the following setup working with v0.1.19:
-
-- HomeBase 3, S380 / T8030;
-- two eufyCam S330 cameras, reported by Mega as T8160;
-- Video Doorbell T8213;
-- Indoor Cam Pan & Tilt T8410;
-- Indoor Cam Pan & Tilt T8410C.
-
-All five cameras in that setup were discovered with their sensor entities, retained images, and live streams working. HomeBase 3 provides parent metadata and does not appear as a camera entity.
+See [device support](#device-support) for the tested setups and features still awaiting hardware confirmation. HomeBase 3 has its own device in v0.1.21 rather than appearing as a camera.
 
 - Eufy's cloud, push, and HomeBase protocols are undocumented and can change without notice.
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
@@ -186,6 +203,7 @@ All five cameras in that setup were discovered with their sensor entities, retai
 
 - Eufy credentials, sessions, generated API tokens, and snapshots stay in the app's private persistent data volume.
 - The app's API port is not exposed to the LAN by default.
+- Local PPCS discovery requires the app to use Home Assistant's host network so UDP broadcasts can reach Eufy devices on the LAN.
 - Process liveness is checked separately from Eufy connectivity, so an email-code prompt or temporary Eufy outage does not create a restart loop.
 - API, snapshot, and event endpoints require authentication when the gateway is remotely reachable.
 - Diagnostics intentionally exclude passwords, access tokens, signing keys, notification text, media URLs, and raw payloads.

@@ -46,7 +46,7 @@ test("parses only whitelisted Mega inventory fields and de-duplicates serials", 
   assert.deepEqual(result, [{
     serial: "T8113ABC", name: "Path", model: "T8113-Z", parentSerial: "T8030ABC",
     deviceType: 8, category: "eufy_security", channel: 3, p2pDid: "ABC-123456-XYZ",
-    adminUserId: null, p2pConnection: null, cipherId: null,
+    adminUserId: null, userName: null, firmware: null, p2pConnection: null, cipherId: null,
   }]);
   assert.equal(JSON.stringify(result).includes("must-not-escape"), false);
 });

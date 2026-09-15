@@ -106,7 +106,9 @@ Eufy Mega HTTPS APIs
 - `custom_components/eufy_event_gateway/entity.py`: serial-based device identity and availability.
 - `custom_components/eufy_event_gateway/camera.py`: retained image, short-lived stream URL, fresh snapshot action, and clip action.
 - `custom_components/eufy_event_gateway/binary_sensor.py`: motion and person states.
-- `custom_components/eufy_event_gateway/sensor.py`: last recognized person and detection attributes.
+- `custom_components/eufy_event_gateway/alarm_control_panel.py`: confirmed Away, Home, and Disarmed control for HomeBase 3.
+- `custom_components/eufy_event_gateway/select.py` and `number.py`: HomeBase guard mode, alarm tone, and volume controls.
+- `custom_components/eufy_event_gateway/sensor.py`: last recognized person, effective HomeBase mode, and storage state.
 - `custom_components/eufy_event_gateway/config_flow.py`: manual and Supervisor-discovered gateway connections.
 
 ### Documentation and delivery
@@ -163,7 +165,7 @@ The gateway does not mirror the entire Eufy account. It asks for the smallest us
 | push event | camera/station serials, event/message type, person label, picture URL and diagnostic IDs | `MegaPushEvent` | provider and diagnostics |
 | event-image URL | HTTPS response bytes | JPEG bytes after decode | `SnapshotStore`, Home Assistant |
 
-The inventory is untrusted JSON. `parseMegaInventory()` rejects missing or duplicate serials, bounds strings, fills missing fields with `null` or safe defaults, and inherits a HomeBase admin user ID for child cameras when Eufy puts it only on the station row. Device types currently accepted as cameras are 7, 8, 19, 31, 91, and 10031. HomeBase type 18 is retained as parent metadata, not exposed as a camera entity.
+The inventory is untrusted JSON. `parseMegaInventory()` rejects missing or duplicate serials, bounds strings, fills missing fields with `null` or safe defaults, and inherits a HomeBase admin user ID for child cameras when Eufy puts it only on the station row. Device types currently accepted as cameras are 7, 8, 19, 31, 91, and 10031. HomeBase type 18 is not exposed as a camera. A matching T8030 row becomes a separate station record for HomeBase entities and local PPCS commands.
 
 ## Push events and detection state
 

@@ -37,6 +37,9 @@ export interface MegaPushEvent {
   readonly filePath: string | null;
   readonly fetchId: number | null;
   readonly senseId: string | null;
+  readonly guardMode: number | null;
+  readonly effectiveMode: number | null;
+  readonly alarmType: number | null;
 }
 
 interface StoredPushState {
@@ -133,6 +136,9 @@ export function parsePushEvent(data: unknown): MegaPushEvent | null {
     filePath: text(payload.file_path) ?? text(payload.p),
     fetchId: integer(payload.fetch_id) ?? integer(payload.i),
     senseId: text(payload.sense_id) ?? text(payload.j),
+    guardMode: integer(payload.station_guard_mode),
+    effectiveMode: integer(payload.station_current_mode) ?? integer(payload.current_mode),
+    alarmType: integer(payload.alarm_type),
   };
 }
 

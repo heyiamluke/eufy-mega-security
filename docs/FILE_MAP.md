@@ -50,6 +50,7 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | Path | Purpose |
 | --- | --- |
 | `src/stream/first-party-ppcs.ts` | Production Eufy PPCS UDP lookup, CAM_CHECK, HomeBase key unwrap, media request, H.264 extraction, and heartbeat. PPCS means Eufy's peer-to-peer camera transport. |
+| `src/stream/homebase-ppcs.ts` | Short-lived local HomeBase 3 state, storage, acknowledgement, and readback command sessions. |
 | `src/stream/live-stream-manager.ts` | Shares a provider H.264 source, feeds FFmpeg for snapshots/clips, bounds recordings, and stops idle sessions. |
 | `src/stream/jpeg-parser.ts` | Reassembles complete JPEG frames from arbitrary FFmpeg stdout chunks. |
 | `scripts/ppcs-probe.ts` | Safe standalone proof tool that enumerates cameras and records PPCS byte/frame results. |
@@ -65,8 +66,11 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `custom_components/eufy_event_gateway/coordinator.py` | Polling recovery plus reconnecting SSE updates. |
 | `custom_components/eufy_event_gateway/entity.py` | Shared device registry information and availability for all entities. |
 | `custom_components/eufy_event_gateway/camera.py` | Retained-image cameras, live stream URLs, fresh snapshots, and clip actions. |
-| `custom_components/eufy_event_gateway/binary_sensor.py` | Motion and person binary sensors. |
-| `custom_components/eufy_event_gateway/sensor.py` | Last-recognized-person sensor and detection metadata. |
+| `custom_components/eufy_event_gateway/alarm_control_panel.py` | Code-free Away, Home, and Disarmed control with transient command progress. |
+| `custom_components/eufy_event_gateway/binary_sensor.py` | Motion, person, and HomeBase PPCS connection sensors. |
+| `custom_components/eufy_event_gateway/number.py` | HomeBase alarm and prompt volume controls. |
+| `custom_components/eufy_event_gateway/select.py` | Configured guard-mode and alarm-tone controls. |
+| `custom_components/eufy_event_gateway/sensor.py` | Last-recognized-person, effective-mode, and HomeBase storage sensors. |
 | `custom_components/eufy_event_gateway/const.py` | Domain, API-token key, and platform constants. |
 | `custom_components/eufy_event_gateway/services.yaml` | Service descriptions for snapshot and clip actions. |
 | `custom_components/eufy_event_gateway/strings.json` | Config-flow and entity translation keys. |

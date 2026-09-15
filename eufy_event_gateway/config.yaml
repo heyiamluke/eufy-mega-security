@@ -1,5 +1,5 @@
 name: Eufy Mega Security
-version: "0.1.20"
+version: "0.1.22"
 slug: eufy_event_gateway
 description: Event-first Eufy camera bridge for Home Assistant
 url: https://github.com/mscodemonkey/eufy-mega-security
@@ -17,6 +17,7 @@ watchdog: http://[HOST]:[PORT:3218]/live
 ingress: true
 ingress_port: 3218
 panel_icon: mdi:cctv
+host_network: true
 hassio_api: true
 discovery:
   - eufy_event_gateway

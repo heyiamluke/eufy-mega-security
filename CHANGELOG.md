@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.22
+
+- Run the Home Assistant app on the host network so local PPCS UDP discovery can reach Eufy devices on the LAN while keeping the gateway API port unmapped by default.
+- Correct the HomeBase local-lookup and camera-check PPCS request headers.
+- Convert HomeBase storage figures from the device's MiB values to bytes before publishing them to Home Assistant.
+- Present HomeBase storage capacity in gigabytes with two-decimal display precision.
+
+## 0.1.21
+
+- Add HomeBase 3 as its own Home Assistant device with model, firmware, inventory availability, and separate PPCS connection diagnostics.
+- Add a code-free alarm panel for Away, Home, and Disarmed, plus configured and effective guard-mode entities for Schedule, Geofencing, and Custom 1 through 3.
+- Follow guard-mode and siren changes received through Eufy push notifications, with a 60-second PPCS recovery poll that waits while the HomeBase is serving camera media.
+- Add read-only eMMC and HDD or SSD capacity, free-space, and device-status sensors.
+- Add alarm volume, prompt volume, and alarm tone controls. Every write waits for a device acknowledgement and fresh readback, does not retry automatically, and stops active camera media when a security command needs the HomeBase.
+
 ## 0.1.20
 
 - Remove the unused Web Portal/WebRTC, Thing/MQTT, and experimental native-relay code paths and their dependencies.
