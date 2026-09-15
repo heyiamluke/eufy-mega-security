@@ -16,11 +16,13 @@ The Home Assistant app advertises the Supervisor-assigned app hostname discovere
 
 ## Delivery state
 
-The S100 type 151 and direct PPCS route are merged for community testing but still need a versioned Home Assistant app release before ordinary installations can update. Real S100 verification of discovery, live video, snapshots, and events remains outstanding; the device must not be marked tested yet.
+v0.1.22 packages the merged HomeBase 3 support, Mega type 63 / SoloCam C20 admission, type 151 / S100 direct PPCS route, privacy-safe per-push diagnostics, host-network configuration, and HomeBase storage unit and display fixes. The app and HACS integration must each publish this version before ordinary installations can update.
 
-Unreleased issue #8 work adds privacy-safe per-push logging so a HomeBase 2/T8210 report can show whether doorbell and motion notifications reach the gateway and whether the current detection rules handle them. It does not claim HomeBase 2 media or push behaviour is fixed.
+The S100 type 151 and direct PPCS route are merged for community testing. Real S100 verification of discovery, live video, snapshots, and events remains outstanding; the device must not be marked tested yet. SoloCam C20 type 63 also needs hardware testing for discovery, events, snapshots, and live video.
 
-Unreleased issue #17 work admits Mega device type 63 / T8134 as a camera. The reporter's inventory shows its HomeBase parent, camera channel, PPCS identity, and station DSK readiness. That evidence supports discovery and stream eligibility, not a claim that event sensors, snapshots, or live video work yet. Hardware confirmation is required before marking SoloCam C20 tested.
+The issue #8 logging in v0.1.22 adds privacy-safe per-push summaries so a HomeBase 2/T8210 report can show whether doorbell and motion notifications reach the gateway and whether the current detection rules handle them. It does not claim HomeBase 2 media or push behaviour is fixed.
+
+The issue #17 type 63 / T8134 admission in v0.1.22 registers the SoloCam C20 as a camera. The reporter's inventory shows its HomeBase parent, camera channel, PPCS identity, and station DSK readiness. That evidence supports discovery and stream eligibility, not a claim that event sensors, snapshots, or live video work yet. Hardware confirmation is required before marking SoloCam C20 tested.
 
 v0.1.21 adds the first HomeBase 3 entity set and gateway control path. The automated gateway suite covers inventory normalization, station-state immutability, push normalization, privacy filtering, and HomeBase camera-info and storage parsing. Local hardware confirmation is still required for command framing, storage units and status meanings, all writable value ranges, and the exact siren stop codes before release. The integration does not expose manual siren activation.
 

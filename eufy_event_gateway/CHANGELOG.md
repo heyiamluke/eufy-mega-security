@@ -2,8 +2,10 @@
 
 ## 0.1.22
 
+- Include the merged HomeBase 3 device, alarm, guard-mode, storage, volume, and tone support for the next versioned app update. Hardware confirmation of command framing, storage units and status meanings, writable ranges, and siren stop codes is still required.
+- Admit Mega device type 63 (T8134/SoloCam C20) as a camera when its inventory provides the required HomeBase and PPCS prerequisites. Discovery, events, snapshots, and live video still need hardware testing.
 - Add the first standalone PPCS route for the Wired Wall Light Cam S100 (`T84A1`, Mega type 151). The gateway now uses an eligible parentless camera's own peer connection and DSK key rather than requiring a HomeBase.
-- Add privacy-safe inventory diagnostics for HomeBase, direct, and unavailable stream routes so support logs identify the missing PPCS prerequisite without exposing device identity or connection values.
+- Log a privacy-safe summary of every normalized push and a payload-free receipt when a push cannot be normalized. Inventory diagnostics also identify HomeBase, direct, and unavailable stream routes without exposing device identity or connection values. S100 discovery, events, snapshots, and live video still need hardware testing.
 - Run the app on the host network so local PPCS UDP discovery can reach Eufy devices on the LAN while keeping the gateway API port unmapped by default.
 - Correct the HomeBase local-lookup and camera-check PPCS request headers.
 - Convert HomeBase storage figures from the device's MiB values to bytes before publishing them to Home Assistant.
