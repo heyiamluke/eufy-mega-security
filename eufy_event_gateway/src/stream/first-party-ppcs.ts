@@ -34,7 +34,7 @@ const RESP = {
 } as const;
 const DATA = { data: Buffer.from([0xd1, 0]), video: Buffer.from([0xd1, 1]) } as const;
 
-/** Station and camera values required to establish one PPCS media session. */
+/** Peer and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
   readonly stationSerial: string;
   readonly p2pDid: string;
@@ -52,10 +52,10 @@ export interface PpcsCameraOptions {
  * One bounded, first-party PPCS camera session that emits Annex-B video on
  * `output`.
  *
- * It handles the HomeBase camera path: DSK lookup, CAM_CHECK, level-one
- * gateway-info decryption, level-two media start, and Annex-B H.264
- * extraction. It has no dependency on eufy-security-client or the expiring
- * Web Portal PIN.
+ * It handles HomeBase-attached and direct camera paths: DSK lookup,
+ * CAM_CHECK, the attached-camera gateway-info and level-two media sequence
+ * when required, and Annex-B H.264 extraction. It has no dependency on
+ * eufy-security-client or the expiring Web Portal PIN.
  *
  * `start` resolves after the peer answers the lookup, not after the first video
  * frame. A camera can therefore be reachable while still failing later during

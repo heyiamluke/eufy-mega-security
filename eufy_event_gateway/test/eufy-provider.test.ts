@@ -10,8 +10,10 @@ import test from "node:test";
 import {
   inventoryDiagnostics,
   inventoryLogSummaries,
+  isPpcsStreamSupported,
   parseMegaInventory,
   personNameFromPush,
+  ppcsStreamRoute,
 } from "../src/provider/eufy-provider.js";
 
 const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Parameters<typeof personNameFromPush>[0] => ({
@@ -64,13 +66,14 @@ test("reports all first-party Mega camera types and excludes the HomeBase", () =
     { device_sn: "doorbell", device_name: "Door", device_model: "T8210", parent_sn: "homebase", device_type: 7, category: "eufy_security" },
     { device_sn: "battery", device_name: "Path", device_model: "T8113-Z", parent_sn: "homebase", device_type: 8, category: "eufy_security" },
     { device_sn: "s330", device_name: "Garden", device_model: "T8160", parent_sn: "homebase", device_type: 19, category: "eufy_security" },
+    { device_sn: "wall-light", device_name: "Side", device_model: "T84A1", device_type: 151, device_channel: 0, category: "eufy_security" },
     { device_sn: "indoor", device_name: "Indoor", device_model: "T8410", parent_sn: "homebase", device_type: 31, category: "eufy_security" },
     { device_sn: "new-doorbell", device_name: "Front", device_model: "T8213", parent_sn: "homebase", device_type: 91, category: "eufy_security" },
     { device_sn: "wired", device_name: "Front", device_model: "T817L", parent_sn: "homebase", device_type: 10031, category: "eufy_security" },
     { device_sn: "homebase", device_name: "HomeBase", device_model: "T8030", device_type: 18, category: "eufy_security" },
   ] });
   assert.deepEqual(inventoryDiagnostics(devices).map(({ serial, acceptedAsCamera }) => [serial, acceptedAsCamera]), [
-    ["doorbell", true], ["battery", true], ["s330", true], ["indoor", true],
+    ["doorbell", true], ["battery", true], ["s330", true], ["wall-light", true], ["indoor", true],
     ["new-doorbell", true], ["wired", true], ["homebase", false],
   ]);
 });
@@ -89,22 +92,59 @@ test("groups safe inventory evidence without names or serial numbers", () => {
       device_sn: "private-homebase", device_name: "Private HomeBase", device_model: "S380",
       device_type: 18, category: "eufy_security", p2p_did: "private-did", p2p_conn: "private-connection",
     },
+    {
+      device_sn: "private-wall-light", device_name: "Private wall", device_model: "T84A1",
+      device_type: 151, device_channel: 0, category: "eufy_security", p2p_did: "direct-did", p2p_conn: "direct-connection",
+    },
   ] });
 
-  const summaries = inventoryLogSummaries(devices, new Set(["private-homebase"]));
+  const summaries = inventoryLogSummaries(devices, new Set(["private-homebase", "private-wall-light"]));
 
   assert.deepEqual(summaries, [
     {
       count: 2, model: "S330", deviceType: 8, category: "eufy_security", hasParent: true,
       hasChannel: true, acceptedAsCamera: true, stationPresent: true, stationPpcsReady: true,
-      stationDskReady: true, streamSupported: true,
+      stationDskReady: true, streamRoute: "homebase", peerPpcsReady: true, peerDskReady: true, streamSupported: true,
     },
     {
       count: 1, model: "S380", deviceType: 18, category: "eufy_security", hasParent: false,
       hasChannel: false, acceptedAsCamera: false, stationPresent: false, stationPpcsReady: false,
-      stationDskReady: false, streamSupported: false,
+      stationDskReady: false, streamRoute: "unavailable", peerPpcsReady: false, peerDskReady: false, streamSupported: false,
+    },
+    {
+      count: 1, model: "T84A1", deviceType: 151, category: "eufy_security", hasParent: false,
+      hasChannel: true, acceptedAsCamera: true, stationPresent: false, stationPpcsReady: false,
+      stationDskReady: false, streamRoute: "direct", peerPpcsReady: true, peerDskReady: true, streamSupported: true,
     },
   ]);
   assert.equal(JSON.stringify(summaries).includes("private-camera"), false);
   assert.equal(JSON.stringify(summaries).includes("Private place"), false);
+});
+
+test("routes a standalone camera through its own PPCS peer", () => {
+  const [wallLight] = parseMegaInventory({ devices: [{
+    device_sn: "wall-light", device_model: "T84A1", device_type: 151, device_channel: 0,
+    category: "eufy_security", p2p_did: "direct-did", p2p_conn: "direct-connection",
+  }] });
+  assert.ok(wallLight);
+  const devices = new Map([[wallLight.serial, wallLight]]);
+  assert.deepEqual(ppcsStreamRoute(wallLight, devices), { peer: wallLight, homeBaseAttached: false });
+  assert.equal(isPpcsStreamSupported(wallLight, devices, new Set([wallLight.serial])), true);
+});
+
+test("uses a self-parented camera as its own PPCS peer and blocks a missing parent", () => {
+  const [selfParented, missingParent] = parseMegaInventory({ devices: [
+    {
+      device_sn: "self-parented", parent_sn: "self-parented", device_model: "T84A1", device_type: 151,
+      device_channel: 0, category: "eufy_security", p2p_did: "direct-did", p2p_conn: "direct-connection",
+    },
+    {
+      device_sn: "missing-parent", parent_sn: "absent-homebase", device_model: "T84A1", device_type: 151,
+      device_channel: 0, category: "eufy_security", p2p_did: "direct-did", p2p_conn: "direct-connection",
+    },
+  ] });
+  assert.ok(selfParented && missingParent);
+  const devices = new Map([[selfParented.serial, selfParented], [missingParent.serial, missingParent]]);
+  assert.deepEqual(ppcsStreamRoute(selfParented, devices), { peer: selfParented, homeBaseAttached: false });
+  assert.equal(isPpcsStreamSupported(missingParent, devices, new Set([missingParent.serial])), false);
 });

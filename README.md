@@ -180,6 +180,7 @@ All five cameras in that setup were discovered with their sensor entities, retai
 - Familiar-person names depend on HomeBase recognition and are not present in every Eufy event.
 - Live video uses Eufy's native camera transport. Eufy may require account verification the first time that session is created.
 - The app handles authentication challenges in its Web UI, then reuses the valid Mega session across upgrades and restarts.
+- The S100/T84A1 direct PPCS route is awaiting real-device validation. Its direct Wi-Fi topology is different from a HomeBase-attached camera.
 - The app currently publishes source builds for `amd64` and `aarch64`; installation may take several minutes.
 
 ## Privacy and security
