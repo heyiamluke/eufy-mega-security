@@ -16,6 +16,7 @@ const camera = {
   model: "T8142",
   stationSerial: "homebase-1",
   streamSupported: true,
+  doorbellSupported: false,
 };
 
 test("retains a recognized person after the transient sensor clears", () => {
@@ -64,6 +65,32 @@ test("records a later motion as a new detection", () => {
   state.recordMotion(camera.serial, true, new Date("2026-09-11T01:02:14Z"));
 
   assert.equal(state.getCamera(camera.serial).lastDetection?.kind, "motion");
+});
+
+test("records and clears a transient doorbell press for supported cameras", async () => {
+  const state = new GatewayState(10);
+  const doorbell = { ...camera, doorbellSupported: true };
+  const events: unknown[] = [];
+  state.on("event", (event) => events.push(event));
+  state.registerCamera(doorbell);
+  state.recordDoorbell(doorbell.serial, true, new Date("2026-09-11T01:02:03Z"));
+
+  assert.equal(state.getCamera(doorbell.serial).doorbellPressed, true);
+  assert.equal(state.getCamera(doorbell.serial).lastDetection?.kind, "doorbell");
+  assert.equal((events[1] as { type: string }).type, "detection");
+
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(state.getCamera(doorbell.serial).doorbellPressed, false);
+  state.close();
+});
+
+test("ignores doorbell presses from cameras without doorbell support", () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  state.recordDoorbell(camera.serial, true);
+
+  assert.equal(state.getCamera(camera.serial).doorbellPressed, false);
+  assert.equal(state.getCamera(camera.serial).lastDetection, null);
 });
 
 test("clears detection pulses when a provider never sends a false event", async () => {

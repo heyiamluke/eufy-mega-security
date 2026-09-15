@@ -54,6 +54,7 @@ export class SimulatedProvider implements CameraProvider {
       model: "T8142-compatible simulator",
       stationSerial: "SIMULATED-HOMEBASE-3",
       streamSupported: true,
+      doorbellSupported: false,
     });
     events.station(this.#station);
     events.inventory([{

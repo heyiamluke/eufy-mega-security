@@ -90,7 +90,8 @@ Eufy Mega HTTPS APIs
 - `eufy_event_gateway/src/mega/client.ts`: account login, session restoration, inventory, keys, push registration, and bounded HTTPS media download.
 - `eufy_event_gateway/src/mega/crypto.ts`: pure Mega request, password, identity, and envelope cryptography.
 - `eufy_event_gateway/src/mega/types.ts`: checked Mega response and persisted-session shapes.
-- `eufy_event_gateway/src/mega/push.ts`: Firebase receiver, nested notification parsing, safe diagnostics, and persistent push identity.
+- `eufy_event_gateway/src/mega/android-push/`: Eufy Android FCM registration and authenticated Google MCS socket transport.
+- `eufy_event_gateway/src/mega/push.ts`: Mega token registration, private Android identity and delivered-ID storage, notification parsing, and safe diagnostics.
 - `eufy_event_gateway/src/mega/image.ts`: JPEG detection and Eufy event-image decoding.
 - `eufy_event_gateway/src/provider/eufy-provider.ts`: the adapter that turns Mega observations into gateway callbacks and chooses the production PPCS session.
 - `eufy_event_gateway/src/stream/first-party-ppcs.ts`: the native UDP media protocol.
@@ -171,13 +172,13 @@ The inventory is untrusted JSON. `parseMegaInventory()` rejects missing or dupli
 
 ## Push events and detection state
 
-Eufy sends notifications through Firebase Cloud Messaging. Firebase is only the delivery mechanism; it does not define Eufy's camera semantics. The notification data often contains JSON nested inside another JSON field, and the field names differ between camera generations.
+Eufy sends notifications through Firebase Cloud Messaging. The gateway registers as the Eufy Android app, not a Chromium web-push client, because the latter produced only metadata on a tested account even while the owner phone received alerts. Firebase delivers the MCS stanza; the gateway decodes Eufy's base64 JSON appData and projects only the fields used downstream. The field names still differ between camera generations.
 
 `MegaPushReceiver` extracts a deliberately small whitelist: camera serial, station serial, camera name, event and message types, notification style, person label, picture URL, file path, fetch ID, and sense ID. It stores the Firebase persistent ID atomically and redacts raw payloads from diagnostics.
 
-`EufyProvider` maps event type 3101 to motion and event types 3102/3111 to person detection. A person label is accepted only when Eufy supplies a non-generic recognized name. The provider downloads a referenced image in a per-camera queue so bursts cannot race the snapshot store.
+`EufyProvider` maps event type 3101 to motion, event types 3102/3111 to person detection, and 3103 to a doorbell press on supported models. A person label is accepted only when Eufy supplies a non-generic recognized name. The provider downloads a referenced image in a per-camera queue so bursts cannot race the snapshot store.
 
-`GatewayState` holds the transient motion/person flags for a short period, remembers the last detection, and emits normalized events. Home Assistant receives those events through SSE and also gets a sixty-second poll as recovery when a connection drops.
+`GatewayState` holds transient motion, person, and doorbell-press flags for 10 seconds, remembers the last detection, and emits normalized events. Home Assistant receives those events through SSE and also gets a sixty-second poll as recovery when a connection drops.
 
 ## How snapshots work
 

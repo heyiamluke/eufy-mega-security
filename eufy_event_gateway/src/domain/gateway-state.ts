@@ -29,6 +29,7 @@ interface MutableCameraState {
   identity: CameraIdentity;
   motionDetected: boolean;
   personDetected: boolean;
+  doorbellPressed: boolean;
   lastDetection: Detection | null;
   snapshot: SnapshotInfo | null;
   streamState: StreamState;
@@ -51,6 +52,7 @@ export class GatewayState extends EventEmitter {
   readonly #pushDiagnostics: PushDiagnostic[] = [];
   readonly #motionClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #personClearTimers = new Map<string, NodeJS.Timeout>();
+  readonly #doorbellClearTimers = new Map<string, NodeJS.Timeout>();
   #inventoryDiagnostics: InventoryDiagnostic[] = [];
   #connectionState: ConnectionState = "starting";
   #connectionDetail: string | null = null;
@@ -70,6 +72,7 @@ export class GatewayState extends EventEmitter {
         identity,
         motionDetected: false,
         personDetected: false,
+        doorbellPressed: false,
         lastDetection: null,
         snapshot: null,
         streamState: "idle",
@@ -152,6 +155,26 @@ export class GatewayState extends EventEmitter {
     this.#emitCamera(serial);
   }
 
+  /** Record a transient doorbell press for a camera that supports doorbells. */
+  recordDoorbell(serial: string, pressed: boolean, occurredAt = new Date()): void {
+    const camera = this.#requireCamera(serial);
+    if (!camera.identity.doorbellSupported) return;
+    camera.doorbellPressed = pressed;
+    this.#scheduleDetectionClear(this.#doorbellClearTimers, serial, pressed, () => this.recordDoorbell(serial, false));
+    if (pressed) {
+      const detection: Detection = {
+        id: randomUUID(),
+        kind: "doorbell",
+        occurredAt: occurredAt.toISOString(),
+        personName: null,
+        recognized: false,
+      };
+      camera.lastDetection = detection;
+      this.emit("event", { type: "detection", cameraSerial: serial, detection } satisfies GatewayEvent);
+    }
+    this.#emitCamera(serial);
+  }
+
   /** Publish new retained-image metadata and notify SSE subscribers. */
   updateSnapshot(serial: string, snapshot: SnapshotInfo): void {
     const camera = this.#requireCamera(serial);
@@ -221,8 +244,10 @@ export class GatewayState extends EventEmitter {
       model: camera.identity.model,
       stationSerial: camera.identity.stationSerial,
       streamSupported: camera.identity.streamSupported,
+      doorbellSupported: camera.identity.doorbellSupported,
       motionDetected: camera.motionDetected,
       personDetected: camera.personDetected,
+      doorbellPressed: camera.doorbellPressed,
       lastDetection: camera.lastDetection,
       snapshot: camera.snapshot,
       stream: {
@@ -243,8 +268,10 @@ export class GatewayState extends EventEmitter {
   close(): void {
     for (const timer of this.#motionClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#personClearTimers.values()) clearTimeout(timer);
+    for (const timer of this.#doorbellClearTimers.values()) clearTimeout(timer);
     this.#motionClearTimers.clear();
     this.#personClearTimers.clear();
+    this.#doorbellClearTimers.clear();
   }
 
   #scheduleDetectionClear(

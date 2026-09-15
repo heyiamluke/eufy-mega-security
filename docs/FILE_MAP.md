@@ -42,7 +42,8 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `src/mega/crypto.ts` | Pure Mega key exchange, request signing, AES envelope, password encryption, credential-verifier, and token primitives. |
 | `src/mega/types.ts` | Checked response and persisted-session contracts; not a raw undocumented API schema. |
 | `src/mega/session-store.ts` | Private, atomic Mega session persistence with strict current-schema validation. |
-| `src/mega/push.ts` | Firebase receiver registration, persistent ID storage, nested notification parsing, event normalization, and safe diagnostics. |
+| `src/mega/android-push/` | Eufy Android FCM registration, Google MCS framing, reconnect, and raw Eufy push delivery. Adapted from mega-yfue/eufy-sdk under Apache-2.0. |
+| `src/mega/push.ts` | Registers the Android token with Mega, persists the private receiver identity and delivered IDs, and projects camera notifications into safe gateway events. |
 | `src/mega/image.ts` | JPEG detection and decoding of Eufy event-image wrappers, including encrypted legacy bytes. |
 
 ### Video and media
@@ -78,4 +79,4 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 
 ## Tests
 
-The gateway tests live in `eufy_event_gateway/test`. They cover configuration, crypto, Mega session and push handling, image decoding, state transitions, native transport framing, PPCS helpers, snapshots, HTTP authentication, and the simulated provider. Add a focused test beside the module it protects. Keep real-account probes in `scripts/ppcs-probe.ts`, not in the automated test suite.
+The gateway tests live in `eufy_event_gateway/test`. They cover configuration, crypto, Mega session and push handling, image decoding, state transitions, native transport framing, PPCS helpers, snapshots, HTTP authentication, and the simulated provider. Add a focused test beside the module it protects. Keep real-account probes in `scripts/ppcs-probe.ts` and `scripts/push-debug.ts`, not in the automated test suite.

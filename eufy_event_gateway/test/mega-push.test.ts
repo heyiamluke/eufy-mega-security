@@ -1,5 +1,5 @@
 /**
- * Tests normalization of generation-specific Firebase/Eufy push envelopes.
+ * Tests normalization of generation-specific Eufy Android push envelopes.
  *
  * Fixtures include nested JSON and optional fields, proving that only the
  * whitelisted `MegaPushEvent` data crosses into provider logic.
@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parsePushEvent } from "../src/mega/push.js";
+import { parsePushEvent, safeUnparsedShape } from "../src/mega/push.js";
 
 test("normalizes a nested HomeBase 3 Mega notification", () => {
   const result = parsePushEvent({ payload: JSON.stringify({
@@ -22,8 +22,28 @@ test("normalizes a nested HomeBase 3 Mega notification", () => {
   });
 });
 
+test("normalizes a direct Android MCS camera payload", () => {
+  const result = parsePushEvent({
+    device_sn: "camera",
+    station_sn: "station",
+    a: 3101,
+    name: "Path",
+    pic_url: "https://example.invalid/image",
+    account_email: "private@example.invalid",
+  });
+  assert.equal(result?.cameraSerial, "camera");
+  assert.equal(result?.stationSerial, "station");
+  assert.equal(result?.eventType, 3101);
+  assert.equal(result?.pictureUrl, "https://example.invalid/image");
+  assert.equal(JSON.stringify(result).includes("private@example.invalid"), false);
+});
+
 test("rejects notifications without a device identity", () => {
   assert.equal(parsePushEvent({ payload: "{}" }), null);
+  assert.equal(
+    safeUnparsedShape({ payload: JSON.stringify({ content: "private message", pic_url: "https://example.invalid/private" }) }),
+    "data_record=true outer_payload=true inner_payload=false device_field=false station_field=false notification_field=false",
+  );
 });
 
 test("normalizes HomeBase guard and alarm push state without retaining unrelated data", () => {

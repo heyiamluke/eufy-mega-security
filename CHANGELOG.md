@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.24
+
+- Register for camera notifications as the Eufy Android app. The previous Chromium web-push subscription could connect to Firebase while receiving only metadata instead of motion, person, and doorbell events.
+- Route a doorbell press (`3103`) to a new Doorbell binary sensor on supported doorbells. The sensor stays on for 10 seconds after a press.
+- Add a local push probe and payload-free delivery logs to help diagnose notifications without restarting Home Assistant or printing account data.
+- Confirm motion (`3101`), person (`3102`), and T8210 doorbell press (`3103`) payloads on local cameras. Other Eufy event types and HomeBase 2 live streaming need separate testing.
+
 ## 0.1.23
 
 - Admit eufyCam S300 / 3C (`T8161`, Mega type 23) as a HomeBase-attached camera. The reporter's inventory had the station, channel, PPCS, and DSK prerequisites, but real-device discovery, events, snapshots, and live video still need confirmation.
