@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.26
+
+- Handle snapshot and clip timer rejections as soon as their promises are created. A timeout during slow PPCS startup now reaches the capture or recording caller instead of triggering the process-level unhandled-rejection exit.
+- Admit Mega camera types 26 (`T8162`), 47 (`T8425`), 48 (`T8170`), and 10005 (`T81A0`) through an inventoried parent peer with a camera channel, PPCS connection, and DSK key.
+- Keep T9000/type 27 out of the camera and managed-station inventories. It remains an eligible PPCS parent for its cameras. Station command behaviour and media on the reported hardware still need testing.
+
 ## 0.1.25
 
 - Admit Mega types 94 (`T8214` Video Doorbell E340) and 104 (`T8416` Indoor Cam S350) through their inventoried parent PPCS peers.
