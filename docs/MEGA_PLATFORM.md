@@ -115,7 +115,7 @@ The normalized provider row is converted into `CameraIdentity`, which is the fir
 
 ## Push delivery and event data
 
-The push receiver uses Firebase Cloud Messaging delivery. The Firebase library handles the connection and persistent ID; it does not know Eufy's event meanings. Eufy's data commonly contains JSON nested inside a data field, and camera generations use different optional names.
+The gateway registers a Firebase installation as the Eufy Android app using the app package, certificate, and FCM sender. It checks in with Google, obtains an FCM token, registers that token with Mega, and holds an authenticated MCS socket for notifications. `src/mega/android-push/` owns registration and socket framing; `MegaPushReceiver` saves the private identity and delivered IDs, then normalizes Eufy's MCS appData JSON. The earlier Chromium web-push subscription could connect and register a token while receiving metadata-only messages rather than camera events.
 
 `MegaPushReceiver` extracts only this normalized event shape:
 
@@ -127,7 +127,7 @@ pictureUrl, filePath, fetchId, senseId
 guardMode, effectiveMode, alarmType
 ```
 
-The provider interprets event type 3101 as motion and 3102/3111 as person detection. It accepts a person name only when the structured or textual value is an explicit recognized identity. Generic labels such as `Someone` do not become a named person entity.
+The provider interprets event type 3101 as motion, 3102/3111 as person detection, and 3103 as a doorbell press on supported doorbell models. A press becomes its own transient gateway event and Home Assistant binary sensor. It accepts a person name only when the structured or textual value is an explicit recognized identity. Generic labels such as `Someone` do not become a named person entity.
 
 Station event type 9 updates the configured and effective guard modes. Event type 10 updates whether the HomeBase siren is active. The provider applies these messages immediately and keeps a 60-second local PPCS poll for missed notifications or reconnect recovery.
 

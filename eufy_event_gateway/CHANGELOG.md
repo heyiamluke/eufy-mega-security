@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.24
+
+- Register for camera notifications as the Eufy Android app instead of a Chromium web-push client. The old subscription could connect to Firebase but delivered metadata-only messages.
+- Normalize local motion (`3101`), person (`3102`), and T8210 doorbell press (`3103`) payloads from the new Android FCM transport.
+- Report delivery and routing with payload-free logs, and include `npm run debug:push` for local checks without Home Assistant or PPCS.
+- Persist the Android receiver identity and delivered message IDs so a restart can reconnect without replaying old notifications.
+
 ## 0.1.23
 
 - Admit eufyCam S300 / 3C (`T8161`, Mega type 23) as a HomeBase-attached camera. The reporter's inventory had the station, channel, PPCS, and DSK prerequisites, but real-device discovery, events, snapshots, and live video still need confirmation.
