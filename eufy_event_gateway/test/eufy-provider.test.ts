@@ -125,6 +125,45 @@ test("admits issue 22 cameras through their inventoried parent peers", () => {
   ]);
 });
 
+test("admits issue 27 Mega cameras through a ready T9000 HomeBase", () => {
+  const issue27Cameras = [
+    { serial: "t8162", model: "T8162", deviceType: 26, channel: 1 },
+    { serial: "t8170", model: "T8170", deviceType: 48, channel: 2 },
+    { serial: "t81a0", model: "T81A0", deviceType: 10005, channel: 3 },
+    { serial: "t8425", model: "T8425", deviceType: 47, channel: 4 },
+  ];
+  const devices = parseMegaInventory({ devices: [
+    ...issue27Cameras.map(({ serial, model, deviceType, channel }) => ({
+      device_sn: serial, device_model: model, parent_sn: "t9000", device_type: deviceType,
+      device_channel: channel, category: "eufy_security",
+    })),
+    {
+      device_sn: "t9000", device_model: "T9000", device_type: 27,
+      category: "eufy_security", p2p_did: "did", p2p_conn: "connection",
+    },
+    {
+      device_sn: "wrong-category", device_model: "T8162", device_type: 26,
+      parent_sn: "t9000", device_channel: 5, category: "other",
+    },
+  ] });
+  const summaries = inventoryLogSummaries(devices, new Set(["t9000"]));
+
+  assert.deepEqual(inventoryDiagnostics(devices).map(({ serial, acceptedAsCamera }) => [serial, acceptedAsCamera]), [
+    ["t8162", true], ["t8170", true], ["t81a0", true], ["t8425", true],
+    ["t9000", false], ["wrong-category", false],
+  ]);
+  assert.deepEqual(summaries.slice(0, 4).map(({ deviceType, acceptedAsCamera, streamSupported }) => ({
+    deviceType, acceptedAsCamera, streamSupported,
+  })), [
+    { deviceType: 26, acceptedAsCamera: true, streamSupported: true },
+    { deviceType: 48, acceptedAsCamera: true, streamSupported: true },
+    { deviceType: 10005, acceptedAsCamera: true, streamSupported: true },
+    { deviceType: 47, acceptedAsCamera: true, streamSupported: true },
+  ]);
+  assert.equal(summaries.find(({ deviceType, category }) => deviceType === 27 && category === "eufy_security")?.acceptedAsCamera, false);
+  assert.equal(summaries.find(({ category }) => category === "other")?.acceptedAsCamera, false);
+});
+
 test("identifies the T8214 doorbell without classifying the T8416 indoor camera as one", () => {
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 94 }), true);
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 104 }), false);
