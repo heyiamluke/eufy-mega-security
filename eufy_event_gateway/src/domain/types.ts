@@ -55,9 +55,38 @@ export interface CameraState {
   };
 }
 
+/** One physical storage device reported by a HomeBase 3. */
+export interface HomeBaseStorageState {
+  readonly status: string | null;
+  readonly totalBytes: number | null;
+  readonly freeBytes: number | null;
+}
+
+/** Complete normalized state for one HomeBase 3. */
+export interface HomeBaseState {
+  readonly serial: string;
+  readonly name: string;
+  readonly model: string;
+  readonly firmware: string | null;
+  readonly available: boolean;
+  readonly connected: boolean;
+  readonly guardMode: number | null;
+  readonly effectiveMode: number | null;
+  readonly alarmActive: boolean | null;
+  readonly alarmVolume: number | null;
+  readonly promptVolume: number | null;
+  readonly alarmTone: number | null;
+  readonly storage: {
+    readonly emmc: HomeBaseStorageState | null;
+    readonly hdd: HomeBaseStorageState | null;
+  };
+}
+
 /** Events sent over the gateway SSE endpoint. */
 export type GatewayEvent =
   | { readonly type: "camera-updated"; readonly camera: CameraState }
+  | { readonly type: "station-updated"; readonly station: HomeBaseState }
+  | { readonly type: "stations-updated"; readonly stations: readonly HomeBaseState[] }
   | { readonly type: "detection"; readonly cameraSerial: string; readonly detection: Detection }
   | { readonly type: "snapshot-updated"; readonly cameraSerial: string; readonly snapshot: SnapshotInfo }
   | { readonly type: "connection-updated"; readonly state: ConnectionState; readonly detail: string | null };
@@ -69,6 +98,14 @@ export interface CameraIdentity {
   readonly model: string;
   readonly stationSerial: string;
   readonly streamSupported: boolean;
+}
+
+/** Stable metadata for a HomeBase 3 discovered through Mega inventory. */
+export interface HomeBaseIdentity {
+  readonly serial: string;
+  readonly name: string;
+  readonly model: string;
+  readonly firmware: string | null;
 }
 
 /** Safe, field-level evidence about a push message, with payloads omitted. */

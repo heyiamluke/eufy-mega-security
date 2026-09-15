@@ -9,7 +9,32 @@
  */
 import { Readable } from "node:stream";
 
+import type { HomeBaseState } from "../domain/types.js";
 import type { CameraProvider, ProviderEvents } from "./provider.js";
+
+const stationSerial = "SIMULATED-HOMEBASE-3";
+
+function simulatedStation(overrides: Partial<HomeBaseState> = {}): HomeBaseState {
+  return {
+    serial: stationSerial,
+    name: "Simulated HomeBase 3",
+    model: "T8030",
+    firmware: "3.8.6.0",
+    available: true,
+    connected: true,
+    guardMode: 63,
+    effectiveMode: 63,
+    alarmActive: false,
+    alarmVolume: 20,
+    promptVolume: 12,
+    alarmTone: 1,
+    storage: {
+      emmc: { status: "healthy", totalBytes: 16_000_000_000, freeBytes: 12_000_000_000 },
+      hdd: null,
+    },
+    ...overrides,
+  };
+}
 
 /**
  * Supplies deterministic camera observations for tests and local API checks.
@@ -19,6 +44,7 @@ import type { CameraProvider, ProviderEvents } from "./provider.js";
 export class SimulatedProvider implements CameraProvider {
   static readonly serial = "SIMULATED-CAMERA-1";
   #events: ProviderEvents | null = null;
+  #station = simulatedStation();
 
   async start(events: ProviderEvents): Promise<void> {
     this.#events = events;
@@ -29,6 +55,7 @@ export class SimulatedProvider implements CameraProvider {
       stationSerial: "SIMULATED-HOMEBASE-3",
       streamSupported: true,
     });
+    events.station(this.#station);
     events.inventory([{
       serial: SimulatedProvider.serial,
       name: "Simulated driveway",
@@ -50,6 +77,30 @@ export class SimulatedProvider implements CameraProvider {
   async stopStream(serial: string): Promise<void> {
     this.#assertSerial(serial);
     this.#events?.streamStopped(serial);
+  }
+
+  async refreshStation(serial: string): Promise<HomeBaseState> {
+    this.#assertStation(serial);
+    return structuredClone(this.#station);
+  }
+
+  async setGuardMode(serial: string, mode: number): Promise<HomeBaseState> {
+    this.#assertStation(serial);
+    this.#station = { ...this.#station, guardMode: mode, effectiveMode: mode };
+    this.#events?.station(this.#station);
+    return structuredClone(this.#station);
+  }
+
+  async setAlarmVolume(serial: string, value: number): Promise<HomeBaseState> {
+    return this.#updateStation(serial, { alarmVolume: value });
+  }
+
+  async setPromptVolume(serial: string, value: number): Promise<HomeBaseState> {
+    return this.#updateStation(serial, { promptVolume: value });
+  }
+
+  async setAlarmTone(serial: string, value: number): Promise<HomeBaseState> {
+    return this.#updateStation(serial, { alarmTone: value });
   }
 
   async close(): Promise<void> {
@@ -81,5 +132,16 @@ export class SimulatedProvider implements CameraProvider {
 
   #assertSerial(serial: string): void {
     if (serial !== SimulatedProvider.serial) throw new Error(`Unknown simulated camera: ${serial}`);
+  }
+
+  #assertStation(serial: string): void {
+    if (serial !== stationSerial) throw new Error(`Unknown simulated HomeBase: ${serial}`);
+  }
+
+  #updateStation(serial: string, values: Partial<HomeBaseState>): HomeBaseState {
+    this.#assertStation(serial);
+    this.#station = { ...this.#station, ...values };
+    this.#events?.station(this.#station);
+    return structuredClone(this.#station);
   }
 }

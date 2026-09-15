@@ -7,16 +7,19 @@
  * and verified JPEG snapshots. A live request creates a first-party PPCS
  * session and exposes only its byte stream to `LiveStreamManager`. This is the
  * sole production translation point from Eufy-specific data to normalized
- * provider callbacks; Home Assistant-specific naming stays downstream.
+ * provider callbacks; Home Assistant-specific naming stays downstream. The
+ * provider also emits field-limited push summaries for support logs without
+ * forwarding private event fields into the logger.
  */
 import { join } from "node:path";
 
-import type { InventoryDiagnostic } from "../domain/types.js";
+import type { HomeBaseState, InventoryDiagnostic } from "../domain/types.js";
 import { createLogger } from "../logging.js";
 import { MegaClient } from "../mega/client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
+import { HomeBasePpcsSession, type HomeBasePpcsState } from "../stream/homebase-ppcs.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
 
 const logger = createLogger("provider");
@@ -44,6 +47,8 @@ export interface MegaInventoryDevice {
   readonly p2pConnection: string | null;
   readonly cipherId: number | null;
   readonly adminUserId: string | null;
+  readonly userName: string | null;
+  readonly firmware: string | null;
 }
 
 /** Safe, grouped inventory evidence suitable for copied support logs. */
@@ -85,10 +90,13 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #dskKeys = new Map<string, { readonly key: string; readonly expiresAt: number | null }>();
   readonly #cipherKeys = new Map<number, string>();
   readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
+  readonly #stations = new Map<string, HomeBaseState>();
+  readonly #stationOperations = new Map<string, Promise<HomeBaseState>>();
   #push: MegaPushReceiver | null = null;
   #events: ProviderEvents | null = null;
   #captchaChallenge: CaptchaChallenge | null = null;
   #verificationRequired = false;
+  #stationRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly config: EufyProviderConfig) {
     this.#client = new MegaClient({
@@ -163,11 +171,39 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     this.#events?.streamStopped(serial);
   }
 
+  async refreshStation(serial: string): Promise<HomeBaseState> {
+    return this.#queueStationOperation(serial, false, async (session) => session.readState());
+  }
+
+  async setGuardMode(serial: string, mode: number): Promise<HomeBaseState> {
+    if (![0, 1, 2, 3, 4, 5, 47, 63].includes(mode)) throw new Error("Unsupported HomeBase guard mode");
+    return this.#writeStationValue(serial, "guardMode", mode, (session) => session.setGuardMode(mode));
+  }
+
+  async setAlarmVolume(serial: string, value: number): Promise<HomeBaseState> {
+    if (!Number.isInteger(value) || value < 1 || value > 26) throw new Error("HomeBase alarm volume must be from 1 to 26");
+    return this.#writeStationValue(serial, "alarmVolume", value, (session) => session.setAlarmVolume(value));
+  }
+
+  async setPromptVolume(serial: string, value: number): Promise<HomeBaseState> {
+    if (!Number.isInteger(value) || value < 0 || value > 26) throw new Error("HomeBase prompt volume must be from 0 to 26");
+    return this.#writeStationValue(serial, "promptVolume", value, (session) => session.setPromptVolume(value));
+  }
+
+  async setAlarmTone(serial: string, value: number): Promise<HomeBaseState> {
+    if (value !== 1 && value !== 2) throw new Error("HomeBase alarm tone must be 1 or 2");
+    return this.#writeStationValue(serial, "alarmTone", value, (session) => session.setAlarmTone(value));
+  }
+
   async close(): Promise<void> {
+    if (this.#stationRefreshTimer) clearInterval(this.#stationRefreshTimer);
+    this.#stationRefreshTimer = null;
     this.#push?.close();
     this.#push = null;
     for (const stream of this.#ppcsStreams.values()) stream.close();
     this.#ppcsStreams.clear();
+    await Promise.allSettled(this.#stationOperations.values());
+    this.#stationOperations.clear();
     this.#events = null;
   }
 
@@ -249,6 +285,12 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         streamSupported: isPpcsStreamSupported(device, this.#devices, new Set(this.#dskKeys.keys())),
       });
     }
+    this.#stations.clear();
+    for (const device of devices.filter(isHomeBase3)) {
+      const station = initialHomeBaseState(device);
+      this.#stations.set(device.serial, station);
+      events.station(station);
+    }
     const diagnostics = inventoryDiagnostics(devices);
     const summaries = inventoryLogSummaries(devices, new Set(this.#dskKeys.keys()));
     logger.info(
@@ -286,9 +328,35 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     );
     await this.#push.start();
     events.connection("connected", "Gateway events and snapshots are ready; live viewing requires a validated PPCS camera path");
+    await Promise.allSettled([...this.#stations.keys()].map((serial) => this.refreshStation(serial)));
+    if (this.#stationRefreshTimer) clearInterval(this.#stationRefreshTimer);
+    this.#stationRefreshTimer = setInterval(() => {
+      for (const serial of this.#stations.keys()) {
+        if (this.#stationOperations.has(serial) || this.#stationHasActiveMedia(serial)) continue;
+        void this.refreshStation(serial).catch((error: unknown) => {
+          logger.warn("station_refresh_unavailable", `HomeBase state refresh unavailable: ${safeError(error)}`);
+        });
+      }
+    }, 60_000);
+    this.#stationRefreshTimer.unref();
   }
 
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
+    const station = this.#stations.get(event.stationSerial);
+    const stationIdentity = this.#devices.get(event.stationSerial);
+    if (station && event.eventType === 9) {
+      const updated = {
+        ...station,
+        guardMode: validGuardMode(event.guardMode) ? event.guardMode : station.guardMode,
+        effectiveMode: validGuardMode(event.effectiveMode) ? event.effectiveMode : station.effectiveMode,
+      };
+      this.#stations.set(station.serial, updated);
+      events.station(updated);
+    } else if (station && event.eventType === 10 && event.alarmType !== null) {
+      const updated = { ...station, alarmActive: ![0, 1, 15, 16, 17].includes(event.alarmType) };
+      this.#stations.set(station.serial, updated);
+      events.station(updated);
+    }
     const personName = personNameFromPush(event);
     events.pushDiagnostic({
       receivedAt: new Date().toISOString(),
@@ -305,10 +373,90 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       hasFetchId: event.fetchId !== null,
       hasSenseId: event.senseId !== null,
     });
+    logger.info(
+      "push_received",
+      safePushLogSummary(
+        event,
+        this.#devices.get(event.cameraSerial) ?? null,
+        stationIdentity !== undefined && !stationIdentity.parentSerial,
+        station !== undefined,
+      ),
+    );
     if (!this.#devices.has(event.cameraSerial) || !isCameraDetection(event.eventType)) return;
     if (event.eventType === 3101) events.motion(event.cameraSerial, true);
     else events.person(event.cameraSerial, true, personName);
     if (event.pictureUrl) this.#queuePushSnapshot(events, event);
+  }
+
+  async #writeStationValue(
+    serial: string,
+    field: "guardMode" | "alarmVolume" | "promptVolume" | "alarmTone",
+    expected: number,
+    write: (session: HomeBasePpcsSession) => Promise<void>,
+  ): Promise<HomeBaseState> {
+    return this.#queueStationOperation(serial, true, async (session) => {
+      await write(session);
+      const observed = await session.readState(false);
+      if (observed[field] !== expected) throw new Error(`HomeBase did not confirm ${field}`);
+      return observed;
+    });
+  }
+
+  #queueStationOperation(
+    serial: string,
+    interruptMedia: boolean,
+    operation: (session: HomeBasePpcsSession) => Promise<HomeBasePpcsState>,
+  ): Promise<HomeBaseState> {
+    const previous = this.#stationOperations.get(serial) ?? Promise.resolve(this.#requireStation(serial));
+    const current = previous.catch(() => this.#requireStation(serial)).then(async () => {
+      const identity = this.#devices.get(serial);
+      if (!identity || !isHomeBase3(identity) || !identity.p2pDid || !identity.adminUserId) {
+        throw new Error("HomeBase local command identity is unavailable");
+      }
+      if (interruptMedia) await this.#stopStationMedia(serial);
+      else if (this.#stationHasActiveMedia(serial)) return this.#requireStation(serial);
+      const session = new HomeBasePpcsSession({
+        serial,
+        p2pDid: identity.p2pDid,
+        accountId: identity.adminUserId,
+        userName: identity.userName ?? "Home Assistant",
+      });
+      try {
+        await session.connect();
+        const observed = await operation(session);
+        const updated = mergeHomeBaseState(this.#requireStation(serial), observed);
+        this.#stations.set(serial, updated);
+        this.#events?.station(updated);
+        return updated;
+      } catch (error) {
+        const updated = { ...this.#requireStation(serial), connected: false };
+        this.#stations.set(serial, updated);
+        this.#events?.station(updated);
+        throw error;
+      } finally {
+        session.close();
+      }
+    });
+    this.#stationOperations.set(serial, current);
+    void current.finally(() => {
+      if (this.#stationOperations.get(serial) === current) this.#stationOperations.delete(serial);
+    }).catch(() => undefined);
+    return current;
+  }
+
+  #requireStation(serial: string): HomeBaseState {
+    const station = this.#stations.get(serial);
+    if (!station) throw new Error(`Unknown HomeBase: ${serial}`);
+    return station;
+  }
+
+  #stationHasActiveMedia(stationSerial: string): boolean {
+    return [...this.#ppcsStreams.keys()].some((serial) => this.#devices.get(serial)?.parentSerial === stationSerial);
+  }
+
+  async #stopStationMedia(stationSerial: string): Promise<void> {
+    const serials = [...this.#ppcsStreams.keys()].filter((serial) => this.#devices.get(serial)?.parentSerial === stationSerial);
+    await Promise.all(serials.map((serial) => this.stopStream(serial)));
   }
 
   #queuePushSnapshot(events: ProviderEvents, event: MegaPushEvent): void {
@@ -365,6 +513,8 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
       p2pConnection: safeValue(value.p2p_conn, 512) ?? safeValue(value.app_conn, 512),
       cipherId: integer(value.cipher_id),
       adminUserId: isRecord(value.member) ? safeValue(value.member.admin_user_id, 128) : null,
+      userName: isRecord(value.member) ? safeValue(value.member.nick_name, 128) : null,
+      firmware: safeValue(value.main_sw_version, 100),
     });
   }
   const adminUserIds = new Map(
@@ -373,6 +523,47 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
   return devices.map((device) => device.adminUserId || !device.parentSerial
     ? device
     : { ...device, adminUserId: adminUserIds.get(device.parentSerial) ?? null });
+}
+
+/** Return whether normalized inventory identifies the supported HomeBase 3. */
+export function isHomeBase3(device: Pick<MegaInventoryDevice, "category" | "deviceType" | "model">): boolean {
+  return device.category === "eufy_security" && device.deviceType === 18 && device.model.startsWith("T8030");
+}
+
+function initialHomeBaseState(device: MegaInventoryDevice): HomeBaseState {
+  return {
+    serial: device.serial,
+    name: device.name,
+    model: device.model,
+    firmware: device.firmware,
+    available: true,
+    connected: false,
+    guardMode: null,
+    effectiveMode: null,
+    alarmActive: null,
+    alarmVolume: null,
+    promptVolume: null,
+    alarmTone: null,
+    storage: { emmc: null, hdd: null },
+  };
+}
+
+function mergeHomeBaseState(existing: HomeBaseState, observed: HomeBasePpcsState): HomeBaseState {
+  return {
+    ...existing,
+    firmware: observed.firmware ?? existing.firmware,
+    connected: true,
+    guardMode: observed.guardMode,
+    effectiveMode: observed.effectiveMode,
+    alarmVolume: observed.alarmVolume,
+    promptVolume: observed.promptVolume,
+    alarmTone: observed.alarmTone,
+    storage: observed.storage ?? existing.storage,
+  };
+}
+
+function validGuardMode(value: number | null): value is number {
+  return value !== null && [0, 1, 2, 3, 4, 5, 47, 63].includes(value);
 }
 
 /** Explain camera filtering decisions without exposing raw cloud payloads. */
@@ -439,6 +630,7 @@ export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "categor
       || device.deviceType === 19
       || device.deviceType === 151
       || device.deviceType === 31
+      || device.deviceType === 63
       || device.deviceType === 91
       || device.deviceType === 10031);
 }
@@ -476,6 +668,47 @@ export function isPpcsStreamSupported(
     && device.channel !== null
     && dskPeerSerials.has(route.peer.serial),
   );
+}
+
+/**
+ * Summarize push routing for copyable logs without private device or event fields.
+ *
+ * @param stationPresent Whether the station serial matched any Mega inventory row.
+ * @param stationManaged Whether the station has a supported local control entity.
+ */
+export function safePushLogSummary(
+  event: Pick<MegaPushEvent, "eventType" | "messageType" | "notificationStyle" | "pictureUrl" | "alarmType">,
+  device: Pick<MegaInventoryDevice, "model" | "category" | "deviceType"> | null,
+  stationPresent: boolean,
+  stationManaged: boolean,
+): string {
+  const deviceKnown = device !== null;
+  const cameraAccepted = device !== null && isSupportedMegaCamera(device);
+  let handling = "unhandled";
+  if (stationManaged && event.eventType === 9) handling = "station_guard";
+  else if (stationManaged && event.eventType === 10 && event.alarmType !== null) handling = "station_alarm";
+  else if (cameraAccepted && isCameraDetection(event.eventType)) {
+    handling = event.eventType === 3101 ? "motion" : "person";
+  }
+  const model = device?.model && /^T[0-9]{4}(?:[A-Z]{1,2}|-[A-Z]{1,2})?$/.test(device.model)
+    ? device.model
+    : "unknown";
+  return [
+    `model=${model}`,
+    `device_known=${deviceKnown}`,
+    `camera_accepted=${cameraAccepted}`,
+    `station_present=${stationPresent}`,
+    `station_managed=${stationManaged}`,
+    `event_type=${safePushCode(event.eventType)}`,
+    `message_type=${safePushCode(event.messageType)}`,
+    `notification_style=${safePushCode(event.notificationStyle)}`,
+    `handling=${handling}`,
+    `picture_present=${event.pictureUrl !== null}`,
+  ].join(" ");
+}
+
+function safePushCode(value: number | null): number | "missing" {
+  return value !== null && Number.isSafeInteger(value) && value >= 0 && value <= 65_535 ? value : "missing";
 }
 
 /** Extract a recognized name only from push events that represent a person. */

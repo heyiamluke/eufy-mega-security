@@ -17,6 +17,7 @@ import type {
   ConnectionState,
   Detection,
   GatewayEvent,
+  HomeBaseState,
   SnapshotInfo,
   StreamState,
   PushDiagnostic,
@@ -46,6 +47,7 @@ interface MutableCameraState {
  */
 export class GatewayState extends EventEmitter {
   readonly #cameras = new Map<string, MutableCameraState>();
+  readonly #stations = new Map<string, HomeBaseState>();
   readonly #pushDiagnostics: PushDiagnostic[] = [];
   readonly #motionClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #personClearTimers = new Map<string, NodeJS.Timeout>();
@@ -77,6 +79,31 @@ export class GatewayState extends EventEmitter {
       });
     }
     return this.#emitCamera(identity.serial);
+  }
+
+  /** Add or replace one complete HomeBase state observation. */
+  registerStation(station: HomeBaseState): HomeBaseState {
+    const snapshot = structuredClone(station);
+    this.#stations.set(station.serial, snapshot);
+    this.emit("event", { type: "station-updated", station: snapshot } satisfies GatewayEvent);
+    return structuredClone(snapshot);
+  }
+
+  /** Return immutable snapshots for every known HomeBase. */
+  listStations(): HomeBaseState[] {
+    return [...this.#stations.values()].map((station) => structuredClone(station));
+  }
+
+  /** Return one HomeBase or throw when its serial is not known. */
+  getStation(serial: string): HomeBaseState {
+    const station = this.#stations.get(serial);
+    if (!station) throw new Error(`Unknown HomeBase: ${serial}`);
+    return structuredClone(station);
+  }
+
+  /** Check HomeBase existence without throwing. */
+  hasStation(serial: string): boolean {
+    return this.#stations.has(serial);
   }
 
   /** Restore persisted image metadata without emitting a detection event. */

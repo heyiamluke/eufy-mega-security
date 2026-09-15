@@ -1,0 +1,113 @@
+"""HomeBase guard-mode and alarm-tone selects for Eufy Mega Security."""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+from homeassistant.components.select import SelectEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from . import EufyGatewayConfigEntry
+from .client import GatewayClientError
+from .const import ALARM_TONES, GUARD_MODES
+from .coordinator import EufyGatewayCoordinator
+from .entity import EufyStationEntity
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: EufyGatewayConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Create guard-mode and alarm-tone selects for every HomeBase."""
+    coordinator = entry.runtime_data.coordinator
+    known: set[str] = set()
+
+    def add_new() -> None:
+        serials = set(coordinator.stations) - known
+        if serials:
+            known.update(serials)
+            entities = []
+            for serial in sorted(serials):
+                entities.extend(
+                    (
+                        EufyGuardModeSelect(coordinator, serial),
+                        EufyAlarmToneSelect(coordinator, serial),
+                    )
+                )
+            async_add_entities(entities)
+
+    add_new()
+    entry.async_on_unload(coordinator.async_add_listener(add_new))
+
+
+class EufyGuardModeSelect(EufyStationEntity, SelectEntity):
+    """Expose the configured Eufy policy, including schedule and geofencing."""
+
+    _attr_translation_key = "eufy_guard_mode_select"
+    _attr_options: ClassVar[list[str]] = list(GUARD_MODES.values())
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create a configured guard-mode select for one HomeBase."""
+        EufyStationEntity.__init__(self, coordinator, serial)
+        SelectEntity.__init__(self)
+        self._attr_unique_id = f"{serial}_guard_mode"
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the configured policy, not the effective scheduled mode."""
+        mode = self.station.get("guardMode")
+        return GUARD_MODES.get(mode) if isinstance(mode, int) else None
+
+    async def async_select_option(self, option: str) -> None:
+        """Set a guard policy and publish it only after gateway confirmation."""
+        mode = next(
+            (value for value, label in GUARD_MODES.items() if label == option), None
+        )
+        if mode is None:
+            raise HomeAssistantError(f"Unsupported HomeBase guard mode: {option}")
+        try:
+            self.set_confirmed_station(
+                await self.coordinator.client.set_station_guard_mode(self.serial, mode)
+            )
+        except GatewayClientError as error:
+            raise HomeAssistantError(
+                f"Could not change HomeBase guard mode: {error}"
+            ) from error
+
+
+class EufyAlarmToneSelect(EufyStationEntity, SelectEntity):
+    """Expose the HomeBase's confirmed alarm sound selection."""
+
+    _attr_translation_key = "eufy_alarm_tone_select"
+    _attr_options: ClassVar[list[str]] = list(ALARM_TONES.values())
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create an alarm-tone select for one HomeBase."""
+        EufyStationEntity.__init__(self, coordinator, serial)
+        SelectEntity.__init__(self)
+        self._attr_unique_id = f"{serial}_alarm_tone"
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the confirmed alarm tone label."""
+        tone = self.station.get("alarmTone")
+        return ALARM_TONES.get(tone) if isinstance(tone, int) else None
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the alarm tone and publish it only after gateway confirmation."""
+        tone = next(
+            (value for value, label in ALARM_TONES.items() if label == option), None
+        )
+        if tone is None:
+            raise HomeAssistantError(f"Unsupported HomeBase alarm tone: {option}")
+        try:
+            self.set_confirmed_station(
+                await self.coordinator.client.set_station_alarm_tone(self.serial, tone)
+            )
+        except GatewayClientError as error:
+            raise HomeAssistantError(
+                f"Could not change HomeBase alarm tone: {error}"
+            ) from error

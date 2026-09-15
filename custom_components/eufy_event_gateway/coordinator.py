@@ -23,7 +23,9 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-class EufyGatewayCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
+class EufyGatewayCoordinator(
+    DataUpdateCoordinator[dict[str, dict[str, dict[str, Any]]]]
+):
     """Keep entity state current via SSE, with polling as recovery."""
 
     def __init__(self, hass: HomeAssistant, client: GatewayClient) -> None:
@@ -38,15 +40,42 @@ class EufyGatewayCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.client = client
         self._event_task: asyncio.Task[None] | None = None
 
-    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+    async def _async_update_data(self) -> dict[str, dict[str, dict[str, Any]]]:
 
         # Polling is recovery only. Normal updates arrive through the long-lived
         # SSE connection started after the first successful refresh.
         try:
-            cameras = await self.client.cameras()
+            cameras, stations = await asyncio.gather(
+                self.client.cameras(), self.client.stations()
+            )
         except GatewayClientError as error:
             raise UpdateFailed(str(error)) from error
-        return {camera["serial"]: camera for camera in cameras}
+        return {
+            "cameras": {camera["serial"]: camera for camera in cameras},
+            "stations": {station["serial"]: station for station in stations},
+        }
+
+    @property
+    def cameras(self) -> dict[str, dict[str, Any]]:
+        """Return the latest camera state indexed by serial."""
+        return (self.data or {}).get("cameras", {})
+
+    @property
+    def stations(self) -> dict[str, dict[str, Any]]:
+        """Return the latest HomeBase state indexed by serial."""
+        return (self.data or {}).get("stations", {})
+
+    def async_set_station(self, station: dict[str, Any]) -> None:
+        """Merge confirmed command state and notify all station entities."""
+        serial = station.get("serial")
+        if not isinstance(serial, str):
+            return
+        updated = {
+            "cameras": dict(self.cameras),
+            "stations": dict(self.stations),
+        }
+        updated["stations"][serial] = station
+        self.async_set_updated_data(updated)
 
     def start_event_listener(self) -> None:
         """Start one reconnecting SSE task after the first poll succeeds."""
@@ -89,12 +118,34 @@ class EufyGatewayCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 for camera in cameras
                 if isinstance(camera, dict) and isinstance(camera.get("serial"), str)
             }
-            self.async_set_updated_data(normalized)
-            return
+            updated = {
+                "cameras": normalized,
+                "stations": dict(self.stations),
+            }
+            self.async_set_updated_data(updated)
+
+        stations = event.get("stations")
+        if isinstance(stations, list):
+            normalized = {
+                station["serial"]: station
+                for station in stations
+                if isinstance(station, dict) and isinstance(station.get("serial"), str)
+            }
+            updated = {
+                "cameras": dict(self.cameras),
+                "stations": normalized,
+            }
+            self.async_set_updated_data(updated)
 
         camera = event.get("camera")
-        if not isinstance(camera, dict) or not isinstance(camera.get("serial"), str):
-            return
-        updated = dict(self.data or {})
-        updated[camera["serial"]] = camera
-        self.async_set_updated_data(updated)
+        if isinstance(camera, dict) and isinstance(camera.get("serial"), str):
+            updated = {
+                "cameras": dict(self.cameras),
+                "stations": dict(self.stations),
+            }
+            updated["cameras"][camera["serial"]] = camera
+            self.async_set_updated_data(updated)
+
+        station = event.get("station")
+        if isinstance(station, dict) and isinstance(station.get("serial"), str):
+            self.async_set_station(station)

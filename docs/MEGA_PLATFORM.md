@@ -107,7 +107,7 @@ member.admin_user_id -> adminUserId
 
 `parseMegaInventory()` rejects rows without a serial, removes duplicate serials, bounds text fields, and fills absent values with `null` or safe defaults. If a child camera has no `admin_user_id`, it inherits the parent station's value because the HomeBase media request is account-scoped.
 
-The current camera filter accepts Mega device types 7, 8, 19, 31, 91, 151, and 10031 when `category` is `eufy_security`. Type 151 is the wired Wall Light Cam S100 (`T84A1`). Type 18 is a HomeBase parent and remains in the provider map, but it is not registered as a Home Assistant camera. This distinction prevents a blank HomeBase tile from being mistaken for a second camera.
+The current camera filter accepts Mega device types 7, 8, 19, 31, 63, 91, 151, and 10031 when `category` is `eufy_security`. Type 151 is the wired Wall Light Cam S100 (`T84A1`). Type 18 is a HomeBase parent and remains excluded from the camera registry. It has a separate station record so Home Assistant can attach HomeBase controls and diagnostics to the physical hub instead of showing a blank camera tile.
 
 For a HomeBase child, the parent provides the P2P DID, app connection, and DSK key. A parentless or self-parented supported camera uses its own values through the direct PPCS route. The diagnostic log identifies the selected route and only reports whether those peer values and the DSK key are available. It never includes the values themselves. A row that names a missing, different parent stays unavailable rather than being guessed as a standalone camera.
 
@@ -124,9 +124,12 @@ cameraSerial, stationSerial, cameraName
 eventType, messageType, notificationStyle
 personName, content
 pictureUrl, filePath, fetchId, senseId
+guardMode, effectiveMode, alarmType
 ```
 
 The provider interprets event type 3101 as motion and 3102/3111 as person detection. It accepts a person name only when the structured or textual value is an explicit recognized identity. Generic labels such as `Someone` do not become a named person entity.
+
+Station event type 9 updates the configured and effective guard modes. Event type 10 updates whether the HomeBase siren is active. The provider applies these messages immediately and keeps a 60-second local PPCS poll for missed notifications or reconnect recovery.
 
 Diagnostics retain timestamps, event types, camera name, and boolean “field present” flags. They do not retain raw push payloads, tokens, complete media URLs, or notification text. The last fifty diagnostic records are enough to investigate a camera without turning the endpoint into an account-data dump.
 
@@ -177,11 +180,19 @@ The session exposes counters for `camId`, data datagrams, command headers, gatew
 
 ## Home Assistant conversion
 
+### HomeBase state and commands
+
+`HomeBasePpcsSession` uses a short-lived local UDP session for HomeBase camera-info, storage, and control commands. Reads collect station-channel parameters for configured mode, effective mode, alarm volume, prompt volume, and alarm tone. Storage responses are reduced to status, total space, and free space for eMMC and the installed HDD or SSD. Disk paths and drive serial numbers are discarded.
+
+The gateway serializes operations for each HomeBase. Recovery polls wait while that station has active camera media. A security or settings command takes priority and stops the active media session first. The gateway sends each write once, waits for the matching PPCS result, then reads the relevant state again. It rejects the request when acknowledgement fails or the readback does not match, so Home Assistant never presents an optimistic setting as confirmed.
+
+Home Assistant maps the result to a code-free alarm panel for Away, Home, and Disarmed; a configured guard-mode select; a separate effective-mode sensor; current siren state; connection diagnostics; storage sensors; and volume and tone controls. Manual siren activation is outside this release.
+
 The gateway converts media and events into a small HTTP/SSE contract:
 
 ```text
 Mega/Firebase/PPCS
-  -> MegaClient, MegaPushReceiver, FirstPartyPpcsSession
+  -> MegaClient, MegaPushReceiver, FirstPartyPpcsSession, HomeBasePpcsSession
   -> EufyProvider normalized callbacks
   -> GatewayState and SnapshotStore
   -> GatewayServer JSON/JPEG/H.264/MP4/SSE

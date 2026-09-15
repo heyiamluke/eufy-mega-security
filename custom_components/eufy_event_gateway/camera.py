@@ -10,8 +10,8 @@ a signed stream path, or a bounded capture/recording action.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import voluptuous as vol
 from homeassistant.components.camera import Camera, CameraEntityFeature
@@ -19,7 +19,10 @@ from homeassistant.const import ATTR_ENTITY_ID, CONF_FILENAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get_current_platform
+from homeassistant.helpers.entity_platform import (
+    AddEntitiesCallback,
+    async_get_current_platform,
+)
 
 from . import EufyGatewayConfigEntry
 from .client import GatewayClientError
@@ -30,17 +33,21 @@ CONF_DURATION = "duration"
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: EufyGatewayConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: EufyGatewayConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Create cameras now and when a push-only camera first appears."""
     coordinator = entry.runtime_data.coordinator
     known: set[str] = set()
 
     def add_new() -> None:
-        serials = set(coordinator.data) - known
+        serials = set(coordinator.cameras) - known
         if serials:
             known.update(serials)
-            async_add_entities(EufyGatewayCamera(coordinator, serial) for serial in sorted(serials))
+            async_add_entities(
+                EufyGatewayCamera(coordinator, serial) for serial in sorted(serials)
+            )
 
     add_new()
     entry.async_on_unload(coordinator.async_add_listener(add_new))
@@ -55,7 +62,9 @@ async def async_setup_entry(
         "record_clip",
         {
             vol.Required(CONF_FILENAME): cv.string,
-            vol.Optional(CONF_DURATION, default=15): vol.All(vol.Coerce(int), vol.Range(min=1, max=120)),
+            vol.Optional(CONF_DURATION, default=15): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=120)
+            ),
         },
         "async_record_clip",
     )
@@ -85,7 +94,9 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         """Reflect the gateway's shared stream state in the HA UI."""
         return self.camera.get("stream", {}).get("state") == "streaming"
 
-    async def async_camera_image(self, width: int | None = None, height: int | None = None) -> bytes | None:
+    async def async_camera_image(
+        self, width: int | None = None, height: int | None = None
+    ) -> bytes | None:
         """Return the retained JPEG without starting a new camera session."""
 
         # Home Assistant calls this for the card image. It is intentionally a
@@ -107,7 +118,9 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
     async def async_capture_snapshot(self, filename: str) -> None:
         """Wake the camera, wait for a fresh frame, and save it through HA."""
         if not self.camera.get("streamSupported"):
-            raise HomeAssistantError("Fresh snapshot capture is unavailable for this camera")
+            raise HomeAssistantError(
+                "Fresh snapshot capture is unavailable for this camera"
+            )
         await self.coordinator.client.capture_snapshot(self.serial)
         await self.hass.services.async_call(
             "camera",
@@ -121,7 +134,9 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         if not self.camera.get("streamSupported"):
             raise HomeAssistantError("Clip recording is unavailable for this camera")
         if not self.hass.config.is_allowed_path(filename):
-            raise HomeAssistantError(f"Cannot write recording to {filename}; no access to path")
+            raise HomeAssistantError(
+                f"Cannot write recording to {filename}; no access to path"
+            )
         try:
             data = await self.coordinator.client.record_clip(self.serial, duration)
             await self.hass.async_add_executor_job(_atomic_write, filename, data)
