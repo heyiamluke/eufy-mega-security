@@ -640,6 +640,8 @@ export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "categor
       || device.deviceType === 31
       || device.deviceType === 63
       || device.deviceType === 91
+      || device.deviceType === 94
+      || device.deviceType === 104
       || device.deviceType === 10031);
 }
 
@@ -736,8 +738,9 @@ function isCameraDetection(eventType: number | null): boolean {
   return eventType === 3101 || eventType === 3102 || eventType === 3111 || eventType === 3112;
 }
 
-function isDoorbellDevice(device: Pick<MegaInventoryDevice, "deviceType" | "category">): boolean {
-  return device.category === "eufy_security" && [7, 91, 10031].includes(device.deviceType ?? -1);
+/** Identify supported Mega doorbells that should expose a press sensor. */
+export function isDoorbellDevice(device: Pick<MegaInventoryDevice, "deviceType" | "category">): boolean {
+  return device.category === "eufy_security" && [7, 91, 94, 10031].includes(device.deviceType ?? -1);
 }
 
 function isGenericPersonLabel(value: string): boolean {
