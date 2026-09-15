@@ -20,6 +20,7 @@ export interface ProviderEvents {
   connection(state: "connected" | "disconnected" | "authentication-required" | "error", detail: string | null): void;
   motion(serial: string, detected: boolean): void;
   person(serial: string, detected: boolean, personName: string | null): void;
+  doorbell(serial: string, pressed: boolean): void;
   snapshot(serial: string, data: Buffer, contentType: string): void;
   pushDiagnostic(diagnostic: PushDiagnostic): void;
   inventory(diagnostics: InventoryDiagnostic[]): void;

@@ -1,9 +1,9 @@
-"""Motion and person binary sensors for Eufy Mega Security.
+"""Motion, person, and doorbell binary sensors for Eufy Mega Security.
 
 The gateway holds transient detection state long enough for an SSE update to
-reach Home Assistant. These entities mirror the normalized `motionDetected` and
-`personDetected` fields and do not poll Eufy, decode push payloads, or infer
-motion locally. Device identity and availability come from `entity.py`.
+reach Home Assistant. These entities mirror the normalized detection fields and
+do not poll Eufy, decode push payloads, or infer events locally. Device identity
+and availability come from `entity.py`.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ async def async_setup_entry(
     entry: EufyGatewayConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create motion and person entities for each camera."""
+    """Create motion, person, and supported doorbell entities for each camera."""
     coordinator = entry.runtime_data.coordinator
     known_cameras: set[str] = set()
     known_stations: set[str] = set()
@@ -38,11 +38,13 @@ async def async_setup_entry(
             entities = []
             for serial in sorted(serials):
                 entities.extend(
-                    (
+                    [
                         EufyDetectionSensor(coordinator, serial, "motion"),
                         EufyDetectionSensor(coordinator, serial, "person"),
-                    )
+                    ]
                 )
+                if coordinator.cameras[serial].get("doorbellSupported"):
+                    entities.append(EufyDetectionSensor(coordinator, serial, "doorbell"))
             async_add_entities(entities)
 
         station_serials = set(coordinator.stations) - known_stations
@@ -67,17 +69,20 @@ class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
         super().__init__(coordinator, serial)
         self.kind = kind
         self._attr_unique_id = f"{serial}_{kind}"
-        self._attr_name = "Motion" if kind == "motion" else "Person"
-        self._attr_device_class = (
-            BinarySensorDeviceClass.MOTION
-            if kind == "motion"
-            else BinarySensorDeviceClass.OCCUPANCY
-        )
+        self._attr_name = {"motion": "Motion", "person": "Person", "doorbell": "Doorbell"}[kind]
+        self._attr_device_class = {
+            "motion": BinarySensorDeviceClass.MOTION,
+            "person": BinarySensorDeviceClass.OCCUPANCY,
+            "doorbell": None,
+        }[kind]
+        if kind == "doorbell":
+            self._attr_icon = "mdi:doorbell"
 
     @property
     def is_on(self) -> bool:
-        """Return the current motion or person flag from coordinator data."""
-        return bool(self.camera.get(f"{self.kind}Detected"))
+        """Return the current normalized detection flag from coordinator data."""
+        field = "doorbellPressed" if self.kind == "doorbell" else f"{self.kind}Detected"
+        return bool(self.camera.get(field))
 
 
 class EufyStationConnectionSensor(EufyStationEntity, BinarySensorEntity):

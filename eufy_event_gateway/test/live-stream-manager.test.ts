@@ -18,6 +18,7 @@ const camera = {
   model: "T8210",
   stationSerial: "homebase-1",
   streamSupported: true,
+  doorbellSupported: true,
 };
 
 test("holds an on-demand stream until a fresh snapshot arrives", async () => {

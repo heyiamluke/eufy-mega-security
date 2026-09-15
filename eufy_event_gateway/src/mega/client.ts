@@ -215,7 +215,7 @@ export class MegaClient {
     const result = await this.#call("push", "/app/push/register_push_token", {
       token,
       is_notification_enable: true,
-      voip_token: token,
+      voip_token: "",
     }, false);
     if (!isSuccess(result.code)) throw new Error(`Mega push registration failed (${result.code})`);
   }

@@ -1,8 +1,8 @@
 /**
  * Owns Firebase delivery and Eufy notification normalization.
  *
- * `PushReceiver` supplies transport delivery; this module registers the token
- * through Mega, persists the receiver ID, unwraps nested JSON used by several
+ * The Android FCM transport supplies delivery; this module registers the token
+ * through Mega, persists the Android identity, unwraps nested JSON used by several
  * camera generations, and emits a whitelisted `MegaPushEvent`. The provider
  * decides whether an event is motion/person and whether its picture URL is
  * downloaded. Raw payloads never cross the provider boundary or enter
@@ -12,22 +12,15 @@
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { PushReceiver } from "@eneris/push-receiver";
-import type { Types } from "@eneris/push-receiver/dist/client.js";
-
 import { createLogger } from "../logging.js";
+import { FcmRegistrar } from "./android-push/fcm.js";
+import { PushClient } from "./android-push/push-client.js";
+import type { FcmCredentials, RawPushMessage } from "./android-push/types.js";
 import type { MegaClient } from "./client.js";
 
 const logger = createLogger("push");
 
-const FIREBASE = {
-  projectId: "batterycam-3250a",
-  appId: "1:348804314802:android:440a6773b3620da7",
-  apiKey: "AIzaSyCSz1uxGrHXsEktm7O3_wv-uLGpC9BvXR8",
-  messagingSenderId: "348804314802",
-};
-
-/** Normalized subset of a Firebase/Eufy notification used by the provider. */
+/** Normalized subset of an Android FCM/Eufy notification used by the provider. */
 export interface MegaPushEvent {
   readonly cameraSerial: string;
   readonly stationSerial: string;
@@ -47,20 +40,23 @@ export interface MegaPushEvent {
 }
 
 interface StoredPushState {
-  readonly credentials?: Types.Credentials;
+  readonly version: 2;
+  readonly credentials?: FcmCredentials;
   persistentIds: string[];
 }
 
 /**
- * Maintains Firebase delivery for one Mega account and emits normalized events.
+ * Maintains Android FCM delivery for one Mega account and emits normalized events.
  *
- * The receiver owns reconnect and persistent-ID handling. It does not mutate
- * gateway state directly, which keeps notification delivery testable and
- * leaves camera policy to EufyProvider and GatewayState.
+ * EufyProvider owns this receiver from start through close. Its transport owns
+ * reconnect and in-memory IDs while this boundary persists the private Android
+ * identity and delivered IDs. Camera policy remains with EufyProvider and
+ * GatewayState; raw notification fields never reach those neighbours.
  */
 export class MegaPushReceiver {
-  #receiver: PushReceiver | null = null;
-  #state: StoredPushState = { persistentIds: [] };
+  #receiver: PushClient | null = null;
+  #state: StoredPushState = { version: 2, persistentIds: [] };
+  #saveQueue: Promise<void> = Promise.resolve();
 
   /** Create a receiver using the account client and private state directory. */
   constructor(
@@ -69,56 +65,77 @@ export class MegaPushReceiver {
     private readonly onEvent: (event: MegaPushEvent) => void,
   ) {}
 
-  /** Register with Firebase and begin forwarding normalized notifications. */
+  /** Register as the Eufy Android app and forward normalized notifications. */
   async start(): Promise<void> {
     this.#state = await loadState(this.path);
-    const receiver = new PushReceiver({
-      firebase: FIREBASE,
-      bundleId: "com.oceanwing.battery.cam",
-      chromeId: "org.chromium.linux",
-      chromePlatform: 3,
-      timeZone: "Australia/Brisbane",
-      ...(this.#state.credentials ? { credentials: this.#state.credentials } : {}),
-      persistentIds: this.#state.persistentIds,
-    });
-    guardReceiverDestroy(receiver);
+    if (!this.#state.credentials) {
+      const credentials = await new FcmRegistrar().register();
+      this.#state = { ...this.#state, credentials };
+      this.#persistState();
+      await this.#saveQueue;
+      logger.info("push_token_ready", "Firebase issued an Eufy Android-app push token");
+    }
+    const credentials = this.#state.credentials;
+    if (!credentials) throw new Error("Android FCM credentials were unavailable after registration");
+    await this.client.registerPushToken(credentials.fcmToken);
+    logger.info("push_token_registered", "Mega accepted the Eufy Android-app push token");
+    const receiver = new PushClient(credentials);
+    receiver.setPersistentIds([...this.#state.persistentIds]);
     this.#receiver = receiver;
-    receiver.onCredentialsChanged(({ newCredentials }) => {
-      this.#state = { ...this.#state, credentials: newCredentials };
-      void saveState(this.path, this.#state);
-    });
-    receiver.onNotification(({ message, persistentId }) => {
-      if (persistentId && !this.#state.persistentIds.includes(persistentId)) {
-        this.#state.persistentIds = [...this.#state.persistentIds.slice(-99), persistentId];
-        void saveState(this.path, this.#state);
-      }
-      const event = parsePushEvent(message.data);
+    receiver.on("connect", () => logger.info("push_receiver_ready", "Android FCM receiver login acknowledged"));
+    receiver.on("disconnect", () => logger.warn("push_socket_disconnected", "Android FCM receiver disconnected; transport will retry"));
+    receiver.on("error", (error: Error) => logger.warn("push_socket_unavailable", `Android FCM receiver error: ${error.message}`));
+    receiver.on("message", (message: RawPushMessage) => {
+      const newPersistentId = Boolean(message.persistentId && !this.#state.persistentIds.includes(message.persistentId));
+      this.#recordPersistentId(message.persistentId);
+      const event = parsePushEvent(message.payload);
+      logger.info("push_received", `persistent_id_present=${Boolean(message.persistentId)} new_id=${newPersistentId} payload_record=${isRecord(message.payload)} parsed=${event !== null}`);
       if (event) this.onEvent(event);
-      else logger.info("push_unparsed", "Firebase notification received without a usable Eufy device identity");
+      else if (!isRecord(message.payload) || Object.keys(message.payload).length === 0) logger.info("push_empty", "Android FCM notification had no Eufy data fields");
+      else logger.info("push_unparsed", `Android FCM notification lacked a usable Eufy device identity: ${safeUnparsedShape(message.payload)}`);
     });
-    await receiver.connect();
-    if (!receiver.fcmToken) throw new Error("FCM did not issue a push token");
-    await this.client.registerPushToken(receiver.fcmToken);
+    receiver.connect();
+    try {
+      await waitForReceiverReady(receiver);
+    } catch (error) {
+      receiver.close();
+      this.#receiver = null;
+      throw error;
+    }
   }
 
-  /** Stop the receiver and release its network listener. */
-  close(): void {
-    this.#receiver?.destroy();
+  /** Stop the receiver and flush pending private identity state. */
+  async close(): Promise<void> {
+    this.#receiver?.close();
     this.#receiver = null;
+    await this.#saveQueue;
+  }
+
+  #persistState(): void {
+    this.#saveQueue = this.#saveQueue.then(() => saveState(this.path, this.#state)).catch(() => {
+      logger.warn("push_state_unavailable", "Private Firebase receiver state could not be saved");
+    });
+  }
+
+  #recordPersistentId(persistentId: string | undefined): void {
+    if (!persistentId || this.#state.persistentIds.includes(persistentId)) return;
+    this.#state.persistentIds = [...this.#state.persistentIds.slice(-99), persistentId];
+    this.#persistState();
   }
 }
 
-function guardReceiverDestroy(receiver: PushReceiver): void {
-  const destroy = receiver.destroy.bind(receiver);
-  receiver.destroy = () => {
-
-    // The dependency rejects its private readiness promise during every socket
-    // retry but does not consume that rejection. Guard both promises it owns
-    // across destroy() so a transient Google MCS outage cannot kill the app.
-    void receiver.whenReady.catch(() => undefined);
-    destroy();
-    void receiver.whenReady.catch(() => undefined);
-  };
+function waitForReceiverReady(receiver: PushClient): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      receiver.off("connect", onConnect);
+      reject(new Error("Android FCM receiver login timed out"));
+    }, 20_000);
+    const onConnect = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    receiver.once("connect", onConnect);
+  });
 }
 
 /** Parse nested notification JSON without retaining the original payload. */
@@ -126,17 +143,17 @@ export function parsePushEvent(data: unknown): MegaPushEvent | null {
   if (!isRecord(data)) return null;
   const outer = nestedRecord(data.payload) ?? data;
   const payload = nestedRecord(outer.payload) ?? outer;
-  const cameraSerial = text(outer.device_sn) ?? text(payload.device_sn) ?? text(outer.station_sn);
+  const cameraSerial = text(outer.device_sn) ?? text(payload.device_sn) ?? text(data.device_sn) ?? text(outer.station_sn) ?? text(data.station_sn);
   if (!cameraSerial) return null;
   return {
     cameraSerial,
-    stationSerial: text(outer.station_sn) ?? text(payload.station_sn) ?? cameraSerial,
+    stationSerial: text(outer.station_sn) ?? text(payload.station_sn) ?? text(data.station_sn) ?? cameraSerial,
     cameraName: text(payload.name) ?? text(payload.device_name) ?? text(payload.n),
     eventType: integer(payload.a) ?? integer(payload.event_type),
     messageType: integer(payload.msg_type),
     notificationStyle: integer(payload.notification_style),
     personName: text(payload.f) ?? text(payload.nick_name),
-    content: text(outer.content) ?? text(payload.content),
+    content: text(outer.content) ?? text(payload.content) ?? text(data.content),
     pictureUrl: text(payload.pic_url),
     filePath: text(payload.file_path) ?? text(payload.p),
     fetchId: integer(payload.fetch_id) ?? integer(payload.i),
@@ -147,20 +164,43 @@ export function parsePushEvent(data: unknown): MegaPushEvent | null {
   };
 }
 
+/** Describe only the field layout of an unparsed Firebase data envelope. */
+export function safeUnparsedShape(data: unknown): string {
+  if (!isRecord(data)) return "data_record=false";
+  const outer = nestedRecord(data.payload) ?? data;
+  const payload = nestedRecord(outer.payload) ?? outer;
+  return [
+    "data_record=true",
+    `outer_payload=${nestedRecord(data.payload) !== null}`,
+    `inner_payload=${nestedRecord(outer.payload) !== null}`,
+    `device_field=${text(outer.device_sn) !== null || text(payload.device_sn) !== null}`,
+    `station_field=${text(outer.station_sn) !== null || text(payload.station_sn) !== null}`,
+    `notification_field=${isRecord(data.notification)}`,
+  ].join(" ");
+}
+
 async function loadState(path: string): Promise<StoredPushState> {
   try {
     const value: unknown = JSON.parse(await readFile(path, "utf8"));
-    if (!isRecord(value)) return { persistentIds: [] };
+    if (!isRecord(value) || value.version !== 2) return { version: 2, persistentIds: [] };
+    const credentials = isAndroidCredentials(value.credentials) ? value.credentials : undefined;
     return {
-      ...(isRecord(value.credentials) ? { credentials: value.credentials as unknown as Types.Credentials } : {}),
+      version: 2,
+      ...(credentials ? { credentials } : {}),
       persistentIds: Array.isArray(value.persistentIds)
         ? value.persistentIds.filter((entry): entry is string => typeof entry === "string").slice(-100)
         : [],
     };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT" || error instanceof SyntaxError) return { persistentIds: [] };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" || error instanceof SyntaxError) return { version: 2, persistentIds: [] };
     throw error;
   }
+}
+
+function isAndroidCredentials(value: unknown): value is FcmCredentials {
+  return isRecord(value) &&
+    ["fid", "androidId", "securityToken", "fcmToken"].every((key) => text(value[key]) !== null) &&
+    Number.isSafeInteger(value.createdAt);
 }
 
 async function saveState(path: string, state: StoredPushState): Promise<void> {

@@ -100,6 +100,9 @@ const providerEvents: ProviderEvents = {
   person(serial, detected, personName) {
     if (state.hasCamera(serial)) state.recordPerson(serial, detected, personName);
   },
+  doorbell(serial, pressed) {
+    if (state.hasCamera(serial)) state.recordDoorbell(serial, pressed);
+  },
   snapshot(serial, data, contentType) {
     if (!state.hasCamera(serial)) return;
     void snapshots.write(serial, data, contentType, "event").then((info) => state.updateSnapshot(serial, info));

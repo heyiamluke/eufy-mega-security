@@ -19,10 +19,10 @@ export type ConnectionState =
 /** Lifecycle states for a camera's shared media source. */
 export type StreamState = "idle" | "starting" | "streaming" | "stopping" | "error";
 
-/** One normalized motion or person event emitted by the gateway. */
+/** One normalized motion, person, or doorbell event emitted by the gateway. */
 export interface Detection {
   readonly id: string;
-  readonly kind: "motion" | "person";
+  readonly kind: "motion" | "person" | "doorbell";
   readonly occurredAt: string;
   readonly personName: string | null;
   readonly recognized: boolean;
@@ -43,8 +43,10 @@ export interface CameraState {
   readonly model: string;
   readonly stationSerial: string;
   readonly streamSupported: boolean;
+  readonly doorbellSupported: boolean;
   readonly motionDetected: boolean;
   readonly personDetected: boolean;
+  readonly doorbellPressed: boolean;
   readonly lastDetection: Detection | null;
   readonly snapshot: SnapshotInfo | null;
   readonly stream: {
@@ -98,6 +100,7 @@ export interface CameraIdentity {
   readonly model: string;
   readonly stationSerial: string;
   readonly streamSupported: boolean;
+  readonly doorbellSupported: boolean;
 }
 
 /** Stable metadata for a HomeBase 3 discovered through Mega inventory. */

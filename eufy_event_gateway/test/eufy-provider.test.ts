@@ -144,6 +144,28 @@ test("logs an unhandled T8210 notification without assuming it was a doorbell pr
   assert.match(summary, /event_type=3001 message_type=9 notification_style=missing handling=unhandled picture_present=false/);
 });
 
+test("routes a confirmed T8210 press code as a doorbell event", () => {
+  const press = safePushLogSummary({
+    eventType: 3103, messageType: 18, notificationStyle: 1,
+    pictureUrl: null, alarmType: null,
+  }, { model: "T8210", category: "eufy_security", deviceType: 7 }, true, false);
+  assert.match(press, /event_type=3103 message_type=18 notification_style=1 handling=doorbell_press/);
+
+  const nonDoorbell = safePushLogSummary({
+    eventType: 3103, messageType: 18, notificationStyle: 1,
+    pictureUrl: null, alarmType: null,
+  }, { model: "T8113-Z", category: "eufy_security", deviceType: 8 }, true, false);
+  assert.match(nonDoorbell, /handling=unhandled/);
+});
+
+test("shows the known T817L model in safe person-event logs", () => {
+  const summary = safePushLogSummary({
+    eventType: 3102, messageType: 18, notificationStyle: 2,
+    pictureUrl: null, alarmType: null,
+  }, { model: "T817L", category: "eufy_security", deviceType: 10031 }, true, false);
+  assert.match(summary, /model=T817L .*handling=person/);
+});
+
 test("does not report unsupported HomeBase inventory as a handled camera event", () => {
   const summary = safePushLogSummary({
     eventType: 3101, messageType: 1, notificationStyle: null,

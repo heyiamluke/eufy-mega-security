@@ -7,3 +7,20 @@ It signs in through Eufy's current Mega service, receives Eufy/HomeBase detectio
 Install the companion `eufy_event_gateway` custom integration before starting this app. Configure a dedicated Eufy guest account shared with the required cameras, then start the app and accept the discovered integration under **Settings > Devices & services**.
 
 See the [project README](https://github.com/mscodemonkey/eufy-mega-security) for complete HACS, app, automation, Node-RED, and troubleshooting instructions. Developers should start with the repository's [first-day developer guide](../docs/DEVELOPERS_START_HERE.md), then read the [Mega platform reference](../docs/MEGA_PLATFORM.md) before changing the Mega or PPCS paths.
+
+# Local push debugging
+
+Run `npm run debug:push` from this directory with `EUFY_USERNAME` (or
+`EUFY_USER`) and `EUFY_PASSWORD` in the environment. Optional settings are
+`EUFY_COUNTRY`, `EUFY_VERIFY_CODE`, and `EUFY_PUSH_DEBUG_DATA_DIR`. The probe
+stores its own Mega and Android FCM identity under `./data/push-debug`, outside
+the Home Assistant app, and does not start a camera stream or HomeBase poll.
+
+Wait for `debug_ready`, then trigger motion, person detection, or a doorbell
+ring. `debug_notification` counts normalized deliveries. `push_received`
+records every Android FCM delivery without showing its payload; `push_unparsed`
+records one with data but no usable device identity, and `push_empty` records
+one without Eufy fields. Receiver-ready and token-registration lines identify
+earlier breaks in delivery.
+The probe logs only model and numeric routing fields, never credentials,
+serials, names, payloads, or media URLs. Stop it with Ctrl-C.

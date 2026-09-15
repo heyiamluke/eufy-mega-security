@@ -11,7 +11,7 @@ The project is maintained as an open-source gateway and Home Assistant integrati
 
 Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.
 
-Motion and person detections arrive as Home Assistant entities, HomeBase 3 familiar-person names are exposed when Eufy actually supplies one, and the last good event image remains visible while the camera is idle.
+Motion and person detections arrive as Home Assistant entities. Supported doorbells also expose a press sensor. HomeBase 3 familiar-person names appear when Eufy supplies one, and the last good event image remains visible while the camera is idle.
 
 > [!IMPORTANT]
 > This is an early community project built against real EufyCam 2C, HomeBase 3, and Doorbell hardware. It is not affiliated with Anker or Eufy and should not be your only security system.
@@ -52,6 +52,9 @@ For every discovered camera, the integration creates:
 - a motion binary sensor;
 - a person binary sensor;
 - a last-recognized-person sensor, including the detection type and timestamp.
+
+Supported doorbells also get a Doorbell binary sensor. A bell press turns it on
+for 10 seconds, so an automation can catch the press without opening a video stream.
 
 The integration also defines two Home Assistant actions for on-demand streaming:
 
@@ -139,7 +142,7 @@ When requesting support, copy the complete log from the most recent `gateway_sta
 
 ## Automations and Node-RED
 
-Motion and person detections are ordinary Home Assistant binary sensors, so they appear directly in Node-RED's **Events: state** node. Snapshot and recording requests are ordinary Home Assistant actions, so use an **Action** node with one of:
+Motion, person, and supported doorbell press events are Home Assistant binary sensors, so they appear directly in Node-RED's **Events: state** node. Snapshot and recording requests are ordinary Home Assistant actions, so use an **Action** node with one of:
 
 ```text
 eufy_event_gateway.capture_snapshot
@@ -161,7 +164,7 @@ Recordings are assembled by the gateway with a hard stream-start timeout and dur
 
 ## Camera behaviour
 
-- Motion and person notifications update their Home Assistant sensors without waking a stream.
+- Motion, person, and doorbell press notifications update their Home Assistant sensors without waking a stream.
 - The last valid event image remains visible while the camera sleeps.
 - Opening a camera starts its native PPCS session on demand and stops it after the configured limit, once that camera has passed the gateway proof.
 - A familiar-person name appears only when HomeBase supplies an explicit identity. Generic detections such as `Someone` remain unknown.

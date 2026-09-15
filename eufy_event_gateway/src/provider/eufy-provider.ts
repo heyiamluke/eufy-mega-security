@@ -2,8 +2,8 @@
  * Adapts Eufy's Mega cloud and PPCS camera protocols to the gateway contract.
  *
  * Startup authenticates one account, parses and filters inventory, retrieves
- * station DSK material, registers Firebase push delivery, and reports camera
- * identities to `GatewayState`. Push callbacks become motion/person events
+ * station DSK material, registers Android FCM delivery, and reports camera
+ * identities to `GatewayState`. Push callbacks become motion, person, or doorbell press events
  * and verified JPEG snapshots. A live request creates a first-party PPCS
  * session and exposes only its byte stream to `LiveStreamManager`. This is the
  * sole production translation point from Eufy-specific data to normalized
@@ -198,7 +198,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   async close(): Promise<void> {
     if (this.#stationRefreshTimer) clearInterval(this.#stationRefreshTimer);
     this.#stationRefreshTimer = null;
-    this.#push?.close();
+    await this.#push?.close();
     this.#push = null;
     for (const stream of this.#ppcsStreams.values()) stream.close();
     this.#ppcsStreams.clear();
@@ -282,6 +282,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         name: device.name,
         model: device.model,
         stationSerial: device.parentSerial,
+        doorbellSupported: isDoorbellDevice(device),
         streamSupported: isPpcsStreamSupported(device, this.#devices, new Set(this.#dskKeys.keys())),
       });
     }
@@ -320,7 +321,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     }
     events.inventory(diagnostics);
 
-    this.#push?.close();
+    await this.#push?.close();
     this.#push = new MegaPushReceiver(
       this.#client,
       join(this.config.persistentDirectory, "mega-push.json"),
@@ -382,7 +383,13 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         station !== undefined,
       ),
     );
-    if (!this.#devices.has(event.cameraSerial) || !isCameraDetection(event.eventType)) return;
+    const device = this.#devices.get(event.cameraSerial);
+    if (!device) return;
+    if (event.eventType === 3103 && isDoorbellDevice(device)) {
+      events.doorbell(event.cameraSerial, true);
+      return;
+    }
+    if (!isCameraDetection(event.eventType)) return;
     if (event.eventType === 3101) events.motion(event.cameraSerial, true);
     else events.person(event.cameraSerial, true, personName);
     if (event.pictureUrl) this.#queuePushSnapshot(events, event);
@@ -688,10 +695,11 @@ export function safePushLogSummary(
   let handling = "unhandled";
   if (stationManaged && event.eventType === 9) handling = "station_guard";
   else if (stationManaged && event.eventType === 10 && event.alarmType !== null) handling = "station_alarm";
+  else if (cameraAccepted && event.eventType === 3103 && device !== null && isDoorbellDevice(device)) handling = "doorbell_press";
   else if (cameraAccepted && isCameraDetection(event.eventType)) {
     handling = event.eventType === 3101 ? "motion" : "person";
   }
-  const model = device?.model && /^T[0-9]{4}(?:[A-Z]{1,2}|-[A-Z]{1,2})?$/.test(device.model)
+  const model = device?.model && /^T[0-9]{3,4}(?:[A-Z]{1,2}|-[A-Z]{1,2})?$/.test(device.model)
     ? device.model
     : "unknown";
   return [
@@ -726,6 +734,10 @@ export function personNameFromPush(message: Pick<MegaPushEvent, "eventType" | "p
 
 function isCameraDetection(eventType: number | null): boolean {
   return eventType === 3101 || eventType === 3102 || eventType === 3111 || eventType === 3112;
+}
+
+function isDoorbellDevice(device: Pick<MegaInventoryDevice, "deviceType" | "category">): boolean {
+  return device.category === "eufy_security" && [7, 91, 10031].includes(device.deviceType ?? -1);
 }
 
 function isGenericPersonLabel(value: string): boolean {
