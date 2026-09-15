@@ -31,6 +31,7 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 - ✅ EufyCam 2C: camera support tested by the project maintainer.
 - ✅ Battery camera T817L: live streams and snapshots produced on real hardware.
 - ✅ eufyCam S330 (Mega model T8160): discovered with sensors, retained images, and live streaming through HomeBase 3.
+- 🟠 eufyCam S300 / 3C (Mega model T8161): type 23 is now admitted by the gateway camera filter through HomeBase 3. Device discovery, events, snapshots, and live video still need a real-device result.
 - 🟠 SoloCam C20 (Mega model T8134): device type 63 now passes camera discovery. Its events, snapshots, and live stream still need confirmation on real hardware.
 - 🟠 Wired Wall Light Cam S100 (Mega model T84A1): type 151 and a direct PPCS route are in the code. Discovery, live video, snapshots, and events still need confirmation on real hardware.
 - ✅ Indoor Cam Pan & Tilt T8410: discovered with sensors, a retained image, and a live stream through HomeBase 3.
