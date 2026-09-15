@@ -16,7 +16,7 @@ The Home Assistant app advertises the Supervisor-assigned app hostname discovere
 
 ## Delivery state
 
-Issue #22 T8214/type 94 and T8416/type 104 admission is prepared locally. Both use the existing HomeBase camera route; T8214 also exposes the existing doorbell-press sensor. The T8023/type 25 MiniBase Chime is the doorbell's inventoried PPCS peer, while the T8030/type 18 HomeBase is the indoor camera's peer. Neither is added to the camera inventory. The reported `push_unparsed` notification does not affect discovery. Hardware verification remains outstanding.
+v0.1.25 packages the merged issue #22 T8214/type 94 and T8416/type 104 camera admission. Both use the existing inventoried parent-peer route; T8214 also exposes the existing doorbell-press sensor. The T8023/type 25 MiniBase Chime is the doorbell's inventoried PPCS peer, while the T8030/type 18 HomeBase is the indoor camera's peer. Neither is added to the camera inventory. The reported `push_unparsed` notification does not affect discovery. Hardware verification remains outstanding.
 
 v0.1.23 admits Mega type 23 / T8161 through the existing HomeBase camera path. The reporter's inventory had the station, channel, PPCS, and DSK prerequisites; real Home Assistant discovery, events, snapshots, and live video still need that device result. This support was not part of the published v0.1.22 tag.
 

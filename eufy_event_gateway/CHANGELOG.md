@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.25
+
+- Admit Mega types 94 (`T8214` Video Doorbell E340) and 104 (`T8416` Indoor Cam S350) through their inventoried parent PPCS peers.
+- Classify the E340 as a doorbell so its camera state includes the existing press sensor. Press-event routing on this model remains unverified.
+- Keep the `T8023` MiniBase Chime outside the camera and HomeBase entity lists; its inventory connection may serve the E340's media path.
+
 ## 0.1.24
 
 - Register for camera notifications as the Eufy Android app instead of a Chromium web-push client. The old subscription could connect to Firebase but delivered metadata-only messages.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.25
+
+- Recognize the Video Doorbell E340 (`T8214`, Mega type 94) and Indoor Cam S350 (`T8416`, type 104) as camera entities through their inventoried parent connections.
+- Give the E340 the existing Doorbell press sensor. A press event from this model still needs real-device confirmation.
+- List the MiniBase Chime (`T8023`) as recognized connection metadata for the E340. The integration does not create a chime entity or controls.
+- Device discovery, push events, snapshots, and live video for the E340 and S350 still need hardware testing.
+
 ## 0.1.24
 
 - Register for camera notifications as the Eufy Android app. The previous Chromium web-push subscription could connect to Firebase while receiving only metadata instead of motion, person, and doorbell events.
