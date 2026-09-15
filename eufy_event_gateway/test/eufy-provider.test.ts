@@ -11,6 +11,7 @@ import test from "node:test";
 import {
   inventoryDiagnostics,
   inventoryLogSummaries,
+  isDoorbellDevice,
   isPpcsStreamSupported,
   parseMegaInventory,
   personNameFromPush,
@@ -100,6 +101,33 @@ test("accepts T8161 inventory through a ready HomeBase 3", () => {
   assert.equal(summaries[0]?.acceptedAsCamera, true);
   assert.equal(summaries[0]?.streamRoute, "homebase");
   assert.equal(summaries[0]?.streamSupported, true);
+});
+
+test("admits issue 22 cameras through their inventoried HomeBase peers", () => {
+  const devices = parseMegaInventory({ devices: [
+    { device_sn: "doorbell", device_model: "T8214", parent_sn: "station-one", device_type: 94,
+      device_channel: 1, category: "eufy_security" },
+    { device_sn: "camera", device_model: "T8416", parent_sn: "station-two", device_type: 104,
+      device_channel: 2, category: "eufy_security" },
+    { device_sn: "station-one", device_model: "T8023", device_type: 25,
+      category: "eufy_security", p2p_did: "did-one", p2p_conn: "connection-one" },
+    { device_sn: "station-two", device_model: "T8030", device_type: 18,
+      category: "eufy_security", p2p_did: "did-two", p2p_conn: "connection-two" },
+  ] });
+  const summaries = inventoryLogSummaries(devices, new Set(["station-one", "station-two"]));
+  assert.deepEqual(summaries.map(({ acceptedAsCamera, streamRoute, streamSupported }) => ({
+    acceptedAsCamera, streamRoute, streamSupported,
+  })), [
+    { acceptedAsCamera: true, streamRoute: "homebase", streamSupported: true },
+    { acceptedAsCamera: true, streamRoute: "homebase", streamSupported: true },
+    { acceptedAsCamera: false, streamRoute: "unavailable", streamSupported: false },
+    { acceptedAsCamera: false, streamRoute: "unavailable", streamSupported: false },
+  ]);
+});
+
+test("identifies the T8214 doorbell without classifying the T8416 indoor camera as one", () => {
+  assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 94 }), true);
+  assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 104 }), false);
 });
 
 test("accepts SoloCam C20 inventory through a ready HomeBase 3", () => {

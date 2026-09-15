@@ -36,11 +36,17 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 - 🟠 Wired Wall Light Cam S100 (Mega model T84A1): type 151 and a direct PPCS route are in the code. Discovery, live video, snapshots, and events still need confirmation on real hardware.
 - ✅ Indoor Cam Pan & Tilt T8410: discovered with sensors, a retained image, and a live stream through HomeBase 3.
 - ✅ Indoor Cam Pan & Tilt T8410C: discovered with sensors, a retained image, and a live stream through HomeBase 3.
+- 🟠 Indoor Cam S350 T8416: the gateway now admits its Mega inventory type. Discovery, events, snapshots, and live video still need a test on this device.
 
 ### Doorbells
 
 - ✅ Video Doorbell T8210: live streams and snapshots produced on real hardware.
 - ✅ Video Doorbell T8213: discovered with sensors, retained images, and a live stream through HomeBase 3.
+- 🟠 Video Doorbell E340 T8214: the gateway now admits its Mega inventory type and creates a doorbell press sensor. Discovery, press notifications, snapshots, and live video still need a test on this device.
+
+### Recognised but not supported
+
+- MiniBase Chime T8023: Eufy's inventory lists it as the E340 doorbell's parent connection. The gateway can use that connection metadata for the doorbell, but it does not create a Home Assistant entity for the chime or expose its settings.
 
 If a tested device behaves differently for you, [open an issue](https://github.com/mscodemonkey/eufy-mega-security/issues) with its model number and what happened. Do not post serial numbers, credentials, or verification codes.
 
