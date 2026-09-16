@@ -21,6 +21,7 @@ type SnapshotFailureReporter = (error: unknown) => void;
  */
 export class StartupSnapshotWarmup {
   readonly #scheduled = new Set<string>();
+  readonly #attempted = new Set<string>();
   #queue: Promise<void> = Promise.resolve();
   #started = false;
   #stopped = false;
@@ -34,7 +35,7 @@ export class StartupSnapshotWarmup {
 
   /** Add a camera that should receive an initial retained image. */
   enqueue(serial: string): void {
-    if (this.#stopped || this.#scheduled.has(serial)) return;
+    if (this.#stopped || this.#scheduled.has(serial) || this.#attempted.has(serial)) return;
     this.#scheduled.add(serial);
     if (this.#started) this.#append(serial);
   }
@@ -61,6 +62,7 @@ export class StartupSnapshotWarmup {
     this.#queue = this.#queue.then(async () => {
       try {
         if (this.#stopped || this.hasSnapshot(serial)) return;
+        this.#attempted.add(serial);
         try {
           await this.capture(serial);
         } catch (error) {

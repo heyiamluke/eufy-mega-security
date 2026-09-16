@@ -59,6 +59,26 @@ test("skips retained images and continues after a camera capture fails", async (
   assert.equal(failures.length, 1);
 });
 
+test("does not retry a failed camera when inventory reports it again", async () => {
+  const captures: string[] = [];
+  const warmup = new StartupSnapshotWarmup(
+    () => false,
+    async (serial) => {
+      captures.push(serial);
+      throw new Error("camera sleeping");
+    },
+    () => undefined,
+  );
+
+  warmup.enqueue("camera-1");
+  warmup.start();
+  await warmup.waitUntilIdle();
+  warmup.enqueue("camera-1");
+  await warmup.waitUntilIdle();
+
+  assert.deepEqual(captures, ["camera-1"]);
+});
+
 test("does not start queued captures after shutdown", async () => {
   const captures: string[] = [];
   const warmup = new StartupSnapshotWarmup(

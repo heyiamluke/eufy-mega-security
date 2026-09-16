@@ -23,6 +23,7 @@ import { HomeBaseCommandAcknowledgementTimeoutError, HomeBasePpcsSession, type H
 import { cameraCapabilityLogSummaries, describeCameraCapabilities, isSupportedCameraType, describeDeviceCapabilities, deviceCapabilityLogSummaries } from "./device-capabilities-core.js";
 import { hasMainsBatterySentinel } from "./camera-capability-core.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
+import { PushEventDeduplicator } from "./push-event-deduplicator.js";
 
 const logger = createLogger("provider");
 
@@ -104,7 +105,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #dskKeys = new Map<string, { readonly key: string; readonly expiresAt: number | null }>();
   readonly #cipherKeys = new Map<number, string>();
   readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
-  readonly #recentPushEvents = new Map<string, number>();
+  readonly #pushDeduplicator = new PushEventDeduplicator();
   readonly #stationRefreshFailures = new Map<string, number>();
   readonly #stations = new Map<string, HomeBaseState>();
   readonly #stationOperations = new Map<string, Promise<HomeBaseState>>();
@@ -476,8 +477,9 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     );
     const device = this.#devices.get(event.cameraSerial);
     if (!device) return;
-    if (this.#isDuplicatePush(event)) return;
-    if (event.pictureUrl && isSupportedMegaCamera(device)) this.#queuePushSnapshot(events, event);
+    const delivery = this.#pushDeduplicator.observe(event.cameraSerial, event.eventId, event.pictureUrl !== null);
+    if (delivery.retainPicture && isSupportedMegaCamera(device)) this.#queuePushSnapshot(events, event);
+    if (!delivery.handleState) return;
     if ((device.deviceType === 2 || device.deviceType === 126) && event.eventType === 3 && event.sensorOpen !== null) {
       events.sensorContact(event.cameraSerial, event.sensorOpen);
       return;
@@ -495,18 +497,6 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     if (detection === "motion") events.motion(event.cameraSerial, true);
     else if (detection === "person") events.person(event.cameraSerial, true, personName);
     else events.detection(event.cameraSerial, detection, true);
-  }
-
-  #isDuplicatePush(event: MegaPushEvent): boolean {
-    if (!event.eventId) return false;
-    const now = Date.now();
-    for (const [key, observedAt] of this.#recentPushEvents) {
-      if (now - observedAt > 60_000) this.#recentPushEvents.delete(key);
-    }
-    const key = `${event.cameraSerial}:${event.eventId}`;
-    if (this.#recentPushEvents.has(key)) return true;
-    this.#recentPushEvents.set(key, now);
-    return false;
   }
 
   async #writeStationValue(
