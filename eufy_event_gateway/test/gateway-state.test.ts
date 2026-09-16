@@ -67,6 +67,20 @@ test("records a later motion as a new detection", () => {
   assert.equal(state.getCamera(camera.serial).lastDetection?.kind, "motion");
 });
 
+test("keeps expanded AI detections distinct and clears their transient flags", async () => {
+  const state = new GatewayState(20);
+  state.registerCamera(camera);
+  state.recordDetection(camera.serial, "pet", true);
+  state.recordDetection(camera.serial, "vehicle", true);
+
+  assert.equal(state.getCamera(camera.serial).petDetected, true);
+  assert.equal(state.getCamera(camera.serial).vehicleDetected, true);
+  assert.equal(state.getCamera(camera.serial).lastDetection?.kind, "vehicle");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(state.getCamera(camera.serial).petDetected, false);
+  assert.equal(state.getCamera(camera.serial).vehicleDetected, false);
+});
+
 test("records and clears a transient doorbell press for supported cameras", async () => {
   const state = new GatewayState(10);
   const doorbell = { ...camera, doorbellSupported: true };

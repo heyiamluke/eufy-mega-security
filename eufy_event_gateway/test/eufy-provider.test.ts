@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  cameraDetectionKind,
   confirmStationWrite,
   inventoryDiagnostics,
   inventoryLogSummaries,
@@ -310,6 +311,13 @@ test("shows the known T817L model in safe person-event logs", () => {
     pictureUrl: null, alarmType: null,
   }, { model: "T817L", category: "eufy_security", deviceType: 10031 }, true, false);
   assert.match(summary, /model=T817L .*handling=person/);
+});
+
+test("maps expanded Eufy AI event ids without collapsing their meanings", () => {
+  assert.deepEqual(
+    [3101, 3102, 3104, 3105, 3106, 3107, 3108, 3109, 3110, 3111, 3112, 3304, 9999].map(cameraDetectionKind),
+    ["motion", "person", "crying", "sound", "pet", "vehicle", "dog", "dog", "dog", "person", "stranger", "packageStranded", null],
+  );
 });
 
 test("does not report unsupported HomeBase inventory as a handled camera event", () => {

@@ -19,10 +19,23 @@ export type ConnectionState =
 /** Lifecycle states for a camera's shared media source. */
 export type StreamState = "idle" | "starting" | "streaming" | "stopping" | "error";
 
-/** One normalized motion, person, or doorbell event emitted by the gateway. */
+/** Detection kinds exposed as independent transient camera states. */
+export type DetectionKind =
+  | "motion"
+  | "person"
+  | "stranger"
+  | "pet"
+  | "vehicle"
+  | "dog"
+  | "crying"
+  | "sound"
+  | "packageStranded"
+  | "doorbell";
+
+/** One normalized camera detection emitted by the gateway. */
 export interface Detection {
   readonly id: string;
-  readonly kind: "motion" | "person" | "doorbell";
+  readonly kind: DetectionKind;
   readonly occurredAt: string;
   readonly personName: string | null;
   readonly recognized: boolean;
@@ -46,6 +59,13 @@ export interface CameraState {
   readonly doorbellSupported: boolean;
   readonly motionDetected: boolean;
   readonly personDetected: boolean;
+  readonly strangerDetected: boolean;
+  readonly petDetected: boolean;
+  readonly vehicleDetected: boolean;
+  readonly dogDetected: boolean;
+  readonly cryingDetected: boolean;
+  readonly soundDetected: boolean;
+  readonly packageStrandedDetected: boolean;
   readonly doorbellPressed: boolean;
   readonly battery: BatteryState | null;
   readonly lastDetection: Detection | null;

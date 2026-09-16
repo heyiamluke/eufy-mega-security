@@ -11,7 +11,7 @@
  */
 import type { Readable } from "node:stream";
 
-import type { CameraCapabilityManifest, CameraIdentity, DeviceCapabilityManifest, HomeBaseState, InventoryDiagnostic, PushDiagnostic, SecuritySensorState } from "../domain/types.js";
+import type { CameraCapabilityManifest, CameraIdentity, DetectionKind, DeviceCapabilityManifest, HomeBaseState, InventoryDiagnostic, PushDiagnostic, SecuritySensorState } from "../domain/types.js";
 
 /** Callbacks through which a provider reports normalized observations. */
 export interface ProviderEvents {
@@ -21,6 +21,7 @@ export interface ProviderEvents {
   connection(state: "connected" | "disconnected" | "authentication-required" | "error", detail: string | null): void;
   motion(serial: string, detected: boolean): void;
   person(serial: string, detected: boolean, personName: string | null): void;
+  detection(serial: string, kind: Exclude<DetectionKind, "motion" | "person" | "doorbell">, detected: boolean): void;
   doorbell(serial: string, pressed: boolean): void;
   sensorContact(serial: string, open: boolean): void;
   sensorMotion(serial: string, detected: boolean): void;

@@ -22,6 +22,8 @@ Capability startup logs show the Home Assistant adapter and known-type admission
 
 ## Delivery state
 
+v0.1.31 expands the camera push vocabulary into distinct motion, person, stranger, pet, vehicle, dog, crying, sound, and stranded-package events. Attributed push thumbnails are retained independently of event classification. Temporary Eufy media requests use the active Mega token and user token only on the allowlisted Eufy host, then follow one allowlisted object-store redirect without forwarding credentials. Duplicate follow-up deliveries are suppressed by Eufy's event id. Repeated HomeBase recovery failures are summarized, with a separate recovery log when polling succeeds again.
+
 T8030 station writes remain serialized and are never retried. If a write acknowledgement times out, the gateway now performs the already-required fresh readback: matching state confirms success, while mismatched or failed readback still returns an error. Explicit command rejection is never converted to success. Privacy-safe logs distinguish readback-confirmed missing acknowledgements from failed commands, and the Home Assistant client surfaces the gateway's bounded error text instead of only the HTTP status.
 
 T817L is a USB-C-powered camera, not a battery camera. Its Mega inventory nevertheless reports battery level, charging, and temperature parameter IDs. Those values are compatibility sentinels: the shared mains-sentinel classification suppresses them in capability diagnostics and normalized camera state, while Home Assistant removes the exact battery entity IDs created by v0.1.28 on the next integration setup. Camera admission, HomeBase routing, events, snapshots, and live video remain unchanged.

@@ -14,6 +14,38 @@ import test from "node:test";
 import { MegaClient } from "../src/mega/client.js";
 import { decryptEnvelope, encryptEnvelope, credentialVerifier, sharedAesKey } from "../src/mega/crypto.js";
 
+test("authenticates only the Eufy leg of an allowlisted media redirect", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-media-"));
+  const requests: Headers[] = [];
+  try {
+    await writeFile(join(directory, "mega-session.json"), JSON.stringify({
+      version: 2, country: "au", openUdid: "device", credentialVerifier: credentialVerifier("device", "user@example.invalid", "password"),
+      authToken: "media-token", tokenExpiresAt: 2_000_000_000, userId: "user", megaDomain: "mega-eu-pr.eufy.com",
+      domains: {}, identities: {},
+    }));
+    const client = new MegaClient({
+      email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory,
+      minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000,
+      fetch: async (_input, init) => {
+        requests.push(new Headers(init?.headers));
+        if (requests.length === 1) return new Response(null, {
+          status: 302,
+          headers: { location: "https://zhixin-security-au.s3.ap-southeast-2.amazonaws.com/private-image" },
+        });
+        return new Response(Buffer.from([0xff, 0xd8, 0xff, 0xd9]), { status: 200 });
+      },
+    });
+    assert.deepEqual(await client.connect(), { state: "authenticated" });
+    assert.equal((await client.download("https://security-app-eu.eufylife.com/image")).length, 4);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0]?.get("x-auth-token"), "media-token");
+    assert.match(requests[0]?.get("user-agent") ?? "", /^Dalvik\/2\.1\.0/);
+    assert.equal(requests[1]?.get("x-auth-token"), null);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("retains the limited verification session across an app restart", async () => {
   const directory = await mkdtemp(join(tmpdir(), "mega-verification-"));
   const sessionPath = join(directory, "mega-session.json");
