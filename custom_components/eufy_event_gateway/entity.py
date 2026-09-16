@@ -19,7 +19,12 @@ from .coordinator import EufyGatewayCoordinator
 
 
 class EufyGatewayEntity(CoordinatorEntity[EufyGatewayCoordinator]):
-    """Base class that maps one Home Assistant entity to one gateway camera."""
+    """Bind camera entities to shared state and one HA device identity.
+
+    Subclasses live for the config entry's platform lifetime and read normalized
+    state from the coordinator. This base owns no polling or vendor connection;
+    absence from current inventory controls availability.
+    """
 
     _attr_has_entity_name = True
 
@@ -50,7 +55,12 @@ class EufyGatewayEntity(CoordinatorEntity[EufyGatewayCoordinator]):
 
 
 class EufyStationEntity(CoordinatorEntity[EufyGatewayCoordinator]):
-    """Base class for HomeBase entities sharing one station device identity."""
+    """Bind HomeBase entities to shared state and one HA device identity.
+
+    The coordinator owns station lifecycle and transport. Command entities use
+    ``set_confirmed_station`` only after the gateway returns read-back state, so
+    sibling entities observe one confirmed value rather than optimistic state.
+    """
 
     _attr_has_entity_name = True
 
@@ -87,3 +97,43 @@ class EufyStationEntity(CoordinatorEntity[EufyGatewayCoordinator]):
     def set_confirmed_station(self, station: dict[str, Any]) -> None:
         """Publish the gateway's confirmed command response to all entities."""
         self.coordinator.async_set_station(station)
+
+
+class EufySecuritySensorEntity(CoordinatorEntity[EufyGatewayCoordinator]):
+    """Bind standalone-sensor entities to capability-backed gateway state.
+
+    Instances are created only for capabilities advertised in inventory and
+    remain grouped by the physical sensor serial. The coordinator owns refresh
+    and event delivery; subclasses only expose already-normalized values.
+    """
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Bind the entity to a stable standalone sensor serial."""
+        super().__init__(coordinator)
+        self.serial = serial
+
+    @property
+    def sensor(self) -> dict[str, Any]:
+        """Return current normalized sensor state, or an empty value while absent."""
+        return self.coordinator.sensors.get(self.serial, {})
+
+    @property
+    def available(self) -> bool:
+        """Remain available while the sensor exists in current inventory."""
+        return (
+            super().available
+            and bool(self.sensor)
+            and self.sensor.get("available", True) is not False
+        )
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Register all entities for this physical standalone sensor together."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.serial)},
+            name=self.sensor.get("name") or f"Eufy sensor {self.serial[-4:]}",
+            manufacturer="Eufy",
+            model=self.sensor.get("model"),
+        )

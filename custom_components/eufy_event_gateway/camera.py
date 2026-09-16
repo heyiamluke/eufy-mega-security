@@ -71,7 +71,13 @@ async def async_setup_entry(
 
 
 class EufyGatewayCamera(EufyGatewayEntity, Camera):
-    """Represent one camera with a retained image and on-demand media actions."""
+    """Represent one camera with retained imagery and explicit media actions.
+
+    The entity lives with a camera inventory record and reads shared stream
+    state from the coordinator. The gateway owns camera wake-up, PPCS sessions,
+    media retention, and signed stream access; Home Assistant owns destination
+    path authorization and the final atomic recording write.
+    """
 
     _attr_name = None
     _attr_content_type = "image/jpeg"

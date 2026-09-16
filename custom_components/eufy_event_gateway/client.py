@@ -17,15 +17,21 @@ from aiohttp import ClientError, ClientResponseError, ClientSession, ClientTimeo
 
 
 class GatewayClientError(Exception):
-    """The gateway could not satisfy a request."""
+    """Report a validated gateway, HTTP, or transport failure to callers."""
 
 
 class GatewayAuthenticationError(GatewayClientError):
-    """The gateway rejected the configured token."""
+    """Distinguish a rejected gateway token from general connectivity failures."""
 
 
 class GatewayClient:
-    """Access normalized gateway state without retaining Eufy credentials."""
+    """Provide the integration's sole HTTP and SSE boundary to the gateway.
+
+    One instance is owned by a config entry's coordinator and uses Home
+    Assistant's shared HTTP session for its entire lifetime. It validates the
+    portions of gateway responses consumed by entities and never handles Eufy
+    account credentials or vendor protocol payloads.
+    """
 
     def __init__(
         self, session: ClientSession, base_url: str, api_token: str = ""
@@ -57,6 +63,28 @@ class GatewayClient:
             station
             for station in stations
             if isinstance(station, dict) and isinstance(station.get("serial"), str)
+        ]
+
+    async def sensors(self) -> list[dict[str, Any]]:
+        """Fetch standalone sensors, tolerating an older gateway during upgrades.
+
+        A missing endpoint is treated as an empty inventory so Home Assistant
+        can update before the add-on without making the existing entry fail.
+        Other gateway errors remain visible to the coordinator.
+        """
+        try:
+            payload = await self._json("/api/sensors")
+        except GatewayClientError as error:
+            if str(error) == "Gateway returned HTTP 404":
+                return []
+            raise
+        sensors = payload.get("sensors")
+        if not isinstance(sensors, list):
+            raise GatewayClientError("Gateway returned an invalid sensor list")
+        return [
+            sensor
+            for sensor in sensors
+            if isinstance(sensor, dict) and isinstance(sensor.get("serial"), str)
         ]
 
     async def station(self, serial: str) -> dict[str, Any]:
@@ -178,6 +206,7 @@ class GatewayClient:
     async def _json(
         self, path: str, method: str = "GET", payload: dict[str, Any] | None = None
     ) -> dict[str, Any]:
+        """Send a JSON request and require an object-shaped response body."""
         try:
             request_kwargs: dict[str, Any] = {"headers": self._headers}
             if payload is not None:
@@ -196,10 +225,12 @@ class GatewayClient:
             raise GatewayClientError(str(error)) from error
 
     def _url(self, path: str) -> str:
+        """Resolve a gateway-owned absolute API path against the configured URL."""
         return f"{self.base_url}{path}"
 
     @staticmethod
     def _raise_for_status(response: Any) -> None:
+        """Translate HTTP failures into stable integration exception types."""
         if response.status == 401:
             raise GatewayAuthenticationError("Gateway rejected the API token")
         try:

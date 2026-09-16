@@ -13,7 +13,7 @@ import { CAMERA_CAPABILITY_CORE } from "../src/provider/camera-capability-core.j
 import { parseMegaInventory, safeParamTypes } from "../src/provider/eufy-provider.js";
 import { GatewayState } from "../src/domain/gateway-state.js";
 
-test("publishes only gateway basics and battery read discovery", () => {
+test("publishes gateway basics and implemented battery reads", () => {
   const ids = CAMERA_CAPABILITY_CORE.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(new Set(CAMERA_CAPABILITY_CORE.map(({ family }) => family)), new Set([
@@ -21,8 +21,8 @@ test("publishes only gateway basics and battery read discovery", () => {
   ]));
   assert.equal(CAMERA_CAPABILITY_CORE.every(({ evidenceParamIds }) => evidenceParamIds.every((id) => Number.isSafeInteger(id) && id >= 0 && id <= 65_535)), true);
   assert.equal(CAMERA_CAPABILITY_CORE.length, 11);
-  assert.equal(CAMERA_CAPABILITY_CORE.filter(({ gatewaySupport }) => gatewaySupport === "implemented").length, 7);
-  assert.equal(CAMERA_CAPABILITY_CORE.filter(({ family, gatewaySupport }) => family === "battery" && gatewaySupport === "reference-only").length, 4);
+  assert.equal(CAMERA_CAPABILITY_CORE.filter(({ gatewaySupport }) => gatewaySupport === "implemented").length, 11);
+  assert.equal(CAMERA_CAPABILITY_CORE.filter(({ family, gatewaySupport }) => family === "battery" && gatewaySupport === "implemented").length, 4);
 });
 
 test("retains parameter IDs without leaking provider values", () => {
@@ -104,7 +104,7 @@ test("keeps advanced research out of the published device matrix", () => {
   }, { doorbellSupported: false, streamSupported: true });
   assert.equal(manifest.matrix.length, 11);
   assert.equal(manifest.matrix.some(({ id }) => id === "camera.sound_detection"), false);
-  assert.equal(manifest.matrix.find(({ id }) => id === "battery.level")?.offerable, false);
+  assert.equal(manifest.matrix.find(({ id }) => id === "battery.level")?.offerable, true);
   assert.equal(manifest.matrix.find(({ id }) => id === "camera.live_stream")?.offerable, true);
   assert.deepEqual(manifest.unmappedParamIds, [6043, 6044, 1240, 9_999]);
 });
@@ -140,7 +140,7 @@ test("groups camera capability logs without device identifiers or parameter valu
   }, { doorbellSupported: false, streamSupported: true });
   const summaries = cameraCapabilityLogSummaries([manifest, { ...manifest, serial: "ANOTHER-PRIVATE-SERIAL" }]);
   assert.equal(summaries[0]?.count, 2);
-  assert.match(summaries[0]?.message ?? "", /model=T8410.*admission=known-camera-type ha_adapter=camera.*battery_read=reported.*reported_reads=1 reported_core=battery.level not_yet_implemented=battery.level.*unmapped_params=1/);
+  assert.match(summaries[0]?.message ?? "", /model=T8410.*admission=known-camera-type ha_adapter=camera.*battery_read=reported.*reported_reads=1 reported_core=battery.level not_yet_implemented=none.*gateway_offerable=.*battery.level.*unmapped_params=1/);
   assert.equal(JSON.stringify(summaries).includes("PRIVATE-SERIAL"), false);
   assert.equal(JSON.stringify(summaries).includes("9999"), false);
 });

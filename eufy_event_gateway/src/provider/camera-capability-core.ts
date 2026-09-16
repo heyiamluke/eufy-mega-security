@@ -2,8 +2,8 @@
  * Small core camera capability catalogue used by the Mega gateway today.
  *
  * The provider owns inventory evidence and the shared capability evaluator
- * consumes these rows. Only gateway media/event paths and battery read
- * candidates are declared here.
+ * consumes these rows. Only gateway media/event paths and validated battery
+ * reads are declared here.
  */
 
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
@@ -24,7 +24,7 @@ export const NON_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([
   50, 51, 52, 53, 54, 55, 56, 57, 58, 140, 141, 142, 143, 180, 184, 189, 201, 202, 209,
 ]);
 
-/** Media and push paths already handled by the gateway, plus battery read discovery. */
+/** Media, push, and battery-read paths handled by the gateway. */
 export const CAMERA_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [
   { id: "camera.snapshot_stored", family: "camera", kind: "media", evidenceParamIds: [1004], gatewaySupport: "implemented", baselineWithoutParam: true, note: "Requires a retained image from the provider." },
   { id: "camera.snapshot_live", family: "camera", kind: "media", evidenceParamIds: [], gatewaySupport: "implemented", requiresRoute: true, note: "A ready PPCS route does not prove a fresh frame." },
@@ -33,8 +33,8 @@ export const CAMERA_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [
   { id: "snapshot.capture", family: "snapshot", kind: "media", evidenceParamIds: [1004], gatewaySupport: "implemented", requiresRoute: true, note: "Live capture needs its own media route." },
   { id: "motion.motion_event", family: "motion", kind: "event", evidenceParamIds: [], gatewaySupport: "implemented", note: "Handled by the gateway's known motion push route." },
   { id: "person_detection.person_event", family: "person_detection", kind: "event", evidenceParamIds: [], gatewaySupport: "implemented", note: "Handled by the gateway's known person push route." },
-  { id: "battery.level", family: "battery", kind: "read", evidenceParamIds: [1101], gatewaySupport: "reference-only", note: "Inventory presence is not a fresh percentage; current-value reporting is not implemented." },
-  { id: "battery.charging", family: "battery", kind: "read", evidenceParamIds: [2111], gatewaySupport: "reference-only", note: "Current-value reporting is not implemented." },
-  { id: "battery.health", family: "battery", kind: "read", evidenceParamIds: [1198], gatewaySupport: "reference-only", note: "Current-value reporting is not implemented." },
-  { id: "battery.temperature", family: "battery", kind: "read", evidenceParamIds: [1138], gatewaySupport: "reference-only", note: "Current-value reporting is not implemented." },
+  { id: "battery.level", family: "battery", kind: "read", evidenceParamIds: [1101], gatewaySupport: "implemented", note: "Refreshed from validated Mega inventory values." },
+  { id: "battery.charging", family: "battery", kind: "read", evidenceParamIds: [2111], gatewaySupport: "implemented", note: "Decoded from the Mega battery-status bitfield." },
+  { id: "battery.health", family: "battery", kind: "read", evidenceParamIds: [1198], gatewaySupport: "implemented", note: "Refreshed from validated Mega inventory values." },
+  { id: "battery.temperature", family: "battery", kind: "read", evidenceParamIds: [1138], gatewaySupport: "implemented", note: "Refreshed from validated Mega inventory values." },
 ] as const;

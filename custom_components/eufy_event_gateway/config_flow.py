@@ -28,7 +28,12 @@ from .const import CONF_API_TOKEN, DOMAIN
 
 
 class EufyGatewayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Create or reconfigure one connection to the local gateway API."""
+    """Own setup and reconfiguration for one local gateway connection.
+
+    The flow performs a read-only inventory request before persisting details,
+    deduplicates manual entries by URL, and lets Supervisor discovery update the
+    existing entry. Saved credentials authenticate only to the local gateway.
+    """
 
     VERSION = 1
     _discovered_data: dict[str, Any] | None = None

@@ -23,7 +23,12 @@ from .coordinator import EufyGatewayCoordinator
 
 @dataclass
 class GatewayRuntimeData:
-    """Objects that must live for the lifetime of one config entry."""
+    """Own the coordinator shared by every platform for one config entry.
+
+    Home Assistant creates this container after the first successful gateway
+    refresh and releases it when the entry unloads. Platform entities borrow
+    the coordinator; they do not create clients or background listeners.
+    """
 
     coordinator: EufyGatewayCoordinator
 
@@ -32,7 +37,12 @@ EufyGatewayConfigEntry = ConfigEntry[GatewayRuntimeData]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) -> bool:
-    """Connect to the local gateway before creating any entities."""
+    """Connect once, publish runtime data, and start the entry's platforms.
+
+    The initial refresh is deliberately completed before platform forwarding so
+    entity factories can make capability decisions from a complete inventory.
+    The long-lived event listener starts only after those platforms subscribe.
+    """
     client = GatewayClient(
         async_get_clientsession(hass),
         entry.data["url"],
@@ -49,6 +59,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) 
 async def async_unload_entry(
     hass: HomeAssistant, entry: EufyGatewayConfigEntry
 ) -> bool:
-    """Cancel the SSE listener and unload all entity platforms."""
+    """Cancel entry-owned background work and unload all entity platforms."""
     await entry.runtime_data.coordinator.async_shutdown()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

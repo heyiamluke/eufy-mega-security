@@ -51,7 +51,13 @@ async def async_setup_entry(
 
 
 class EufyHomeBaseAlarm(EufyStationEntity, AlarmControlPanelEntity):
-    """Expose confirmed HomeBase guard state as a code-free alarm panel."""
+    """Expose confirmed HomeBase guard state as a code-free alarm panel.
+
+    One instance lives with each discovered station. It temporarily displays
+    Home Assistant's arming or disarming state while a command is in flight,
+    then replaces that state with the gateway's confirmed station response.
+    The gateway, rather than this entity, owns alarm protocol and persistence.
+    """
 
     _attr_translation_key = "eufy_home_base_alarm"
     _attr_code_format = None

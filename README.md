@@ -62,6 +62,16 @@ For every discovered camera, the integration creates:
 Supported doorbells also get a Doorbell binary sensor. A bell press turns it on
 for 10 seconds, so an automation can catch the press without opening a video stream.
 
+Cameras and doorbells that report Mega battery fields also get battery percentage,
+charging, health, and temperature entities for the fields that device supplies.
+Known mains-powered models with dummy battery values do not get battery entities.
+
+Standalone sensors get entities only for capabilities they report. The first
+supported set covers entry-sensor open/closed state, PIR motion, battery percentage,
+and last-seen time. Contact and motion pushes update Home Assistant immediately;
+the gateway refreshes the inventory-backed readings every 60 seconds. These paths
+still need confirmation on installed standalone-sensor hardware.
+
 The integration also defines two Home Assistant actions for on-demand streaming:
 
 - `eufy_event_gateway.capture_snapshot` requests a fresh frame from a camera with a supported live transport;

@@ -150,3 +150,19 @@ test("retains immutable HomeBase snapshots and emits station updates", () => {
   assert.equal(state.getStation(station.serial).storage.emmc?.freeBytes, 40);
   assert.equal((events[0] as { type: string }).type, "station-updated");
 });
+
+test("retains standalone contact state and clears transient sensor motion", async () => {
+  const state = new GatewayState(10);
+  state.registerSensor({
+    serial: "sensor-1", name: "Side gate", model: "T8900", deviceType: 2,
+    available: true, capabilities: ["battery", "contact", "motion"],
+    batteryLevel: 74, contactOpen: false, lastSeen: null, motionDetected: false,
+  });
+  state.updateSensorContact("sensor-1", true);
+  state.recordSensorMotion("sensor-1", true);
+  assert.equal(state.listSensors()[0]?.contactOpen, true);
+  assert.equal(state.listSensors()[0]?.motionDetected, true);
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(state.listSensors()[0]?.motionDetected, false);
+  state.close();
+});

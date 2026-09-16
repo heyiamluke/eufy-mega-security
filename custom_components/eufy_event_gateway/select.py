@@ -1,4 +1,10 @@
-"""HomeBase guard-mode and alarm-tone selects for Eufy Mega Security."""
+"""HomeBase guard-mode and alarm-tone selects for Eufy Mega Security.
+
+The coordinator owns each HomeBase's normalized state, while these entities
+map Home Assistant labels to the gateway's numeric command values. Selection
+changes are published from confirmed gateway responses and never represent an
+optimistic local state.
+"""
 
 from __future__ import annotations
 
@@ -44,7 +50,12 @@ async def async_setup_entry(
 
 
 class EufyGuardModeSelect(EufyStationEntity, SelectEntity):
-    """Expose the configured Eufy policy, including schedule and geofencing."""
+    """Expose the configured Eufy policy for one HomeBase.
+
+    This entity intentionally reports the selected policy, including Schedule
+    and Geofencing. The separate effective-mode sensor reports the mode that is
+    active after those policies have been evaluated.
+    """
 
     _attr_translation_key = "eufy_guard_mode_select"
     _attr_options: ClassVar[list[str]] = list(GUARD_MODES.values())
@@ -79,7 +90,11 @@ class EufyGuardModeSelect(EufyStationEntity, SelectEntity):
 
 
 class EufyAlarmToneSelect(EufyStationEntity, SelectEntity):
-    """Expose the HomeBase's confirmed alarm sound selection."""
+    """Expose and command the confirmed alarm sound for one HomeBase.
+
+    The entity shares coordinator-owned station state with the other HomeBase
+    controls and updates that state only from the gateway command response.
+    """
 
     _attr_translation_key = "eufy_alarm_tone_select"
     _attr_options: ClassVar[list[str]] = list(ALARM_TONES.values())

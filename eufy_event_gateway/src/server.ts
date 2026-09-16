@@ -98,6 +98,7 @@ export class GatewayServer {
           status: connection.state === "connected" ? "ok" : "degraded",
           connection,
           cameraCount: this.state.listCameras().length,
+          sensorCount: this.state.listSensors().length,
         });
       }
       if (request.method === "GET" && url.pathname === "/api/cameras") {
@@ -105,6 +106,9 @@ export class GatewayServer {
       }
       if (request.method === "GET" && url.pathname === "/api/stations") {
         return json(response, 200, { stations: this.state.listStations() });
+      }
+      if (request.method === "GET" && url.pathname === "/api/sensors") {
+        return json(response, 200, { sensors: this.state.listSensors() });
       }
       if (request.method === "GET" && url.pathname === "/api/diagnostics/push") {
         return json(response, 200, { events: this.state.listPushDiagnostics() });
@@ -319,7 +323,11 @@ export class GatewayServer {
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
     });
-    response.write(`event: ready\ndata: ${JSON.stringify({ cameras: this.state.listCameras() })}\n\n`);
+    response.write(`event: ready\ndata: ${JSON.stringify({
+      cameras: this.state.listCameras(),
+      stations: this.state.listStations(),
+      sensors: this.state.listSensors(),
+    })}\n\n`);
     const listener = (event: GatewayEvent) => response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     this.state.on("event", listener);
     const heartbeat = setInterval(() => response.write(": heartbeat\n\n"), 15_000);

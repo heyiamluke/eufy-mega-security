@@ -1,14 +1,15 @@
-"""Last-recognized-person sensors for Eufy Mega Security.
+"""Measurement, diagnostic, and remembered-state sensors for Eufy Mega Security.
 
-The gateway keeps the last detection because a person event is transient. The
-sensor reports a name only when Eufy marked the detection as recognized and
-exposes the event kind and timestamp as attributes for automations. It does
-not perform recognition itself and deliberately leaves generic labels such as
-`Someone` unknown.
+The gateway owns normalized camera, HomeBase, and standalone-sensor state. This
+platform creates only the entities supported by each inventory record and does
+not decode vendor properties or contact Eufy directly. Remembered person state
+reports a name only when Eufy marked the detection as recognized, deliberately
+leaving generic labels such as ``Someone`` unknown.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, ClassVar
 
 from homeassistant.components.sensor import (
@@ -16,16 +17,17 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfInformation
+from homeassistant.const import PERCENTAGE, UnitOfInformation, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from . import EufyGatewayConfigEntry
 from .const import DOMAIN, GUARD_MODES
 from .coordinator import EufyGatewayCoordinator
-from .entity import EufyGatewayEntity, EufyStationEntity
+from .entity import EufyGatewayEntity, EufySecuritySensorEntity, EufyStationEntity
 
 
 async def async_setup_entry(
@@ -33,20 +35,27 @@ async def async_setup_entry(
     entry: EufyGatewayConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create remembered detection entities for each camera."""
+    """Create supported measurement and diagnostic entities from inventory."""
     coordinator = entry.runtime_data.coordinator
     known_cameras: set[str] = set()
     known_stations: set[str] = set()
+    known_sensors: set[str] = set()
     _migrate_storage_display_units(hass, coordinator)
 
     def add_new() -> None:
         serials = set(coordinator.cameras) - known_cameras
         if serials:
             known_cameras.update(serials)
-            async_add_entities(
-                EufyRecognizedPersonSensor(coordinator, serial)
-                for serial in sorted(serials)
-            )
+            entities = []
+            for serial in sorted(serials):
+                entities.append(EufyRecognizedPersonSensor(coordinator, serial))
+                battery = coordinator.cameras[serial].get("battery") or {}
+                for field in battery.get("supported", []):
+                    if field in ("level", "health", "temperature"):
+                        entities.append(
+                            EufyCameraBatterySensor(coordinator, serial, field)
+                        )
+            async_add_entities(entities)
 
         station_serials = set(coordinator.stations) - known_stations
         if station_serials:
@@ -64,6 +73,18 @@ async def async_setup_entry(
                         EufyStorageStatusSensor(coordinator, serial, "hdd"),
                     )
                 )
+            async_add_entities(entities)
+
+        sensor_serials = set(coordinator.sensors) - known_sensors
+        if sensor_serials:
+            known_sensors.update(sensor_serials)
+            entities = []
+            for serial in sorted(sensor_serials):
+                capabilities = coordinator.sensors[serial].get("capabilities", [])
+                if "battery" in capabilities:
+                    entities.append(EufyStandaloneBatterySensor(coordinator, serial))
+                if "lastSeen" in capabilities:
+                    entities.append(EufySensorLastSeen(coordinator, serial))
             async_add_entities(entities)
 
     add_new()
@@ -101,7 +122,12 @@ def _migrate_storage_display_units(
 
 
 class EufyRecognizedPersonSensor(EufyGatewayEntity, SensorEntity):
-    """Expose the last recognized person while retaining detection metadata."""
+    """Expose the last recognized person while retaining event metadata.
+
+    The gateway retains the last detection after its transient binary state
+    expires. This entity reads that remembered record and does no recognition
+    or fallback naming of its own.
+    """
 
     _attr_name = "Last recognized person"
     _attr_icon = "mdi:face-recognition"
@@ -128,8 +154,103 @@ class EufyRecognizedPersonSensor(EufyGatewayEntity, SensorEntity):
         }
 
 
+class EufyCameraBatterySensor(EufyGatewayEntity, SensorEntity):
+    """Expose one supported battery measurement for a camera or doorbell.
+
+    A separate entity is created for level, health, or temperature only when
+    the gateway advertises that field. Values are already validated and
+    normalized before they enter coordinator state.
+    """
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self, coordinator: EufyGatewayCoordinator, serial: str, field: str
+    ) -> None:
+        """Create a battery level, health, or temperature measurement."""
+        EufyGatewayEntity.__init__(self, coordinator, serial)
+        SensorEntity.__init__(self)
+        self.field = field
+        self._attr_unique_id = f"{serial}_battery_{field}"
+        if field == "level":
+            self._attr_name = "Battery"
+            self._attr_device_class = SensorDeviceClass.BATTERY
+            self._attr_native_unit_of_measurement = PERCENTAGE
+        elif field == "health":
+            self._attr_name = "Battery health"
+            self._attr_native_unit_of_measurement = PERCENTAGE
+            self._attr_icon = "mdi:battery-heart"
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        else:
+            self._attr_name = "Battery temperature"
+            self._attr_device_class = SensorDeviceClass.TEMPERATURE
+            self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the latest validated gateway measurement."""
+        value = (self.camera.get("battery") or {}).get(self.field)
+        return value if isinstance(value, (int, float)) else None
+
+
+class EufyStandaloneBatterySensor(EufySecuritySensorEntity, SensorEntity):
+    """Expose inventory-backed battery percentage for a standalone sensor.
+
+    The entity exists only when the sensor advertises battery support and reads
+    refreshed coordinator state without polling the physical device itself.
+    """
+
+    _attr_name = "Battery"
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create the stable battery entity for one standalone sensor."""
+        EufySecuritySensorEntity.__init__(self, coordinator, serial)
+        SensorEntity.__init__(self)
+        self._attr_unique_id = f"{serial}_battery"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the latest validated inventory percentage."""
+        value = self.sensor.get("batteryLevel")
+        return value if isinstance(value, (int, float)) else None
+
+
+class EufySensorLastSeen(EufySecuritySensorEntity, SensorEntity):
+    """Expose the gateway's last verified contact time for a standalone sensor.
+
+    The source remains a serialized timestamp in coordinator state; this entity
+    performs only the final conversion required by Home Assistant's timestamp
+    device class and leaves malformed or absent values unknown.
+    """
+
+    _attr_name = "Last seen"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create a timestamp entity for one standalone sensor."""
+        EufySecuritySensorEntity.__init__(self, coordinator, serial)
+        SensorEntity.__init__(self)
+        self._attr_unique_id = f"{serial}_last_seen"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return an aware datetime, or unknown when the gateway has no valid value."""
+        value = self.sensor.get("lastSeen")
+        return dt_util.parse_datetime(value) if isinstance(value, str) else None
+
+
 class EufyEffectiveModeSensor(EufyStationEntity, SensorEntity):
-    """Expose the current effective mode independently of configured policy."""
+    """Expose the active HomeBase mode independently of configured policy.
+
+    Schedule and geofencing policies can produce an effective mode different
+    from the configured selection. This read-only entity represents the active
+    result while the select entity retains the configured policy.
+    """
 
     _attr_translation_key = "eufy_effective_mode_sensor"
     _attr_icon = "mdi:shield-check"
@@ -150,7 +271,12 @@ class EufyEffectiveModeSensor(EufyStationEntity, SensorEntity):
 
 
 class EufyStorageSensor(EufyStationEntity, SensorEntity):
-    """Expose total or free capacity for one HomeBase storage medium."""
+    """Expose total or free capacity for one HomeBase storage medium.
+
+    The gateway reports bytes, while this entity presents decimal gigabytes to
+    Home Assistant. Missing HDD or eMMC records remain unknown rather than
+    appearing as zero-capacity media.
+    """
 
     _attr_device_class = SensorDeviceClass.DATA_SIZE
     _attr_native_unit_of_measurement = UnitOfInformation.GIGABYTES
@@ -185,7 +311,12 @@ class EufyStorageSensor(EufyStationEntity, SensorEntity):
 
 
 class EufyStorageStatusSensor(EufyStationEntity, SensorEntity):
-    """Expose the gateway-reported status of one HomeBase storage medium."""
+    """Expose the gateway-reported health label for one storage medium.
+
+    This diagnostic shares the station's lifecycle and returns unknown when the
+    selected HDD or eMMC record is absent; it does not infer health from free
+    capacity or connection state.
+    """
 
     _attr_icon = "mdi:harddisk"
     _attr_entity_category = EntityCategory.DIAGNOSTIC

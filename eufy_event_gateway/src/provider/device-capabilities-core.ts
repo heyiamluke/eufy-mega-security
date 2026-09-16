@@ -3,8 +3,8 @@
  *
  * The provider owns inventory and PPCS readiness. Family-specific rules here
  * keep camera admission, dummy batteries, and station topology explicit.
- * These decisions contain no current parameter values and do not admit
- * standalone sensors into Home Assistant.
+ * These decisions contain no current parameter values. They gate which
+ * normalized camera, station, and standalone-sensor paths Home Assistant may use.
  */
 
 import type { CameraCapability, CameraCapabilityManifest, CapabilityMatrixRow, DeviceCapabilityManifest } from "../domain/types.js";
@@ -87,7 +87,7 @@ export function describeDeviceCapabilities(device: CapabilityInventoryRow, optio
   if (device.category !== "eufy_security") return [];
   const manifests: DeviceCapabilityManifest[] = [];
   if (SENSOR_DEVICE_TYPES.has(device.deviceType ?? -1)) {
-    manifests.push(describeCoreFamily("sensor", device, SENSOR_CAPABILITY_CORE, false, false));
+    manifests.push(describeSensorFamily(device));
   }
   if (HOMEBASE_DEVICE_TYPES.has(device.deviceType ?? -1)) {
     manifests.push(describeCoreFamily("homebase", device, HOMEBASE_CAPABILITY_CORE, options.homeBaseSupported, options.homeBaseRouteReady));
@@ -110,6 +110,29 @@ export function describeDeviceCapabilities(device: CapabilityInventoryRow, optio
     });
   }
   return manifests;
+}
+
+function describeSensorFamily(device: CapabilityInventoryRow): DeviceCapabilityManifest {
+  const observed = new Set(device.paramTypes);
+  const motionType = device.deviceType === 10 || device.deviceType === 127;
+  const supported = motionType || [1101, 1550, 1551].some((id) => observed.has(id));
+  const mapped = new Set(SENSOR_CAPABILITY_CORE.flatMap(({ evidenceParamIds }) => evidenceParamIds));
+  const matrix = SENSOR_CAPABILITY_CORE.map((entry) => {
+    if (entry.id === "sensor.motion_event" && !motionType) {
+      return { ...evaluateCoreEntry(entry, observed, false, false), deviceEvidence: "requires-live-proof" as const };
+    }
+    return evaluateCoreEntry(entry, observed, supported, false);
+  });
+  return {
+    serial: device.serial,
+    model: device.model,
+    deviceType: device.deviceType,
+    family: "sensor",
+    recognized: true,
+    supported,
+    matrix,
+    unmappedParamCount: device.paramTypes.filter((id) => !mapped.has(id)).length,
+  };
 }
 
 function describeCoreFamily(
@@ -205,7 +228,9 @@ export function deviceCapabilityLogSummaries(manifests: readonly DeviceCapabilit
     const reported = manifest.matrix.filter(({ deviceEvidence }) => deviceEvidence === "reported-param");
     const unimplemented = reported.filter(({ gatewaySupport }) => gatewaySupport === "reference-only");
     const offerable = manifest.matrix.filter(({ offerable: allowed }) => allowed).map(({ id }) => id);
-    const haAdapter = manifest.supported ? manifest.family === "homebase" ? "homebase" : "camera-doorbell" : "none";
+    const haAdapter = manifest.supported
+      ? manifest.family === "homebase" ? "homebase" : manifest.family === "sensor" ? "sensor" : "camera-doorbell"
+      : "none";
     const admission = manifest.supported ? "known-supported-type"
       : manifest.family === "sensor" ? "needs-sensor-adapter" : "unverified-station-protocol";
     const message = [
