@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.34
+
+- Attempt each missing startup snapshot only once per gateway run instead of retrying after every inventory refresh.
+- Suppress repeated state pulses for two-stage push deliveries while retaining a thumbnail that arrives on the later delivery.
+
 ## 0.1.33
 
 - Retry authenticated push-thumbnail downloads after brief HTTP 404 responses while Eufy's cloud object is still becoming available.
