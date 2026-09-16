@@ -29,7 +29,7 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 ### Cameras
 
 - ✅ EufyCam 2C: camera support tested by the project maintainer.
-- ✅ Battery camera T817L: live streams and snapshots produced on real hardware.
+- ✅ USB-C-powered camera T817L: live streams and snapshots produced on real hardware.
 - ✅ eufyCam S330 (Mega model T8160): discovered with sensors, retained images, and live streaming through HomeBase 3.
 - 🟠 eufyCam S300 / 3C (Mega model T8161): type 23 is now admitted by the gateway camera filter through HomeBase 3. Device discovery, events, snapshots, and live video still need a real-device result.
 - 🟠 SoloCam C20 (Mega model T8134): device type 63 now passes camera discovery. Its events, snapshots, and live stream still need confirmation on real hardware.
@@ -77,7 +77,7 @@ The integration also defines two Home Assistant actions for on-demand streaming:
 - `eufy_event_gateway.capture_snapshot` requests a fresh frame from a camera with a supported live transport;
 - `eufy_event_gateway.record_clip` records from a camera with a supported live transport.
 
-Live viewing uses the gateway-owned Eufy Mega/PPCS transport. The gateway does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. The transport has produced real stream and snapshot bytes from both a wired T8210 and battery T817L, and v0.1.14 exposes it through the Home Assistant camera entities.
+Live viewing uses the gateway-owned Eufy Mega/PPCS transport. The gateway does not use `eufy-security-client`, the separate SmartLife/Thing login, or an expiring Web Portal Access PIN. The transport has produced real stream and snapshot bytes from both a wired T8210 and USB-C-powered T817L, and v0.1.14 exposes it through the Home Assistant camera entities.
 
 The actions work in Home Assistant automations and through Node-RED's Home Assistant Action node. An importable example is included in [`examples/node-red-gate-and-motion.json`](examples/node-red-gate-and-motion.json).
 

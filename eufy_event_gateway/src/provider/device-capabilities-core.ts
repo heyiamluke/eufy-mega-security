@@ -8,7 +8,7 @@
  */
 
 import type { CameraCapability, CameraCapabilityManifest, CapabilityMatrixRow, DeviceCapabilityManifest } from "../domain/types.js";
-import { CAMERA_CAPABILITY_CORE, CAMERA_DEVICE_TYPES, MAINS_BATTERY_SENTINEL_MODELS, NON_CAMERA_DEVICE_TYPES } from "./camera-capability-core.js";
+import { CAMERA_CAPABILITY_CORE, CAMERA_DEVICE_TYPES, hasMainsBatterySentinel, NON_CAMERA_DEVICE_TYPES } from "./camera-capability-core.js";
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
 import { DOORBELL_CAPABILITY_CORE } from "./doorbell-capability-core.js";
 import { HOMEBASE_CAPABILITY_CORE, HOMEBASE_DEVICE_TYPES } from "./homebase-capability-core.js";
@@ -47,7 +47,7 @@ export function describeCameraCapabilities(device: CapabilityInventoryRow, optio
   const reason = acceptedAsCamera ? "supported-camera-type"
     : device.category !== "eufy_security" ? "non-security-category" : "unrecognized-camera-type";
   const capabilities: CameraCapability[] = [];
-  const mainsSentinel = MAINS_BATTERY_SENTINEL_MODELS.some((model) => device.model.toUpperCase().startsWith(model));
+  const mainsSentinel = hasMainsBatterySentinel(device.model);
   if (acceptedAsCamera) {
     capabilities.push(
       { id: "motion", kind: "event", unit: null, evidence: "gateway" },

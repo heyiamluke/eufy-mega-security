@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import GatewayClient
@@ -50,10 +51,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyGatewayConfigEntry) 
     )
     coordinator = EufyGatewayCoordinator(hass, client)
     await coordinator.async_config_entry_first_refresh()
+    _remove_t817l_battery_entities(hass, coordinator)
     entry.runtime_data = GatewayRuntimeData(coordinator)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     coordinator.start_event_listener()
     return True
+
+
+def _remove_t817l_battery_entities(
+    hass: HomeAssistant, coordinator: EufyGatewayCoordinator
+) -> None:
+    """Remove entities created from T817L's non-battery compatibility fields.
+
+    Version 0.1.28 treated three fields reported by this USB-C-powered model as
+    battery capabilities. Removing only its known unique IDs repairs upgraded
+    installations without touching genuine battery cameras or standalone
+    sensors.
+    """
+    registry = er.async_get(hass)
+    for serial, camera in coordinator.cameras.items():
+        model = camera.get("model")
+        if not isinstance(model, str) or not model.upper().startswith("T817L"):
+            continue
+        for platform, suffix in (
+            ("sensor", "battery_level"),
+            ("sensor", "battery_health"),
+            ("sensor", "battery_temperature"),
+            ("binary_sensor", "battery_charging"),
+        ):
+            entity_id = registry.async_get_entity_id(
+                platform, DOMAIN, f"{serial}_{suffix}"
+            )
+            if entity_id is not None:
+                registry.async_remove(entity_id)
 
 
 async def async_unload_entry(
