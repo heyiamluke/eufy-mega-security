@@ -5,6 +5,8 @@ coordinator applies those changes immediately and keeps a sixty-second poll as
 recovery for a dropped stream or a gateway restart. It owns reconnect/backoff
 and the first inventory fetch; entity code only reads the coordinator's
 normalized camera dictionary and never makes a protocol request of its own.
+Camera, station, and standalone-sensor inventories are replaced independently
+so a partial event cannot erase state owned by another device family.
 """
 
 from __future__ import annotations
@@ -26,7 +28,13 @@ _LOGGER = logging.getLogger(__name__)
 class EufyGatewayCoordinator(
     DataUpdateCoordinator[dict[str, dict[str, dict[str, Any]]]]
 ):
-    """Keep entity state current via SSE, with polling as recovery."""
+    """Own normalized config-entry state and its single SSE listener.
+
+    The coordinator is created once per config entry, performs the initial and
+    recovery inventory polls, merges gateway events by device family, and
+    notifies every entity from one shared state snapshot. Entities may issue
+    explicit commands through its client but never own transport lifecycle.
+    """
 
     def __init__(self, hass: HomeAssistant, client: GatewayClient) -> None:
         """Create the coordinator with the gateway client and recovery interval."""
@@ -41,18 +49,20 @@ class EufyGatewayCoordinator(
         self._event_task: asyncio.Task[None] | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, dict[str, Any]]]:
+        """Fetch all inventories concurrently for startup and poll recovery."""
 
         # Polling is recovery only. Normal updates arrive through the long-lived
         # SSE connection started after the first successful refresh.
         try:
-            cameras, stations = await asyncio.gather(
-                self.client.cameras(), self.client.stations()
+            cameras, stations, sensors = await asyncio.gather(
+                self.client.cameras(), self.client.stations(), self.client.sensors()
             )
         except GatewayClientError as error:
             raise UpdateFailed(str(error)) from error
         return {
             "cameras": {camera["serial"]: camera for camera in cameras},
             "stations": {station["serial"]: station for station in stations},
+            "sensors": {sensor["serial"]: sensor for sensor in sensors},
         }
 
     @property
@@ -65,6 +75,11 @@ class EufyGatewayCoordinator(
         """Return the latest HomeBase state indexed by serial."""
         return (self.data or {}).get("stations", {})
 
+    @property
+    def sensors(self) -> dict[str, dict[str, Any]]:
+        """Return the latest standalone sensor state indexed by serial."""
+        return (self.data or {}).get("sensors", {})
+
     def async_set_station(self, station: dict[str, Any]) -> None:
         """Merge confirmed command state and notify all station entities."""
         serial = station.get("serial")
@@ -73,6 +88,7 @@ class EufyGatewayCoordinator(
         updated = {
             "cameras": dict(self.cameras),
             "stations": dict(self.stations),
+            "sensors": dict(self.sensors),
         }
         updated["stations"][serial] = station
         self.async_set_updated_data(updated)
@@ -110,7 +126,7 @@ class EufyGatewayCoordinator(
                 delay = 1
 
     def _apply_event(self, event: dict[str, Any]) -> None:
-        """Merge a full camera list or one camera update into coordinator data."""
+        """Merge full inventories or individual devices without losing siblings."""
         cameras = event.get("cameras")
         if isinstance(cameras, list):
             normalized = {
@@ -121,6 +137,7 @@ class EufyGatewayCoordinator(
             updated = {
                 "cameras": normalized,
                 "stations": dict(self.stations),
+                "sensors": dict(self.sensors),
             }
             self.async_set_updated_data(updated)
 
@@ -134,6 +151,7 @@ class EufyGatewayCoordinator(
             updated = {
                 "cameras": dict(self.cameras),
                 "stations": normalized,
+                "sensors": dict(self.sensors),
             }
             self.async_set_updated_data(updated)
 
@@ -142,6 +160,7 @@ class EufyGatewayCoordinator(
             updated = {
                 "cameras": dict(self.cameras),
                 "stations": dict(self.stations),
+                "sensors": dict(self.sensors),
             }
             updated["cameras"][camera["serial"]] = camera
             self.async_set_updated_data(updated)
@@ -149,3 +168,27 @@ class EufyGatewayCoordinator(
         station = event.get("station")
         if isinstance(station, dict) and isinstance(station.get("serial"), str):
             self.async_set_station(station)
+
+        sensors = event.get("sensors")
+        if isinstance(sensors, list):
+            normalized = {
+                sensor["serial"]: sensor
+                for sensor in sensors
+                if isinstance(sensor, dict) and isinstance(sensor.get("serial"), str)
+            }
+            updated = {
+                "cameras": dict(self.cameras),
+                "stations": dict(self.stations),
+                "sensors": normalized,
+            }
+            self.async_set_updated_data(updated)
+
+        sensor = event.get("sensor")
+        if isinstance(sensor, dict) and isinstance(sensor.get("serial"), str):
+            updated = {
+                "cameras": dict(self.cameras),
+                "stations": dict(self.stations),
+                "sensors": dict(self.sensors),
+            }
+            updated["sensors"][sensor["serial"]] = sensor
+            self.async_set_updated_data(updated)

@@ -57,6 +57,25 @@ export class SimulatedProvider implements CameraProvider {
       stationSerial: "SIMULATED-HOMEBASE-3",
       streamSupported: true,
       doorbellSupported: false,
+      battery: {
+        supported: ["level", "charging", "health", "temperature"],
+        level: 82,
+        charging: false,
+        health: 96,
+        temperature: 24,
+      },
+    });
+    events.sensor({
+      serial: "SIMULATED-ENTRY-SENSOR-1",
+      name: "Simulated side gate",
+      model: "T8900-compatible simulator",
+      deviceType: 2,
+      available: true,
+      capabilities: ["battery", "contact", "lastSeen"],
+      batteryLevel: 74,
+      contactOpen: false,
+      lastSeen: new Date().toISOString(),
+      motionDetected: false,
     });
     events.station(this.#station);
     events.inventory([{

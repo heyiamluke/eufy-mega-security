@@ -47,6 +47,7 @@ export interface CameraState {
   readonly motionDetected: boolean;
   readonly personDetected: boolean;
   readonly doorbellPressed: boolean;
+  readonly battery: BatteryState | null;
   readonly lastDetection: Detection | null;
   readonly snapshot: SnapshotInfo | null;
   readonly stream: {
@@ -55,6 +56,29 @@ export interface CameraState {
     readonly startedAt: string | null;
     readonly lastError: string | null;
   };
+}
+
+/** Normalized battery reads exposed only when a device reports each field. */
+export interface BatteryState {
+  readonly supported: readonly ("level" | "charging" | "health" | "temperature")[];
+  readonly level: number | null;
+  readonly charging: boolean | null;
+  readonly health: number | null;
+  readonly temperature: number | null;
+}
+
+/** Complete normalized state for one supported standalone security sensor. */
+export interface SecuritySensorState {
+  readonly serial: string;
+  readonly name: string;
+  readonly model: string;
+  readonly deviceType: number;
+  readonly available: boolean;
+  readonly capabilities: readonly ("battery" | "contact" | "lastSeen" | "motion")[];
+  readonly batteryLevel: number | null;
+  readonly contactOpen: boolean | null;
+  readonly lastSeen: string | null;
+  readonly motionDetected: boolean;
 }
 
 /** One physical storage device reported by a HomeBase 3. */
@@ -87,6 +111,8 @@ export interface HomeBaseState {
 /** Events sent over the gateway SSE endpoint. */
 export type GatewayEvent =
   | { readonly type: "camera-updated"; readonly camera: CameraState }
+  | { readonly type: "sensor-updated"; readonly sensor: SecuritySensorState }
+  | { readonly type: "sensors-updated"; readonly sensors: readonly SecuritySensorState[] }
   | { readonly type: "station-updated"; readonly station: HomeBaseState }
   | { readonly type: "stations-updated"; readonly stations: readonly HomeBaseState[] }
   | { readonly type: "detection"; readonly cameraSerial: string; readonly detection: Detection }
@@ -101,6 +127,7 @@ export interface CameraIdentity {
   readonly stationSerial: string;
   readonly streamSupported: boolean;
   readonly doorbellSupported: boolean;
+  readonly battery?: BatteryState | null;
 }
 
 /** A previously known camera feature found in one device's discovery evidence. */

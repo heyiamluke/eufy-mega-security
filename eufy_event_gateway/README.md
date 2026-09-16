@@ -31,14 +31,16 @@ The authenticated `GET /api/camera-capabilities` endpoint reports a shape-only
 manifest for each discovered Mega device. It identifies which rows are currently
 supported as cameras and which read-only features the gateway can offer.
 The live lookup covers existing media and motion/person events, plus four
-battery read candidates. Each row separates reported device evidence
+implemented battery reads. Each row separates reported device evidence
 from gateway implementation. The manifest contains no current parameter values
-and does not trigger a camera read. Unknown camera-like rows can be flagged for
-review, but are not admitted automatically. Home Assistant does not consume this
-endpoint yet. See the [camera capability lookup](../docs/CAMERA_CAPABILITY_MATRIX.md)
+and does not trigger a camera read. The normalized camera API carries the validated
+current values and Home Assistant creates only the entities supported by each row.
+Unknown camera-like rows can be flagged for review, but are not admitted automatically.
+See the [camera capability lookup](../docs/CAMERA_CAPABILITY_MATRIX.md)
 for the support and verification boundaries.
 
 The authenticated `GET /api/device-capabilities` endpoint adds separate small
 core decisions for standalone sensors, managed HomeBase 3 stations, and
-supported doorbells. Sensors are discovery-only; they are not admitted as HA
-entities or decoded by the current gateway. See the [product-family baselines](../docs/DEVICE_CAPABILITY_BASELINES.md).
+supported doorbells. Standalone sensors with reported contact, battery, last-seen,
+or recognized PIR evidence now have a normalized gateway state and matching Home
+Assistant entities. See the [product-family baselines](../docs/DEVICE_CAPABILITY_BASELINES.md).

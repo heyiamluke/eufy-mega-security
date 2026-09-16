@@ -87,6 +87,9 @@ const providerEvents: ProviderEvents = {
   station(station) {
     state.registerStation(station);
   },
+  sensor(sensor) {
+    state.registerSensor(sensor);
+  },
   connection(connectionState, detail) {
     state.updateConnection(connectionState, detail);
     if (connectionState === "connected") startupSnapshots.start();
@@ -102,6 +105,12 @@ const providerEvents: ProviderEvents = {
   },
   doorbell(serial, pressed) {
     if (state.hasCamera(serial)) state.recordDoorbell(serial, pressed);
+  },
+  sensorContact(serial, open) {
+    state.updateSensorContact(serial, open);
+  },
+  sensorMotion(serial, detected) {
+    state.recordSensorMotion(serial, detected);
   },
   snapshot(serial, data, contentType) {
     if (!state.hasCamera(serial)) return;

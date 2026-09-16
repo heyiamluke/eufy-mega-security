@@ -37,6 +37,7 @@ export interface MegaPushEvent {
   readonly guardMode: number | null;
   readonly effectiveMode: number | null;
   readonly alarmType: number | null;
+  readonly sensorOpen: boolean | null;
 }
 
 interface StoredPushState {
@@ -161,7 +162,14 @@ export function parsePushEvent(data: unknown): MegaPushEvent | null {
     guardMode: integer(payload.station_guard_mode),
     effectiveMode: integer(payload.station_current_mode) ?? integer(payload.current_mode),
     alarmType: integer(payload.alarm_type),
+    sensorOpen: sensorOpen(payload.e),
   };
+}
+
+function sensorOpen(value: unknown): boolean | null {
+  if (value === "1" || value === 1) return true;
+  if (value === "0" || value === 0) return false;
+  return null;
 }
 
 /** Describe only the field layout of an unparsed Firebase data envelope. */

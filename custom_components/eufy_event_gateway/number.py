@@ -1,4 +1,10 @@
-"""HomeBase alarm and prompt volume controls for Eufy Mega Security."""
+"""HomeBase alarm and prompt volume controls for Eufy Mega Security.
+
+The coordinator owns each HomeBase's normalized state, while these entities
+translate Home Assistant number writes into explicit gateway commands. Values
+are published only from the gateway's confirmed command response; the platform
+does not optimistically mutate station state or contact Eufy directly.
+"""
 
 from __future__ import annotations
 
@@ -44,7 +50,12 @@ async def async_setup_entry(
 
 
 class EufyStationVolume(EufyStationEntity, NumberEntity):
-    """Expose one confirmed HomeBase volume property as a number entity."""
+    """Expose one confirmed HomeBase volume property for a station lifetime.
+
+    Each instance selects either the alarm or prompt command at construction.
+    It shares station state with sibling entities and publishes a new value only
+    after the gateway confirms that the command succeeded.
+    """
 
     _attr_native_min_value = 0
     _attr_native_max_value = 26

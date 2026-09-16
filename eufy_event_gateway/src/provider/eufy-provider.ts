@@ -13,7 +13,7 @@
  */
 import { join } from "node:path";
 
-import type { HomeBaseState, InventoryDiagnostic } from "../domain/types.js";
+import type { BatteryState, HomeBaseState, InventoryDiagnostic, SecuritySensorState } from "../domain/types.js";
 import { createLogger } from "../logging.js";
 import { MegaClient } from "../mega/client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
@@ -51,6 +51,17 @@ export interface MegaInventoryDevice {
   readonly userName: string | null;
   readonly firmware: string | null;
   readonly paramTypes: readonly number[];
+  readonly reads: MegaInventoryReads;
+}
+
+/** Allowlisted, validated current values retained from one Mega inventory row. */
+export interface MegaInventoryReads {
+  readonly batteryLevel?: number;
+  readonly batteryCharging?: boolean;
+  readonly batteryHealth?: number;
+  readonly batteryTemperature?: number;
+  readonly contactOpen?: boolean;
+  readonly lastSeen?: string;
 }
 
 /** Safe, grouped inventory evidence suitable for copied support logs. */
@@ -99,6 +110,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   #captchaChallenge: CaptchaChallenge | null = null;
   #verificationRequired = false;
   #stationRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  #inventoryRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly config: EufyProviderConfig) {
     this.#client = new MegaClient({
@@ -200,6 +212,8 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   async close(): Promise<void> {
     if (this.#stationRefreshTimer) clearInterval(this.#stationRefreshTimer);
     this.#stationRefreshTimer = null;
+    if (this.#inventoryRefreshTimer) clearInterval(this.#inventoryRefreshTimer);
+    this.#inventoryRefreshTimer = null;
     await this.#push?.close();
     this.#push = null;
     for (const stream of this.#ppcsStreams.values()) stream.close();
@@ -287,7 +301,12 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         stationSerial: device.parentSerial,
         doorbellSupported: isDoorbellDevice(device),
         streamSupported: isPpcsStreamSupported(device, this.#devices, dskPeerSerials),
+        battery: batteryState(device),
       });
+    }
+    for (const device of devices) {
+      const sensor = securitySensorState(device);
+      if (sensor) events.sensor(sensor);
     }
     const manifests = devices.map((device) => describeCameraCapabilities(device, {
       doorbellSupported: isDoorbellDevice(device),
@@ -363,6 +382,37 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       }
     }, 60_000);
     this.#stationRefreshTimer.unref();
+    if (this.#inventoryRefreshTimer) clearInterval(this.#inventoryRefreshTimer);
+    this.#inventoryRefreshTimer = setInterval(() => {
+      void this.#refreshInventoryReads().catch((error: unknown) => {
+        logger.warn("inventory_refresh_unavailable", `Mega read refresh unavailable: ${safeError(error)}`);
+      });
+    }, 60_000);
+    this.#inventoryRefreshTimer.unref();
+  }
+
+  async #refreshInventoryReads(): Promise<void> {
+    const refreshed = parseMegaInventory(await this.#client.inventory());
+    const dskPeerSerials = new Set(this.#dskKeys.keys());
+    for (const device of refreshed) {
+      const known = this.#devices.get(device.serial);
+      if (!known) continue;
+      const merged = { ...known, paramTypes: device.paramTypes, reads: device.reads };
+      this.#devices.set(device.serial, merged);
+      if (isSupportedMegaCamera(merged)) {
+        this.#events?.camera({
+          serial: merged.serial,
+          name: merged.name,
+          model: merged.model,
+          stationSerial: merged.parentSerial,
+          doorbellSupported: isDoorbellDevice(merged),
+          streamSupported: isPpcsStreamSupported(merged, this.#devices, dskPeerSerials),
+          battery: batteryState(merged),
+        });
+      }
+      const sensor = securitySensorState(merged);
+      if (sensor) this.#events?.sensor(sensor);
+    }
   }
 
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
@@ -408,6 +458,14 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     );
     const device = this.#devices.get(event.cameraSerial);
     if (!device) return;
+    if ((device.deviceType === 2 || device.deviceType === 126) && event.eventType === 3 && event.sensorOpen !== null) {
+      events.sensorContact(event.cameraSerial, event.sensorOpen);
+      return;
+    }
+    if ((device.deviceType === 10 || device.deviceType === 127) && event.eventType === 14) {
+      events.sensorMotion(event.cameraSerial, true);
+      return;
+    }
     if (event.eventType === 3103 && isDoorbellDevice(device)) {
       events.doorbell(event.cameraSerial, true);
       return;
@@ -546,6 +604,7 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
       userName: isRecord(value.member) ? safeValue(value.member.nick_name, 128) : null,
       firmware: safeValue(value.main_sw_version, 100),
       paramTypes: safeParamTypes(value.params),
+      reads: safeInventoryReads(value.params),
     });
   }
   const adminUserIds = new Map(
@@ -554,6 +613,87 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
   return devices.map((device) => device.adminUserId || !device.parentSerial
     ? device
     : { ...device, adminUserId: adminUserIds.get(device.parentSerial) ?? null });
+}
+
+/** Decode only capability-backed numeric inventory reads; arbitrary values are discarded. */
+export function safeInventoryReads(value: unknown): MegaInventoryReads {
+  if (!Array.isArray(value)) return {};
+  const params = new Map<number, unknown>();
+  for (const row of value) {
+    if (!isRecord(row)) continue;
+    const type = integer(row.param_type);
+    if (type !== null) params.set(type, row.param_value);
+  }
+  const percentage = (type: number): number | undefined => {
+    const parsed = finiteNumber(params.get(type));
+    return parsed !== null && parsed >= 0 && parsed <= 100 ? parsed : undefined;
+  };
+  const temperature = finiteNumber(params.get(1138));
+  const batteryStatus = finiteNumber(params.get(2111));
+  const contact = finiteNumber(params.get(1550));
+  const lastSeen = finiteNumber(params.get(1551));
+  const batteryLevel = percentage(1101);
+  const batteryHealth = percentage(1198);
+  return {
+    ...(batteryLevel !== undefined ? { batteryLevel } : {}),
+    ...(batteryStatus !== null ? { batteryCharging: batteryStatus !== 0 && batteryStatus !== 2 } : {}),
+    ...(batteryHealth !== undefined ? { batteryHealth } : {}),
+    ...(temperature !== null && temperature >= -50 && temperature <= 100 ? { batteryTemperature: temperature } : {}),
+    ...(contact === 0 || contact === 1 ? { contactOpen: contact === 1 } : {}),
+    ...(lastSeen !== null && lastSeen >= 946_684_800 && lastSeen <= Date.now() / 1_000 + 86_400
+      ? { lastSeen: new Date(lastSeen * 1_000).toISOString() }
+      : {}),
+  };
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && !/^-?\d+(?:\.\d+)?$/.test(value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function batteryState(device: MegaInventoryDevice): BatteryState | null {
+  if (!device.paramTypes.includes(1101) || ["T8425", "T8419"].some((model) => device.model.toUpperCase().startsWith(model))) return null;
+  const supported: BatteryState["supported"] = [
+    "level",
+    ...(device.paramTypes.includes(2111) ? ["charging" as const] : []),
+    ...(device.paramTypes.includes(1198) ? ["health" as const] : []),
+    ...(device.paramTypes.includes(1138) ? ["temperature" as const] : []),
+  ];
+  return {
+    supported,
+    level: device.reads.batteryLevel ?? null,
+    charging: device.reads.batteryCharging ?? null,
+    health: device.reads.batteryHealth ?? null,
+    temperature: device.reads.batteryTemperature ?? null,
+  };
+}
+
+function securitySensorState(device: MegaInventoryDevice): SecuritySensorState | null {
+  const contact = device.paramTypes.includes(1550);
+  const motion = device.deviceType === 10 || device.deviceType === 127;
+  const battery = device.paramTypes.includes(1101);
+  const lastSeen = device.paramTypes.includes(1551);
+  if (!contact && !motion && !battery && !lastSeen) return null;
+  if (![2, 10, 20, 21, 22, 123, 126, 127].includes(device.deviceType ?? -1)) return null;
+  return {
+    serial: device.serial,
+    name: device.name,
+    model: device.model,
+    deviceType: device.deviceType!,
+    available: true,
+    capabilities: [
+      ...(battery ? ["battery" as const] : []),
+      ...(contact ? ["contact" as const] : []),
+      ...(lastSeen ? ["lastSeen" as const] : []),
+      ...(motion ? ["motion" as const] : []),
+    ],
+    batteryLevel: device.reads.batteryLevel ?? null,
+    contactOpen: device.reads.contactOpen ?? null,
+    lastSeen: device.reads.lastSeen ?? null,
+    motionDetected: false,
+  };
 }
 
 /** Return whether normalized inventory identifies the supported HomeBase 3. */

@@ -24,6 +24,7 @@ import type {
   InventoryDiagnostic,
   CameraCapabilityManifest,
   DeviceCapabilityManifest,
+  SecuritySensorState,
 } from "./types.js";
 
 /** Mutable internal representation; callers receive immutable snapshots. */
@@ -51,10 +52,12 @@ interface MutableCameraState {
 export class GatewayState extends EventEmitter {
   readonly #cameras = new Map<string, MutableCameraState>();
   readonly #stations = new Map<string, HomeBaseState>();
+  readonly #sensors = new Map<string, SecuritySensorState>();
   readonly #pushDiagnostics: PushDiagnostic[] = [];
   readonly #motionClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #personClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #doorbellClearTimers = new Map<string, NodeJS.Timeout>();
+  readonly #sensorMotionClearTimers = new Map<string, NodeJS.Timeout>();
   #inventoryDiagnostics: InventoryDiagnostic[] = [];
   #cameraCapabilities: CameraCapabilityManifest[] = [];
   #deviceCapabilities: DeviceCapabilityManifest[] = [];
@@ -94,6 +97,53 @@ export class GatewayState extends EventEmitter {
     this.#stations.set(station.serial, snapshot);
     this.emit("event", { type: "station-updated", station: snapshot } satisfies GatewayEvent);
     return structuredClone(snapshot);
+  }
+
+  /** Add or replace one standalone security-sensor observation. */
+  registerSensor(sensor: SecuritySensorState): SecuritySensorState {
+    const existing = this.#sensors.get(sensor.serial);
+    const snapshot = structuredClone({
+      ...sensor,
+      motionDetected: existing?.motionDetected ?? sensor.motionDetected,
+    });
+    this.#sensors.set(sensor.serial, snapshot);
+    this.emit("event", { type: "sensor-updated", sensor: snapshot } satisfies GatewayEvent);
+    return structuredClone(snapshot);
+  }
+
+  /** Return immutable snapshots for every supported standalone sensor. */
+  listSensors(): SecuritySensorState[] {
+    return [...this.#sensors.values()].map((sensor) => structuredClone(sensor));
+  }
+
+  /** Check standalone sensor existence without throwing. */
+  hasSensor(serial: string): boolean {
+    return this.#sensors.has(serial);
+  }
+
+  /** Apply a settled contact state delivered by cloud inventory or push. */
+  updateSensorContact(serial: string, open: boolean): void {
+    const sensor = this.#sensors.get(serial);
+    if (!sensor || !sensor.capabilities.includes("contact")) return;
+    this.registerSensor({ ...sensor, contactOpen: open });
+  }
+
+  /** Hold a standalone PIR event long enough for Home Assistant to observe it. */
+  recordSensorMotion(serial: string, detected: boolean): void {
+    const sensor = this.#sensors.get(serial);
+    if (!sensor || !sensor.capabilities.includes("motion")) return;
+    const existing = this.#sensorMotionClearTimers.get(serial);
+    if (existing) clearTimeout(existing);
+    this.#sensorMotionClearTimers.delete(serial);
+    this.#sensors.set(serial, { ...sensor, motionDetected: detected });
+    this.emit("event", { type: "sensor-updated", sensor: this.#sensors.get(serial)! } satisfies GatewayEvent);
+    if (!detected) return;
+    const timer = setTimeout(() => {
+      this.#sensorMotionClearTimers.delete(serial);
+      this.recordSensorMotion(serial, false);
+    }, this.detectionHoldMilliseconds);
+    timer.unref();
+    this.#sensorMotionClearTimers.set(serial, timer);
   }
 
   /** Return immutable snapshots for every known HomeBase. */
@@ -272,6 +322,7 @@ export class GatewayState extends EventEmitter {
       motionDetected: camera.motionDetected,
       personDetected: camera.personDetected,
       doorbellPressed: camera.doorbellPressed,
+      battery: camera.identity.battery ?? null,
       lastDetection: camera.lastDetection,
       snapshot: camera.snapshot,
       stream: {
@@ -293,9 +344,11 @@ export class GatewayState extends EventEmitter {
     for (const timer of this.#motionClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#personClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#doorbellClearTimers.values()) clearTimeout(timer);
+    for (const timer of this.#sensorMotionClearTimers.values()) clearTimeout(timer);
     this.#motionClearTimers.clear();
     this.#personClearTimers.clear();
     this.#doorbellClearTimers.clear();
+    this.#sensorMotionClearTimers.clear();
   }
 
   #scheduleDetectionClear(

@@ -1,9 +1,10 @@
-"""Motion, person, and doorbell binary sensors for Eufy Mega Security.
+"""Event, charging, connectivity, and contact sensors for Eufy Mega Security.
 
 The gateway holds transient detection state long enough for an SSE update to
 reach Home Assistant. These entities mirror the normalized detection fields and
-do not poll Eufy, decode push payloads, or infer events locally. Device identity
-and availability come from `entity.py`.
+capability-backed device state; they do not poll Eufy, decode push payloads, or
+infer events locally. The coordinator owns updates, while device identity and
+availability come from ``entity.py``.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import EufyGatewayConfigEntry
 from .coordinator import EufyGatewayCoordinator
-from .entity import EufyGatewayEntity, EufyStationEntity
+from .entity import EufyGatewayEntity, EufySecuritySensorEntity, EufyStationEntity
 
 
 async def async_setup_entry(
@@ -26,10 +27,11 @@ async def async_setup_entry(
     entry: EufyGatewayConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create motion, person, and supported doorbell entities for each camera."""
+    """Create capability-backed binary entities as devices enter inventory."""
     coordinator = entry.runtime_data.coordinator
     known_cameras: set[str] = set()
     known_stations: set[str] = set()
+    known_sensors: set[str] = set()
 
     def add_new() -> None:
         serials = set(coordinator.cameras) - known_cameras
@@ -44,7 +46,12 @@ async def async_setup_entry(
                     ]
                 )
                 if coordinator.cameras[serial].get("doorbellSupported"):
-                    entities.append(EufyDetectionSensor(coordinator, serial, "doorbell"))
+                    entities.append(
+                        EufyDetectionSensor(coordinator, serial, "doorbell")
+                    )
+                battery = coordinator.cameras[serial].get("battery") or {}
+                if "charging" in battery.get("supported", []):
+                    entities.append(EufyCameraChargingSensor(coordinator, serial))
             async_add_entities(entities)
 
         station_serials = set(coordinator.stations) - known_stations
@@ -55,12 +62,33 @@ async def async_setup_entry(
                 for serial in sorted(station_serials)
             )
 
+        sensor_serials = set(coordinator.sensors) - known_sensors
+        if sensor_serials:
+            known_sensors.update(sensor_serials)
+            entities = []
+            for serial in sorted(sensor_serials):
+                capabilities = coordinator.sensors[serial].get("capabilities", [])
+                if "contact" in capabilities:
+                    entities.append(
+                        EufyStandaloneBinarySensor(coordinator, serial, "contact")
+                    )
+                if "motion" in capabilities:
+                    entities.append(
+                        EufyStandaloneBinarySensor(coordinator, serial, "motion")
+                    )
+            async_add_entities(entities)
+
     add_new()
     entry.async_on_unload(coordinator.async_add_listener(add_new))
 
 
 class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
-    """Expose one gateway detection flag as a Home Assistant binary sensor."""
+    """Expose one transient gateway detection flag for a camera lifetime.
+
+    The gateway owns event expiry and sends the resulting state over SSE. This
+    entity only selects the motion, person, or doorbell field and never starts
+    a camera session to determine whether an event occurred.
+    """
 
     def __init__(
         self, coordinator: EufyGatewayCoordinator, serial: str, kind: str
@@ -69,7 +97,11 @@ class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
         super().__init__(coordinator, serial)
         self.kind = kind
         self._attr_unique_id = f"{serial}_{kind}"
-        self._attr_name = {"motion": "Motion", "person": "Person", "doorbell": "Doorbell"}[kind]
+        self._attr_name = {
+            "motion": "Motion",
+            "person": "Person",
+            "doorbell": "Doorbell",
+        }[kind]
         self._attr_device_class = {
             "motion": BinarySensorDeviceClass.MOTION,
             "person": BinarySensorDeviceClass.OCCUPANCY,
@@ -85,8 +117,68 @@ class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
         return bool(self.camera.get(field))
 
 
+class EufyCameraChargingSensor(EufyGatewayEntity, BinarySensorEntity):
+    """Expose gateway-decoded charging state for a camera or doorbell.
+
+    The entity is created only when inventory advertises charging support and
+    preserves an unknown state until the gateway has decoded a valid value.
+    """
+
+    _attr_name = "Battery charging"
+    _attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create a stable charging entity for one camera."""
+        EufyGatewayEntity.__init__(self, coordinator, serial)
+        BinarySensorEntity.__init__(self)
+        self._attr_unique_id = f"{serial}_battery_charging"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return charging state, preserving unknown when no valid value arrived."""
+        value = (self.camera.get("battery") or {}).get("charging")
+        return value if isinstance(value, bool) else None
+
+
+class EufyStandaloneBinarySensor(EufySecuritySensorEntity, BinarySensorEntity):
+    """Expose one capability-backed state for a standalone security sensor.
+
+    Contact state remains active until the next settled open/closed event;
+    motion state is transient and expires in the gateway. Separate instances
+    are created only for capabilities advertised by that sensor.
+    """
+
+    def __init__(
+        self, coordinator: EufyGatewayCoordinator, serial: str, kind: str
+    ) -> None:
+        """Bind a capability-backed binary state to one standalone sensor."""
+        EufySecuritySensorEntity.__init__(self, coordinator, serial)
+        BinarySensorEntity.__init__(self)
+        self.kind = kind
+        self._attr_unique_id = f"{serial}_{kind}"
+        self._attr_name = "Contact" if kind == "contact" else "Motion"
+        self._attr_device_class = (
+            BinarySensorDeviceClass.OPENING
+            if kind == "contact"
+            else BinarySensorDeviceClass.MOTION
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return normalized open or motion state without inventing unknown values."""
+        field = "contactOpen" if self.kind == "contact" else "motionDetected"
+        value = self.sensor.get(field)
+        return value if isinstance(value, bool) else None
+
+
 class EufyStationConnectionSensor(EufyStationEntity, BinarySensorEntity):
-    """Expose HomeBase PPCS reachability independently from inventory presence."""
+    """Expose HomeBase PPCS reachability independently from inventory presence.
+
+    A station may remain known and therefore have available entities while its
+    command channel is disconnected. This diagnostic keeps those two concepts
+    separate for dashboards and automations.
+    """
 
     _attr_translation_key = "eufy_station_connection"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
