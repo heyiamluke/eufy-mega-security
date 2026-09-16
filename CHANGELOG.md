@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.35
+
+- Clarify that Home Assistant must be fully restarted after updating the integration, and that the HACS integration and app are updated separately.
+
 ## 0.1.34
 
 - Attempt each missing startup snapshot only once per gateway run instead of retrying after every inventory refresh.
