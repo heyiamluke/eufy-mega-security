@@ -11,7 +11,7 @@ The project is maintained as an open-source gateway and Home Assistant integrati
 
 Reliable, event-first Home Assistant support for Eufy cameras that do not provide a permanent RTSP stream.
 
-Motion and person detections arrive as Home Assistant entities. Supported doorbells also expose a press sensor. HomeBase 3 familiar-person names appear when Eufy supplies one, and the last good event image remains visible while the camera is idle.
+Motion, person, pet, vehicle, dog, crying, sound, stranger, and stranded-package detections arrive as distinct Home Assistant entities. Supported doorbells also expose a press sensor. HomeBase 3 familiar-person names appear when Eufy supplies one, and the last good event image remains visible while the camera is idle.
 
 > [!IMPORTANT]
 > This is an early community project built against real EufyCam 2C, HomeBase 3, and Doorbell hardware. It is not affiliated with Anker or Eufy and should not be your only security system.
@@ -57,6 +57,7 @@ For every discovered camera, the integration creates:
 - a camera entity with a retained event image;
 - a motion binary sensor;
 - a person binary sensor;
+- pet, vehicle, dog, crying, sound, stranger, and stranded-package binary sensors;
 - a last-recognized-person sensor, including the detection type and timestamp.
 
 Supported doorbells also get a Doorbell binary sensor. A bell press turns it on

@@ -103,6 +103,9 @@ const providerEvents: ProviderEvents = {
   person(serial, detected, personName) {
     if (state.hasCamera(serial)) state.recordPerson(serial, detected, personName);
   },
+  detection(serial, kind, detected) {
+    if (state.hasCamera(serial)) state.recordDetection(serial, kind, detected);
+  },
   doorbell(serial, pressed) {
     if (state.hasCamera(serial)) state.recordDoorbell(serial, pressed);
   },

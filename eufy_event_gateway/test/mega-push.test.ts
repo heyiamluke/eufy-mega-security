@@ -18,7 +18,7 @@ test("normalizes a nested HomeBase 3 Mega notification", () => {
     cameraSerial: "camera", stationSerial: "station", cameraName: "Path", eventType: 3111,
     messageType: 1, notificationStyle: null, personName: "Alex", content: "Alex has been detected.",
     pictureUrl: "https://example.invalid/image", filePath: null, fetchId: null, senseId: null,
-    guardMode: null, effectiveMode: null, alarmType: null, sensorOpen: null,
+    guardMode: null, effectiveMode: null, alarmType: null, sensorOpen: null, eventId: null,
   });
 });
 

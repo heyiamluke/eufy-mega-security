@@ -38,6 +38,7 @@ export interface MegaPushEvent {
   readonly effectiveMode: number | null;
   readonly alarmType: number | null;
   readonly sensorOpen: boolean | null;
+  readonly eventId: string | null;
 }
 
 interface StoredPushState {
@@ -163,6 +164,7 @@ export function parsePushEvent(data: unknown): MegaPushEvent | null {
     effectiveMode: integer(payload.station_current_mode) ?? integer(payload.current_mode),
     alarmType: integer(payload.alarm_type),
     sensorOpen: sensorOpen(payload.e),
+    eventId: text(payload.unique_id) ?? text(outer.unique_id) ?? text(data.unique_id),
   };
 }
 

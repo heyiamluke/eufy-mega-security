@@ -104,6 +104,8 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   readonly #dskKeys = new Map<string, { readonly key: string; readonly expiresAt: number | null }>();
   readonly #cipherKeys = new Map<number, string>();
   readonly #pushSnapshotQueues = new Map<string, Promise<void>>();
+  readonly #recentPushEvents = new Map<string, number>();
+  readonly #stationRefreshFailures = new Map<string, number>();
   readonly #stations = new Map<string, HomeBaseState>();
   readonly #stationOperations = new Map<string, Promise<HomeBaseState>>();
   #push: MegaPushReceiver | null = null;
@@ -377,9 +379,10 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     this.#stationRefreshTimer = setInterval(() => {
       for (const serial of this.#stations.keys()) {
         if (this.#stationOperations.has(serial) || this.#stationHasActiveMedia(serial)) continue;
-        void this.refreshStation(serial).catch((error: unknown) => {
-          logger.warn("station_refresh_unavailable", `HomeBase state refresh unavailable: ${safeError(error)}`);
-        });
+        void this.refreshStation(serial).then(
+          () => this.#recordStationRefreshSuccess(serial),
+          (error: unknown) => this.#recordStationRefreshFailure(serial, error),
+        );
       }
     }, 60_000);
     this.#stationRefreshTimer.unref();
@@ -414,6 +417,20 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       const sensor = securitySensorState(merged);
       if (sensor) this.#events?.sensor(sensor);
     }
+  }
+
+  #recordStationRefreshFailure(serial: string, error: unknown): void {
+    const failures = (this.#stationRefreshFailures.get(serial) ?? 0) + 1;
+    this.#stationRefreshFailures.set(serial, failures);
+    if (failures === 1 || failures % 15 === 0) {
+      logger.warn("station_refresh_unavailable", `HomeBase state refresh unavailable: failures=${failures} error=${safeError(error)}`);
+    }
+  }
+
+  #recordStationRefreshSuccess(serial: string): void {
+    const failures = this.#stationRefreshFailures.get(serial) ?? 0;
+    this.#stationRefreshFailures.delete(serial);
+    if (failures > 0) logger.info("station_refresh_recovered", `HomeBase state refresh recovered after failures=${failures}`);
   }
 
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
@@ -459,6 +476,8 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     );
     const device = this.#devices.get(event.cameraSerial);
     if (!device) return;
+    if (this.#isDuplicatePush(event)) return;
+    if (event.pictureUrl && isSupportedMegaCamera(device)) this.#queuePushSnapshot(events, event);
     if ((device.deviceType === 2 || device.deviceType === 126) && event.eventType === 3 && event.sensorOpen !== null) {
       events.sensorContact(event.cameraSerial, event.sensorOpen);
       return;
@@ -471,10 +490,23 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       events.doorbell(event.cameraSerial, true);
       return;
     }
-    if (!isCameraDetection(event.eventType)) return;
-    if (event.eventType === 3101) events.motion(event.cameraSerial, true);
-    else events.person(event.cameraSerial, true, personName);
-    if (event.pictureUrl) this.#queuePushSnapshot(events, event);
+    const detection = cameraDetectionKind(event.eventType);
+    if (!detection) return;
+    if (detection === "motion") events.motion(event.cameraSerial, true);
+    else if (detection === "person") events.person(event.cameraSerial, true, personName);
+    else events.detection(event.cameraSerial, detection, true);
+  }
+
+  #isDuplicatePush(event: MegaPushEvent): boolean {
+    if (!event.eventId) return false;
+    const now = Date.now();
+    for (const [key, observedAt] of this.#recentPushEvents) {
+      if (now - observedAt > 60_000) this.#recentPushEvents.delete(key);
+    }
+    const key = `${event.cameraSerial}:${event.eventId}`;
+    if (this.#recentPushEvents.has(key)) return true;
+    this.#recentPushEvents.set(key, now);
+    return false;
   }
 
   async #writeStationValue(
@@ -929,7 +961,7 @@ export function safePushLogSummary(
   else if (stationManaged && event.eventType === 10 && event.alarmType !== null) handling = "station_alarm";
   else if (cameraAccepted && event.eventType === 3103 && device !== null && isDoorbellDevice(device)) handling = "doorbell_press";
   else if (cameraAccepted && isCameraDetection(event.eventType)) {
-    handling = event.eventType === 3101 ? "motion" : "person";
+    handling = cameraDetectionKind(event.eventType) ?? "unhandled";
   }
   const model = device?.model && /^T[0-9]{3,4}(?:[A-Z]{1,2}|-[A-Z]{1,2})?$/.test(device.model)
     ? device.model
@@ -965,7 +997,21 @@ export function personNameFromPush(message: Pick<MegaPushEvent, "eventType" | "p
 }
 
 function isCameraDetection(eventType: number | null): boolean {
-  return eventType === 3101 || eventType === 3102 || eventType === 3111 || eventType === 3112;
+  return cameraDetectionKind(eventType) !== null;
+}
+
+/** Map Eufy's confirmed camera push ids into protocol-neutral detection kinds. */
+export function cameraDetectionKind(eventType: number | null): "motion" | "person" | "stranger" | "pet" | "vehicle" | "dog" | "crying" | "sound" | "packageStranded" | null {
+  if (eventType === 3101) return "motion";
+  if (eventType === 3102 || eventType === 3111) return "person";
+  if (eventType === 3112) return "stranger";
+  if (eventType === 3104) return "crying";
+  if (eventType === 3105) return "sound";
+  if (eventType === 3106) return "pet";
+  if (eventType === 3107) return "vehicle";
+  if (eventType === 3108 || eventType === 3109 || eventType === 3110) return "dog";
+  if (eventType === 3304) return "packageStranded";
+  return null;
 }
 
 /** Identify supported Mega doorbells that should expose a press sensor. */

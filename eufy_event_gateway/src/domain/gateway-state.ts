@@ -24,6 +24,7 @@ import type {
   InventoryDiagnostic,
   CameraCapabilityManifest,
   DeviceCapabilityManifest,
+  DetectionKind,
   SecuritySensorState,
 } from "./types.js";
 
@@ -32,6 +33,13 @@ interface MutableCameraState {
   identity: CameraIdentity;
   motionDetected: boolean;
   personDetected: boolean;
+  strangerDetected: boolean;
+  petDetected: boolean;
+  vehicleDetected: boolean;
+  dogDetected: boolean;
+  cryingDetected: boolean;
+  soundDetected: boolean;
+  packageStrandedDetected: boolean;
   doorbellPressed: boolean;
   lastDetection: Detection | null;
   snapshot: SnapshotInfo | null;
@@ -57,6 +65,7 @@ export class GatewayState extends EventEmitter {
   readonly #motionClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #personClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #doorbellClearTimers = new Map<string, NodeJS.Timeout>();
+  readonly #detectionClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #sensorMotionClearTimers = new Map<string, NodeJS.Timeout>();
   #inventoryDiagnostics: InventoryDiagnostic[] = [];
   #cameraCapabilities: CameraCapabilityManifest[] = [];
@@ -79,6 +88,13 @@ export class GatewayState extends EventEmitter {
         identity,
         motionDetected: false,
         personDetected: false,
+        strangerDetected: false,
+        petDetected: false,
+        vehicleDetected: false,
+        dogDetected: false,
+        cryingDetected: false,
+        soundDetected: false,
+        packageStrandedDetected: false,
         doorbellPressed: false,
         lastDetection: null,
         snapshot: null,
@@ -209,6 +225,36 @@ export class GatewayState extends EventEmitter {
     this.#emitCamera(serial);
   }
 
+  /** Record a non-person AI or audio detection without collapsing its meaning into motion. */
+  recordDetection(
+    serial: string,
+    kind: Exclude<DetectionKind, "motion" | "person" | "doorbell">,
+    detected: boolean,
+    occurredAt = new Date(),
+  ): void {
+    const camera = this.#requireCamera(serial);
+    const field = `${kind}Detected` as keyof Pick<MutableCameraState, "strangerDetected" | "petDetected" | "vehicleDetected" | "dogDetected" | "cryingDetected" | "soundDetected" | "packageStrandedDetected">;
+    camera[field] = detected;
+    const timerKey = `${serial}:${kind}`;
+    const previous = this.#detectionClearTimers.get(timerKey);
+    if (previous) clearTimeout(previous);
+    this.#detectionClearTimers.delete(timerKey);
+    if (detected) {
+      const detection: Detection = {
+        id: randomUUID(), kind, occurredAt: occurredAt.toISOString(), personName: null, recognized: false,
+      };
+      camera.lastDetection = detection;
+      this.emit("event", { type: "detection", cameraSerial: serial, detection } satisfies GatewayEvent);
+      const timer = setTimeout(() => {
+        this.#detectionClearTimers.delete(timerKey);
+        this.recordDetection(serial, kind, false);
+      }, this.detectionHoldMilliseconds);
+      timer.unref();
+      this.#detectionClearTimers.set(timerKey, timer);
+    }
+    this.#emitCamera(serial);
+  }
+
   /** Record a transient doorbell press for a camera that supports doorbells. */
   recordDoorbell(serial: string, pressed: boolean, occurredAt = new Date()): void {
     const camera = this.#requireCamera(serial);
@@ -321,6 +367,13 @@ export class GatewayState extends EventEmitter {
       doorbellSupported: camera.identity.doorbellSupported,
       motionDetected: camera.motionDetected,
       personDetected: camera.personDetected,
+      strangerDetected: camera.strangerDetected,
+      petDetected: camera.petDetected,
+      vehicleDetected: camera.vehicleDetected,
+      dogDetected: camera.dogDetected,
+      cryingDetected: camera.cryingDetected,
+      soundDetected: camera.soundDetected,
+      packageStrandedDetected: camera.packageStrandedDetected,
       doorbellPressed: camera.doorbellPressed,
       battery: camera.identity.battery ?? null,
       lastDetection: camera.lastDetection,
@@ -344,10 +397,12 @@ export class GatewayState extends EventEmitter {
     for (const timer of this.#motionClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#personClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#doorbellClearTimers.values()) clearTimeout(timer);
+    for (const timer of this.#detectionClearTimers.values()) clearTimeout(timer);
     for (const timer of this.#sensorMotionClearTimers.values()) clearTimeout(timer);
     this.#motionClearTimers.clear();
     this.#personClearTimers.clear();
     this.#doorbellClearTimers.clear();
+    this.#detectionClearTimers.clear();
     this.#sensorMotionClearTimers.clear();
   }
 

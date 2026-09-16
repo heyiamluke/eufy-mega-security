@@ -35,6 +35,8 @@ const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
 const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
 const AUTH_SESSION_INVALID_CODES = new Set([26084, 26884]);
+const MEDIA_HOST = /^security-app(?:-(?:eu|ie))?\.eufylife\.com$/;
+const MEDIA_OBJECT_HOST = /^zhixin-security-[a-z0-9]+(?:-[a-z0-9]+)*\.s3(?:\.[a-z]{2}(?:-[a-z0-9]+)+-\d)?\.amazonaws\.com$/;
 
 /** Runtime dependencies and account settings for {@link MegaClient}. */
 export interface MegaClientOptions {
@@ -220,17 +222,37 @@ export class MegaClient {
     if (!isSuccess(result.code)) throw new Error(`Mega push registration failed (${result.code})`);
   }
 
-  /** Download an HTTPS event image while enforcing a bounded response size. */
+  /** Download authenticated temporary media through Eufy's allowlisted object-store redirect. */
   async download(url: string, maximumBytes = 20 * 1024 * 1024): Promise<Buffer> {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") throw new Error("Mega media URL must use HTTPS");
-    const response = await this.#fetch(parsed, { signal: AbortSignal.timeout(30_000) });
+    const parsed = allowedMediaUrl(url, MEDIA_HOST);
+    const signal = AbortSignal.timeout(30_000);
+    let response = await this.#fetch(parsed, {
+      headers: this.#mediaHeaders(), redirect: "manual", signal,
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) throw new Error("Mega media download rejected");
+      const target = allowedMediaUrl(location, MEDIA_OBJECT_HOST);
+      response = await this.#fetch(target, { redirect: "manual", signal });
+    }
     if (!response.ok) throw new Error(`Mega media download failed (HTTP ${response.status})`);
     const length = Number(response.headers.get("content-length") ?? 0);
     if (length > maximumBytes) throw new Error("Mega media exceeds the safety limit");
     const data = Buffer.from(await response.arrayBuffer());
     if (data.length === 0 || data.length > maximumBytes) throw new Error("Mega media has an invalid size");
     return data;
+  }
+
+  #mediaHeaders(): Record<string, string> {
+    this.#requireAuthentication();
+    return {
+      accept: "image/*",
+      "app-name": "eufy_mega",
+      "model-type": "PHONE",
+      "user-agent": "Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/UP1A.231005.007)",
+      gtoken: megaUserToken(this.#session!.userId),
+      "x-auth-token": this.#session!.authToken,
+    };
   }
 
   async #restore(): Promise<void> {
@@ -448,6 +470,19 @@ export class MegaClient {
   #requireAuthentication(): void {
     if (!this.isAuthenticated) throw new Error("Mega authentication is required");
   }
+}
+
+function allowedMediaUrl(value: string, hostPattern: RegExp): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Mega media URL is invalid");
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.port || !hostPattern.test(url.hostname)) {
+    throw new Error("Mega media URL is not an allowed Eufy host");
+  }
+  return url;
 }
 
 function emptySession(country: string, openUdid: string, verifier: string): MegaSession {

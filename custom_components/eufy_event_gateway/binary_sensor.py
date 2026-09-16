@@ -43,6 +43,13 @@ async def async_setup_entry(
                     [
                         EufyDetectionSensor(coordinator, serial, "motion"),
                         EufyDetectionSensor(coordinator, serial, "person"),
+                        EufyDetectionSensor(coordinator, serial, "stranger"),
+                        EufyDetectionSensor(coordinator, serial, "pet"),
+                        EufyDetectionSensor(coordinator, serial, "vehicle"),
+                        EufyDetectionSensor(coordinator, serial, "dog"),
+                        EufyDetectionSensor(coordinator, serial, "crying"),
+                        EufyDetectionSensor(coordinator, serial, "sound"),
+                        EufyDetectionSensor(coordinator, serial, "packageStranded"),
                     ]
                 )
                 if coordinator.cameras[serial].get("doorbellSupported"):
@@ -86,7 +93,7 @@ class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
     """Expose one transient gateway detection flag for a camera lifetime.
 
     The gateway owns event expiry and sends the resulting state over SSE. This
-    entity only selects the motion, person, or doorbell field and never starts
+    entity only selects one normalized transient field and never starts
     a camera session to determine whether an event occurred.
     """
 
@@ -101,11 +108,25 @@ class EufyDetectionSensor(EufyGatewayEntity, BinarySensorEntity):
             "motion": "Motion",
             "person": "Person",
             "doorbell": "Doorbell",
+            "stranger": "Stranger",
+            "pet": "Pet",
+            "vehicle": "Vehicle",
+            "dog": "Dog",
+            "crying": "Crying",
+            "sound": "Sound",
+            "packageStranded": "Package stranded",
         }[kind]
         self._attr_device_class = {
             "motion": BinarySensorDeviceClass.MOTION,
             "person": BinarySensorDeviceClass.OCCUPANCY,
             "doorbell": None,
+            "stranger": BinarySensorDeviceClass.OCCUPANCY,
+            "pet": BinarySensorDeviceClass.OCCUPANCY,
+            "vehicle": BinarySensorDeviceClass.OCCUPANCY,
+            "dog": BinarySensorDeviceClass.OCCUPANCY,
+            "crying": BinarySensorDeviceClass.SOUND,
+            "sound": BinarySensorDeviceClass.SOUND,
+            "packageStranded": BinarySensorDeviceClass.PROBLEM,
         }[kind]
         if kind == "doorbell":
             self._attr_icon = "mdi:doorbell"
