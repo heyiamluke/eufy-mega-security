@@ -22,6 +22,8 @@ Capability startup logs show the Home Assistant adapter and known-type admission
 
 ## Delivery state
 
+v0.1.33 treats an authenticated HTTP 404 from the push-thumbnail path as temporary cloud propagation for a bounded three-attempt window. The retry remains inside the original per-camera snapshot queue, so duplicate style-3 notification deliveries stay suppressed without losing the later image. A privacy-safe success log confirms when the resulting JPEG is retained.
+
 v0.1.32 restores the Home Assistant app's release history by backfilling its app-facing changelog for v0.1.27 through v0.1.31. The release consistency check now requires the current version heading in both the repository changelog and `eufy_event_gateway/CHANGELOG.md`, preventing future app releases from silently publishing stale notes.
 
 v0.1.31 expands the camera push vocabulary into distinct motion, person, stranger, pet, vehicle, dog, crying, sound, and stranded-package events. Attributed push thumbnails are retained independently of event classification. Temporary Eufy media requests use the active Mega token and user token only on the allowlisted Eufy host, then follow one allowlisted object-store redirect without forwarding credentials. Duplicate follow-up deliveries are suppressed by Eufy's event id. Repeated HomeBase recovery failures are summarized, with a separate recovery log when polling succeeds again.
