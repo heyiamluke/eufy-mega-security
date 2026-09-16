@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.32
+
+- Restore the Home Assistant app's displayed release history by backfilling its changelog for versions 0.1.27 through 0.1.31.
+- Enforce the current release heading in both the repository and app-facing changelogs as part of the release consistency check.
+
 ## 0.1.31
 
 - Authenticate temporary Eufy event-image downloads, follow only the expected object-store redirect without forwarding credentials, and retain attributed thumbnails independently of event classification.

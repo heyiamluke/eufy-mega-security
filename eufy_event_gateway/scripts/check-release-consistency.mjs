@@ -58,11 +58,33 @@ function assertVersionsMatch(versions) {
   throw new Error(`Release versions do not match:\n${details}`);
 }
 
+/**
+ * Require a changelog to announce the exact version being released.
+ *
+ * A heading check covers both publication surfaces without requiring their
+ * prose to remain identical. This prevents the app UI from silently retaining
+ * an older release history when the repository changelog is updated alone.
+ *
+ * @param {string} changelog - Markdown changelog contents.
+ * @param {string} version - Release version shared by the public metadata.
+ * @param {string} name - Human-readable path used in failure output.
+ * @returns {void}
+ */
+function assertChangelogVersion(changelog, version, name) {
+  const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const heading = new RegExp(`^##\\s+${escapedVersion}\\s*$`, "m");
+  if (!heading.test(changelog)) {
+    throw new Error(`${name} must contain a \"## ${version}\" release heading`);
+  }
+}
+
 const packageJson = JSON.parse(await readRepositoryFile("package.json"));
 const packageLock = JSON.parse(await readRepositoryFile("package-lock.json"));
 const configYaml = await readRepositoryFile("config.yaml");
 const manifest = JSON.parse(await readFile(resolve(gatewayDirectory, "..", "custom_components/eufy_event_gateway/manifest.json"), "utf8"));
 const runScript = await readRepositoryFile("run.sh");
+const appChangelog = await readRepositoryFile("CHANGELOG.md");
+const repositoryChangelog = await readRepositoryFile("../CHANGELOG.md");
 
 assertVersionsMatch({
   "package.json": packageJson.version,
@@ -70,6 +92,9 @@ assertVersionsMatch({
   "config.yaml": yamlScalar(configYaml, "version"),
   "custom integration manifest": manifest.version,
 });
+
+assertChangelogVersion(repositoryChangelog, packageJson.version, "CHANGELOG.md");
+assertChangelogVersion(appChangelog, packageJson.version, "eufy_event_gateway/CHANGELOG.md");
 
 if (runScript.includes("local-eufy-event-gateway")) {
   throw new Error("run.sh must not advertise the removed local-eufy-event-gateway hostname");
