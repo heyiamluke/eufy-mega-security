@@ -214,6 +214,20 @@ class GatewayClient:
             async with self._session.request(
                 method, self._url(path), **request_kwargs
             ) as response:
+                if response.status >= 400 and response.status != 401:
+                    try:
+                        error_payload = await response.json()
+                    except (ClientError, ValueError):
+                        error_payload = None
+                    detail = (
+                        error_payload.get("error")
+                        if isinstance(error_payload, dict)
+                        else None
+                    )
+                    if isinstance(detail, str) and detail and len(detail) <= 300:
+                        raise GatewayClientError(
+                            f"Gateway returned HTTP {response.status}: {detail}"
+                        )
                 self._raise_for_status(response)
                 payload = await response.json()
                 if not isinstance(payload, dict):

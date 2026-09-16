@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.30
+
+- Confirm T8030 writes through fresh readback when an acknowledgement times out, without resending the command; log station-command outcomes and surface safe gateway errors in Home Assistant.
+
 ## 0.1.29
 
 - Correct the USB-C-powered T817L classification: suppress its battery-shaped compatibility fields and remove battery entities created by v0.1.28 during upgrade.

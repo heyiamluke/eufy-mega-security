@@ -22,6 +22,8 @@ Capability startup logs show the Home Assistant adapter and known-type admission
 
 ## Delivery state
 
+T8030 station writes remain serialized and are never retried. If a write acknowledgement times out, the gateway now performs the already-required fresh readback: matching state confirms success, while mismatched or failed readback still returns an error. Explicit command rejection is never converted to success. Privacy-safe logs distinguish readback-confirmed missing acknowledgements from failed commands, and the Home Assistant client surfaces the gateway's bounded error text instead of only the HTTP status.
+
 T817L is a USB-C-powered camera, not a battery camera. Its Mega inventory nevertheless reports battery level, charging, and temperature parameter IDs. Those values are compatibility sentinels: the shared mains-sentinel classification suppresses them in capability diagnostics and normalized camera state, while Home Assistant removes the exact battery entity IDs created by v0.1.28 on the next integration setup. Camera admission, HomeBase routing, events, snapshots, and live video remain unchanged.
 
 The `mscodemonkey/refresh-snapshot-after-stream` branch rotates Home Assistant's camera image token when a completed live session has left a newer retained JPEG. The gateway already extracts and persists frames throughout a stream; the missing token rotation allowed Home Assistant's camera proxy URL to keep displaying the pre-stream image. Home Assistant's native camera dialog does not provide integrations with a slot for custom startup overlay or caption text, so a "Please wait" message would require an upstream frontend change or a custom dashboard card rather than a backend entity attribute.

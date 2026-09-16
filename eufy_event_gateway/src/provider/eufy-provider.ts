@@ -19,7 +19,7 @@ import { MegaClient } from "../mega/client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
-import { HomeBasePpcsSession, type HomeBasePpcsState } from "../stream/homebase-ppcs.js";
+import { HomeBaseCommandAcknowledgementTimeoutError, HomeBasePpcsSession, type HomeBasePpcsState } from "../stream/homebase-ppcs.js";
 import { cameraCapabilityLogSummaries, describeCameraCapabilities, isSupportedCameraType, describeDeviceCapabilities, deviceCapabilityLogSummaries } from "./device-capabilities-core.js";
 import { hasMainsBatterySentinel } from "./camera-capability-core.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
@@ -483,12 +483,29 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     expected: number,
     write: (session: HomeBasePpcsSession) => Promise<void>,
   ): Promise<HomeBaseState> {
-    return this.#queueStationOperation(serial, true, async (session) => {
-      await write(session);
-      const observed = await session.readState(false);
-      if (observed[field] !== expected) throw new Error(`HomeBase did not confirm ${field}`);
-      return observed;
-    });
+    try {
+      return await this.#queueStationOperation(serial, true, async (session) => {
+        const result = await confirmStationWrite(
+          field,
+          expected,
+          () => write(session),
+          () => session.readState(false),
+        );
+        if (result.acknowledgementTimedOut) {
+          logger.warn(
+            "station_command_acknowledgement_missing",
+            `HomeBase command was confirmed by readback after its acknowledgement timed out: command=${field}`,
+          );
+        }
+        return result.observed;
+      });
+    } catch (error) {
+      logger.warn(
+        "station_command_failed",
+        `HomeBase station command failed: command=${field} error=${safeError(error)}`,
+      );
+      throw error;
+    }
   }
 
   #queueStationOperation(
@@ -652,6 +669,43 @@ function finiteNumber(value: unknown): number | null {
   if (typeof value === "string" && !/^-?\d+(?:\.\d+)?$/.test(value.trim())) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Confirm one non-retried HomeBase write, using readback after an ambiguous timeout.
+ *
+ * A T8030 can apply a command even when its result frame does not reach the
+ * gateway. Only that timeout is recoverable: explicit rejection still fails,
+ * while a matching fresh read proves the requested state without resending.
+ */
+export async function confirmStationWrite(
+  field: "guardMode" | "alarmVolume" | "promptVolume" | "alarmTone",
+  expected: number,
+  write: () => Promise<void>,
+  read: () => Promise<HomeBasePpcsState>,
+): Promise<{ readonly observed: HomeBasePpcsState; readonly acknowledgementTimedOut: boolean }> {
+  let acknowledgementTimedOut = false;
+  try {
+    await write();
+  } catch (error) {
+    if (!(error instanceof HomeBaseCommandAcknowledgementTimeoutError)) throw error;
+    acknowledgementTimedOut = true;
+  }
+
+  let observed: HomeBasePpcsState;
+  try {
+    observed = await read();
+  } catch (error) {
+    if (!acknowledgementTimedOut) throw error;
+    throw new Error(`HomeBase command acknowledgement timed out; readback failed: ${safeError(error)}`);
+  }
+  if (observed[field] !== expected) {
+    const prefix = acknowledgementTimedOut
+      ? "HomeBase command acknowledgement timed out and readback did not confirm"
+      : "HomeBase did not confirm";
+    throw new Error(`${prefix} ${field}`);
+  }
+  return { observed, acknowledgementTimedOut };
 }
 
 function batteryState(device: MegaInventoryDevice): BatteryState | null {
