@@ -13,8 +13,14 @@ export const CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([
   7, 8, 19, 23, 26, 31, 47, 48, 63, 91, 94, 104, 151, 10005, 10031,
 ]);
 
-/** Known mains models whose inventory battery percentage is a sentinel. */
-export const MAINS_BATTERY_SENTINEL_MODELS: readonly string[] = ["T8425", "T8419"];
+/** Known externally powered models whose inventory battery fields are sentinels. */
+export const MAINS_BATTERY_SENTINEL_MODELS: readonly string[] = ["T8425", "T8419", "T817L"];
+
+/** Return whether a model's battery-shaped inventory values are non-battery telemetry. */
+export function hasMainsBatterySentinel(model: string): boolean {
+  const normalized = model.toUpperCase();
+  return MAINS_BATTERY_SENTINEL_MODELS.some((prefix) => normalized.startsWith(prefix));
+}
 
 /** Known non-camera inventory types excluded from camera-review diagnostics. */
 export const NON_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([

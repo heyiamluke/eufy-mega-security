@@ -85,6 +85,29 @@ test("does not infer battery or camera features for unreported params and access
   assert.equal(mains.matrix.find(({ id }) => id === "battery.level")?.deviceEvidence, "suppressed-sentinel");
 });
 
+test("suppresses T817L battery-shaped fields without changing camera support", () => {
+  const manifest = describeCameraCapabilities({
+    serial: "usb-camera", model: "T817L", category: "eufy_security", deviceType: 10031,
+    paramTypes: [1101, 2111, 1138],
+  }, { doorbellSupported: false, streamSupported: true });
+
+  assert.equal(manifest.acceptedAsCamera, true);
+  assert.equal(manifest.capabilities.some(({ id }) => id.startsWith("battery")), false);
+  assert.deepEqual(
+    manifest.matrix.filter(({ family }) => family === "battery").map(({ deviceEvidence, offerable }) => ({ deviceEvidence, offerable })),
+    [
+      { deviceEvidence: "suppressed-sentinel", offerable: false },
+      { deviceEvidence: "suppressed-sentinel", offerable: false },
+      { deviceEvidence: "suppressed-sentinel", offerable: false },
+      { deviceEvidence: "suppressed-sentinel", offerable: false },
+    ],
+  );
+  assert.match(
+    cameraCapabilityLogSummaries([manifest])[0]?.message ?? "",
+    /battery_read=suppressed reported_reads=0 reported_core=none/,
+  );
+});
+
 test("describes only battery reads reported by this camera", () => {
   const manifest = describeCameraCapabilities({
     serial: "battery", model: "T8170", category: "eufy_security", deviceType: 48,

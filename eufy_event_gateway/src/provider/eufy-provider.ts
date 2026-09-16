@@ -21,6 +21,7 @@ import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
 import { HomeBasePpcsSession, type HomeBasePpcsState } from "../stream/homebase-ppcs.js";
 import { cameraCapabilityLogSummaries, describeCameraCapabilities, isSupportedCameraType, describeDeviceCapabilities, deviceCapabilityLogSummaries } from "./device-capabilities-core.js";
+import { hasMainsBatterySentinel } from "./camera-capability-core.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
 
 const logger = createLogger("provider");
@@ -654,7 +655,7 @@ function finiteNumber(value: unknown): number | null {
 }
 
 function batteryState(device: MegaInventoryDevice): BatteryState | null {
-  if (!device.paramTypes.includes(1101) || ["T8425", "T8419"].some((model) => device.model.toUpperCase().startsWith(model))) return null;
+  if (!device.paramTypes.includes(1101) || hasMainsBatterySentinel(device.model)) return null;
   const supported: BatteryState["supported"] = [
     "level",
     ...(device.paramTypes.includes(2111) ? ["charging" as const] : []),

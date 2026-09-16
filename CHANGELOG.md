@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.29
+
+- Correct the USB-C-powered T817L classification: suppress its battery-shaped compatibility fields and remove battery entities created by v0.1.28 during upgrade.
+
 ## 0.1.28
 
 - Add camera and doorbell battery percentage, charging, health, and temperature entities when the corresponding Mega inventory fields are present.

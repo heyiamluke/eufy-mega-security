@@ -16,7 +16,7 @@ from pathlib import Path
 import voluptuous as vol
 from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.const import ATTR_ENTITY_ID, CONF_FILENAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import (
@@ -87,6 +87,33 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         EufyGatewayEntity.__init__(self, coordinator, serial)
         Camera.__init__(self)
         self._attr_unique_id = f"{serial}_camera"
+        self._published_snapshot_revision = self._snapshot_revision
+
+    @property
+    def _snapshot_revision(self) -> int | None:
+        """Return the gateway revision used to invalidate HA's image proxy."""
+        revision = (self.camera.get("snapshot") or {}).get("revision")
+        return revision if isinstance(revision, int) else None
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Publish a new image URL after a stream leaves a fresher retained still.
+
+        The gateway extracts and stores JPEGs while streaming. Home Assistant's
+        camera proxy URL remains cacheable until its access token changes, so a
+        coordinator update alone can leave the pre-stream image on screen. Wait
+        until the media session settles to rotate the token once, avoiding a new
+        entity-picture URL for every frame extracted during the live session.
+        """
+        revision = self._snapshot_revision
+        stream_state = (self.camera.get("stream") or {}).get("state")
+        if (
+            revision != self._published_snapshot_revision
+            and stream_state in ("idle", "error")
+        ):
+            self._published_snapshot_revision = revision
+            self.async_update_token()
+        super()._handle_coordinator_update()
 
     @property
     def supported_features(self) -> CameraEntityFeature:
