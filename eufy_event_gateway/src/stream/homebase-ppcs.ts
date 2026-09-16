@@ -56,6 +56,15 @@ const STORAGE_STATUSES = new Map<number, string>([
   [24, "mounting"],
 ]);
 
+/** Identify an ambiguous write whose T8030 result frame did not arrive in time. */
+export class HomeBaseCommandAcknowledgementTimeoutError extends Error {
+  /** Create a timeout that callers may resolve through a fresh state readback. */
+  constructor() {
+    super("HomeBase command acknowledgement timed out");
+    this.name = "HomeBaseCommandAcknowledgementTimeoutError";
+  }
+}
+
 /** Values read from the HomeBase camera-info response. */
 export interface HomeBasePpcsState {
   readonly firmware: string | null;
@@ -312,7 +321,7 @@ export class HomeBasePpcsSession {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pendingCommand = null;
-        reject(new Error("HomeBase command acknowledgement timed out"));
+        reject(new HomeBaseCommandAcknowledgementTimeoutError());
       }, COMMAND_TIMEOUT_MS);
       this.#pendingCommand = { outerCommand: command, resolve, reject, timer };
       this.#sendCommand(command, payload);

@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  confirmStationWrite,
   inventoryDiagnostics,
   inventoryLogSummaries,
   isDoorbellDevice,
@@ -19,12 +20,61 @@ import {
   safePushLogSummary,
   safeInventoryReads,
 } from "../src/provider/eufy-provider.js";
+import { HomeBaseCommandAcknowledgementTimeoutError, type HomeBasePpcsState } from "../src/stream/homebase-ppcs.js";
 
 const event = (overrides: Partial<Parameters<typeof personNameFromPush>[0]>): Parameters<typeof personNameFromPush>[0] => ({
   eventType: null,
   personName: null,
   content: null,
   ...overrides,
+});
+
+const stationState = (alarmVolume: number | null): HomeBasePpcsState => ({
+  firmware: null,
+  guardMode: null,
+  effectiveMode: null,
+  alarmVolume,
+  promptVolume: null,
+  alarmTone: null,
+  storage: null,
+});
+
+test("accepts matching T8030 readback after an acknowledgement timeout", async () => {
+  let writes = 0;
+  const result = await confirmStationWrite(
+    "alarmVolume",
+    18,
+    async () => {
+      writes += 1;
+      throw new HomeBaseCommandAcknowledgementTimeoutError();
+    },
+    async () => stationState(18),
+  );
+
+  assert.equal(writes, 1);
+  assert.equal(result.acknowledgementTimedOut, true);
+  assert.equal(result.observed.alarmVolume, 18);
+});
+
+test("does not hide a rejected command or mismatched timeout readback", async () => {
+  await assert.rejects(
+    confirmStationWrite(
+      "alarmVolume",
+      18,
+      async () => { throw new Error("HomeBase rejected command (-1)"); },
+      async () => stationState(18),
+    ),
+    /HomeBase rejected command/,
+  );
+  await assert.rejects(
+    confirmStationWrite(
+      "alarmVolume",
+      18,
+      async () => { throw new HomeBaseCommandAcknowledgementTimeoutError(); },
+      async () => stationState(17),
+    ),
+    /acknowledgement timed out and readback did not confirm alarmVolume/,
+  );
 });
 
 test("uses a structured person name when Eufy supplies one", () => {
