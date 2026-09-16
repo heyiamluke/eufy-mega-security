@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.32
+
+- Restore the Home Assistant app's displayed release history by backfilling its changelog for versions 0.1.27 through 0.1.31.
+- Enforce the current release heading in both the repository and app-facing changelogs as part of the release consistency check.
+
+## 0.1.31
+
+- Authenticate temporary Eufy event-image downloads, follow only the expected object-store redirect without forwarding credentials, and retain attributed thumbnails independently of event classification.
+- Add distinct transient sensors for pet, vehicle, dog, crying, sound, stranger, and stranded-package detections from the expanded Eufy push-event vocabulary.
+- De-duplicate follow-up notification deliveries and summarize repeated HomeBase refresh failures instead of logging the same warning every minute.
+
+## 0.1.30
+
+- Confirm T8030 writes through fresh readback when an acknowledgement times out, without resending the command; log station-command outcomes and surface safe gateway errors in Home Assistant.
+
+## 0.1.29
+
+- Correct the USB-C-powered T817L classification: suppress its battery-shaped compatibility fields and remove battery entities created by v0.1.28 during upgrade.
+
+## 0.1.28
+
+- Add camera and doorbell battery percentage, charging, health, and temperature entities when the corresponding Mega inventory fields are present.
+- Add a normalized standalone-sensor API and Home Assistant devices for supported contact, PIR motion, battery percentage, and last-seen state.
+- Route contact open or closed pushes and transient PIR motion pushes into Home Assistant, with a 60-second inventory refresh for persisted readings.
+- Keep capability decisions evidence-based: mains-powered camera sentinels do not create battery entities, and standalone sensor entities appear only for reported fields or recognized PIR types.
+- Document the Home Assistant integration's module ownership, entity lifecycle, protocol boundaries, and non-obvious state behaviour under the project-wide Python commenting standard.
+
+## 0.1.27
+
+- Log privacy-safe capability groups for cameras, doorbells, HomeBase 3, and standalone sensors. The groups show known-type admission, route readiness, reported core evidence, and which gateway paths can be offered without printing device identifiers or raw values.
+- Add authenticated gateway capability endpoints so a discovered device can be compared with the current gateway support paths before Home Assistant entities are considered.
+- Use DSK keys fetched during the current inventory pass when deciding whether a camera's media route is ready.
+- Unknown camera-like rows are marked for review, not automatically accepted. Battery reads and standalone sensor state remain discovery-only; this release adds no battery or sensor entities to Home Assistant.
+
 ## 0.1.26
 
 - Handle snapshot and clip timer rejections as soon as their promises are created. A timeout during slow PPCS startup now reaches the capture or recording caller instead of triggering the process-level unhandled-rejection exit.
