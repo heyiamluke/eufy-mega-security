@@ -1,0 +1,40 @@
+/**
+ * Small core camera capability catalogue used by the Mega gateway today.
+ *
+ * The provider owns inventory evidence and the shared capability evaluator
+ * consumes these rows. Only gateway media/event paths and battery read
+ * candidates are declared here.
+ */
+
+import type { CoreCapabilityEntry } from "./device-capability-core.js";
+
+/** Camera types with an existing gateway protocol route and admission decision. */
+export const CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([
+  7, 8, 19, 23, 26, 31, 47, 48, 63, 91, 94, 104, 151, 10005, 10031,
+]);
+
+/** Known mains models whose inventory battery percentage is a sentinel. */
+export const MAINS_BATTERY_SENTINEL_MODELS: readonly string[] = ["T8425", "T8419"];
+
+/** Known non-camera inventory types excluded from camera-review diagnostics. */
+export const NON_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([
+  0, 18, 25, 27, 28, 300, 301,
+  2, 10, 20, 21, 22, 123, 126, 127,
+  11,
+  50, 51, 52, 53, 54, 55, 56, 57, 58, 140, 141, 142, 143, 180, 184, 189, 201, 202, 209,
+]);
+
+/** Media and push paths already handled by the gateway, plus battery read discovery. */
+export const CAMERA_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [
+  { id: "camera.snapshot_stored", family: "camera", kind: "media", evidenceParamIds: [1004], gatewaySupport: "implemented", baselineWithoutParam: true, note: "Requires a retained image from the provider." },
+  { id: "camera.snapshot_live", family: "camera", kind: "media", evidenceParamIds: [], gatewaySupport: "implemented", requiresRoute: true, note: "A ready PPCS route does not prove a fresh frame." },
+  { id: "camera.live_stream", family: "camera", kind: "media", evidenceParamIds: [], gatewaySupport: "implemented", requiresRoute: true, note: "A ready PPCS route does not prove a first frame." },
+  { id: "camera.record", family: "camera", kind: "media", evidenceParamIds: [], gatewaySupport: "implemented", requiresRoute: true, note: "Clip retrieval still requires provider media evidence." },
+  { id: "snapshot.capture", family: "snapshot", kind: "media", evidenceParamIds: [1004], gatewaySupport: "implemented", requiresRoute: true, note: "Live capture needs its own media route." },
+  { id: "motion.motion_event", family: "motion", kind: "event", evidenceParamIds: [], gatewaySupport: "implemented", note: "Handled by the gateway's known motion push route." },
+  { id: "person_detection.person_event", family: "person_detection", kind: "event", evidenceParamIds: [], gatewaySupport: "implemented", note: "Handled by the gateway's known person push route." },
+  { id: "battery.level", family: "battery", kind: "read", evidenceParamIds: [1101], gatewaySupport: "reference-only", note: "Inventory presence is not a fresh percentage; current-value reporting is not implemented." },
+  { id: "battery.charging", family: "battery", kind: "read", evidenceParamIds: [2111], gatewaySupport: "reference-only", note: "Current-value reporting is not implemented." },
+  { id: "battery.health", family: "battery", kind: "read", evidenceParamIds: [1198], gatewaySupport: "reference-only", note: "Current-value reporting is not implemented." },
+  { id: "battery.temperature", family: "battery", kind: "read", evidenceParamIds: [1138], gatewaySupport: "reference-only", note: "Current-value reporting is not implemented." },
+] as const;

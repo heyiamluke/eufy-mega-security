@@ -103,6 +103,56 @@ export interface CameraIdentity {
   readonly doorbellSupported: boolean;
 }
 
+/** A previously known camera feature found in one device's discovery evidence. */
+export interface CameraCapability {
+  readonly id: "motion" | "person" | "doorbellPress" | "retainedImage" | "liveVideo" | "batteryLevel" | "batteryCharging" | "batteryHealth" | "batteryTemperature";
+  readonly kind: "event" | "image" | "stream" | "measurement" | "state";
+  readonly unit: "%" | "°C" | null;
+  readonly evidence: "gateway" | "inventory-param" | "ppcs-route";
+}
+
+/** One core feature evaluated against a discovered device's reported evidence. */
+export interface CapabilityMatrixRow {
+  readonly id: string;
+  readonly family: string;
+  readonly kind: "read" | "event" | "action" | "media";
+  readonly reportedParamIds: readonly number[];
+  readonly deviceEvidence: "reported-param" | "gateway-baseline" | "ready-route" | "requires-live-proof" | "topology-mismatch" | "suppressed-sentinel" | "not-reported";
+  readonly gatewaySupport: "implemented" | "reference-only";
+  readonly offerable: boolean;
+  readonly note: string | null;
+}
+
+/** Shape-only camera support decision, without a current value or write path. */
+export interface CameraCapabilityManifest {
+  readonly serial: string;
+  readonly model: string;
+  readonly deviceType: number | null;
+  readonly acceptedAsCamera: boolean;
+  readonly reviewCandidate: boolean;
+  /** Peer transport prerequisites, independent of camera-type admission. */
+  readonly peerRouteReady: boolean;
+  readonly reason: "supported-camera-type" | "non-security-category" | "unrecognized-camera-type";
+  readonly capabilities: readonly CameraCapability[];
+  readonly matrix: readonly CapabilityMatrixRow[];
+  readonly unmappedParamIds: readonly number[];
+  readonly unmappedParamCount: number;
+}
+
+/** Mega-side baseline decision for a sensor, HomeBase, or doorbell. */
+export interface DeviceCapabilityManifest {
+  readonly serial: string;
+  readonly model: string;
+  readonly deviceType: number | null;
+  readonly family: "sensor" | "homebase" | "doorbell";
+  /** Recognition identifies the product family; support means gateway/HA admission. */
+  readonly recognized: boolean;
+  readonly supported: boolean;
+  /** Core rows only; local research notes are never loaded into this matrix. */
+  readonly matrix: readonly CapabilityMatrixRow[];
+  readonly unmappedParamCount: number;
+}
+
 /** Stable metadata for a HomeBase 3 discovered through Mega inventory. */
 export interface HomeBaseIdentity {
   readonly serial: string;

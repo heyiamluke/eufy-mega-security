@@ -11,7 +11,7 @@
  */
 import type { Readable } from "node:stream";
 
-import type { CameraIdentity, HomeBaseState, InventoryDiagnostic, PushDiagnostic } from "../domain/types.js";
+import type { CameraCapabilityManifest, CameraIdentity, DeviceCapabilityManifest, HomeBaseState, InventoryDiagnostic, PushDiagnostic } from "../domain/types.js";
 
 /** Callbacks through which a provider reports normalized observations. */
 export interface ProviderEvents {
@@ -24,6 +24,8 @@ export interface ProviderEvents {
   snapshot(serial: string, data: Buffer, contentType: string): void;
   pushDiagnostic(diagnostic: PushDiagnostic): void;
   inventory(diagnostics: InventoryDiagnostic[]): void;
+  cameraCapabilities(manifests: readonly CameraCapabilityManifest[]): void;
+  deviceCapabilities(manifests: readonly DeviceCapabilityManifest[]): void;
   streamStarted(serial: string, video: Readable): void;
   streamStopped(serial: string): void;
 }

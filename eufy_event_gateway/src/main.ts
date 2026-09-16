@@ -113,6 +113,12 @@ const providerEvents: ProviderEvents = {
   inventory(diagnostics) {
     state.updateInventoryDiagnostics(diagnostics);
   },
+  cameraCapabilities(manifests) {
+    state.updateCameraCapabilities(manifests);
+  },
+  deviceCapabilities(manifests) {
+    state.updateDeviceCapabilities(manifests);
+  },
   streamStarted(serial, video) {
     if (state.hasCamera(serial)) streams.attachSource(serial, video);
   },
