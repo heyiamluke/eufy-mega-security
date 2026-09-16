@@ -22,6 +22,8 @@ import type {
   StreamState,
   PushDiagnostic,
   InventoryDiagnostic,
+  CameraCapabilityManifest,
+  DeviceCapabilityManifest,
 } from "./types.js";
 
 /** Mutable internal representation; callers receive immutable snapshots. */
@@ -54,6 +56,8 @@ export class GatewayState extends EventEmitter {
   readonly #personClearTimers = new Map<string, NodeJS.Timeout>();
   readonly #doorbellClearTimers = new Map<string, NodeJS.Timeout>();
   #inventoryDiagnostics: InventoryDiagnostic[] = [];
+  #cameraCapabilities: CameraCapabilityManifest[] = [];
+  #deviceCapabilities: DeviceCapabilityManifest[] = [];
   #connectionState: ConnectionState = "starting";
   #connectionDetail: string | null = null;
 
@@ -228,6 +232,26 @@ export class GatewayState extends EventEmitter {
   /** Return a copy of the latest inventory diagnostics. */
   listInventoryDiagnostics(): InventoryDiagnostic[] {
     return [...this.#inventoryDiagnostics];
+  }
+
+  /** Replace per-device camera shapes after one complete Mega inventory read. */
+  updateCameraCapabilities(manifests: readonly CameraCapabilityManifest[]): void {
+    this.#cameraCapabilities = manifests.map((manifest) => structuredClone(manifest));
+  }
+
+  /** Return checked camera support shapes without querying a device. */
+  listCameraCapabilities(): CameraCapabilityManifest[] {
+    return this.#cameraCapabilities.map((manifest) => structuredClone(manifest));
+  }
+
+  /** Replace baseline product-family decisions after one complete inventory read. */
+  updateDeviceCapabilities(manifests: readonly DeviceCapabilityManifest[]): void {
+    this.#deviceCapabilities = manifests.map((manifest) => structuredClone(manifest));
+  }
+
+  /** Return independent copies of non-camera family decisions. */
+  listDeviceCapabilities(): DeviceCapabilityManifest[] {
+    return this.#deviceCapabilities.map((manifest) => structuredClone(manifest));
   }
 
   /** Return immutable snapshots for every known camera. */

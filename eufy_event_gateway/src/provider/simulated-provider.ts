@@ -10,7 +10,9 @@
 import { Readable } from "node:stream";
 
 import type { HomeBaseState } from "../domain/types.js";
+import { describeCameraCapabilities, describeDeviceCapabilities } from "./device-capabilities-core.js";
 import type { CameraProvider, ProviderEvents } from "./provider.js";
+
 
 const stationSerial = "SIMULATED-HOMEBASE-3";
 
@@ -64,9 +66,23 @@ export class SimulatedProvider implements CameraProvider {
       sources: ["simulated"],
       upstreamIsCamera: true,
       acceptedAsCamera: true,
-      megaDeviceType: null,
-      category: null,
+      megaDeviceType: 8,
+      category: "eufy_security",
     }]);
+    events.cameraCapabilities([describeCameraCapabilities({
+      serial: SimulatedProvider.serial,
+      model: "T8142-compatible simulator",
+      category: "eufy_security",
+      deviceType: 8,
+      paramTypes: [1101, 6043, 6044],
+    }, { doorbellSupported: false, streamSupported: true, routeReady: true, homeBaseAttached: true })]);
+    events.deviceCapabilities(describeDeviceCapabilities({
+      serial: stationSerial,
+      model: "T8030",
+      category: "eufy_security",
+      deviceType: 18,
+      paramTypes: [],
+    }, { homeBaseSupported: true, homeBaseRouteReady: true, doorbellSupported: false, cameraStreamSupported: false }));
     events.connection("connected", "simulated provider");
   }
 

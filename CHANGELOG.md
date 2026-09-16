@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.27
+
+- Log privacy-safe capability groups for cameras, doorbells, HomeBase 3, and standalone sensors. The groups show known-type admission, route readiness, reported core evidence, and which gateway paths can be offered without printing device identifiers or raw values.
+- Add authenticated gateway capability endpoints so a discovered device can be compared with the current gateway support paths before Home Assistant entities are considered.
+- Use DSK keys fetched during the current inventory pass when deciding whether a camera's media route is ready.
+- Unknown camera-like rows are marked for review, not automatically accepted. Battery reads and standalone sensor state remain discovery-only; this release adds no battery or sensor entities to Home Assistant.
+
 ## 0.1.26
 
 - Prevent a camera frame or clip timeout from exiting the gateway when PPCS stream startup is still pending. The capture still reports its timeout. The HomeBase Professional S1 crash-loop reported in issue #28 needs confirmation on the affected installation.

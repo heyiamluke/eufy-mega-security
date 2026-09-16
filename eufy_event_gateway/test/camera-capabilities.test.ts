@@ -1,0 +1,159 @@
+/**
+ * Checks shape-only camera discovery before Home Assistant entity creation.
+ *
+ * A reported parameter proves a read is available, while camera family and
+ * stream-route checks prevent sensors, hubs, and unreachable peers from
+ * acquiring camera features.
+ */
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { cameraCapabilityLogSummaries, describeCameraCapabilities } from "../src/provider/device-capabilities-core.js";
+import { CAMERA_CAPABILITY_CORE } from "../src/provider/camera-capability-core.js";
+import { parseMegaInventory, safeParamTypes } from "../src/provider/eufy-provider.js";
+import { GatewayState } from "../src/domain/gateway-state.js";
+
+test("publishes only gateway basics and battery read discovery", () => {
+  const ids = CAMERA_CAPABILITY_CORE.map(({ id }) => id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual(new Set(CAMERA_CAPABILITY_CORE.map(({ family }) => family)), new Set([
+    "camera", "snapshot", "motion", "person_detection", "battery",
+  ]));
+  assert.equal(CAMERA_CAPABILITY_CORE.every(({ evidenceParamIds }) => evidenceParamIds.every((id) => Number.isSafeInteger(id) && id >= 0 && id <= 65_535)), true);
+  assert.equal(CAMERA_CAPABILITY_CORE.length, 11);
+  assert.equal(CAMERA_CAPABILITY_CORE.filter(({ gatewaySupport }) => gatewaySupport === "implemented").length, 7);
+  assert.equal(CAMERA_CAPABILITY_CORE.filter(({ family, gatewaySupport }) => family === "battery" && gatewaySupport === "reference-only").length, 4);
+});
+
+test("retains parameter IDs without leaking provider values", () => {
+  const [device] = parseMegaInventory({ devices: [{
+    device_sn: "camera", device_model: "T8113-Z", device_type: 8, category: "eufy_security",
+    params: [
+      { param_type: 1101, param_value: "57" },
+      { param_type: 1101, param_value: "secret" },
+      { param_type: -1, param_value: "invalid" },
+      { param_type: 99_999, param_value: "invalid" },
+      { param_type: "1101junk", param_value: "invalid" },
+    ],
+  }] });
+  assert.deepEqual(device?.paramTypes, [1101]);
+  assert.equal(JSON.stringify(device).includes("secret"), false);
+  assert.deepEqual(safeParamTypes("not a list"), []);
+  assert.deepEqual(safeParamTypes([{ param_type: "2111" }]), [2111]);
+});
+
+test("describes one camera from its own parameter evidence and stream route", () => {
+  const manifest = describeCameraCapabilities({
+    serial: "camera", model: "T8113-Z", category: "eufy_security", deviceType: 8, paramTypes: [1101],
+  }, { doorbellSupported: false, streamSupported: false });
+  assert.equal(manifest.acceptedAsCamera, true);
+  assert.deepEqual(manifest.capabilities.map(({ id }) => id), ["motion", "person", "retainedImage", "batteryLevel"]);
+  assert.equal(manifest.capabilities.find(({ id }) => id === "batteryLevel")?.unit, "%");
+  assert.equal(JSON.stringify(manifest).includes("57"), false);
+});
+
+test("shared core evaluation keeps live media behind a ready route", () => {
+  const device = { serial: "sleeping", model: "T8113-Z", category: "eufy_security", deviceType: 8, paramTypes: [] };
+  const sleeping = describeCameraCapabilities(device, { doorbellSupported: false, streamSupported: false });
+  assert.equal(sleeping.matrix.find(({ id }) => id === "camera.snapshot_stored")?.deviceEvidence, "gateway-baseline");
+  assert.equal(sleeping.matrix.find(({ id }) => id === "motion.motion_event")?.offerable, true);
+  assert.equal(sleeping.matrix.find(({ id }) => id === "camera.live_stream")?.deviceEvidence, "requires-live-proof");
+  assert.equal(sleeping.matrix.find(({ id }) => id === "camera.live_stream")?.offerable, false);
+  assert.equal(sleeping.matrix.find(({ id }) => id === "snapshot.capture")?.deviceEvidence, "not-reported");
+
+  const ready = describeCameraCapabilities(device, { doorbellSupported: false, streamSupported: true });
+  assert.equal(ready.matrix.find(({ id }) => id === "camera.live_stream")?.deviceEvidence, "ready-route");
+  assert.equal(ready.matrix.find(({ id }) => id === "snapshot.capture")?.deviceEvidence, "ready-route");
+});
+
+test("does not infer battery or camera features for unreported params and accessories", () => {
+  const noBattery = describeCameraCapabilities({
+    serial: "wired", model: "T8410", category: "eufy_security", deviceType: 31, paramTypes: [],
+  }, { doorbellSupported: false, streamSupported: true });
+  assert.deepEqual(noBattery.capabilities.map(({ id }) => id), ["motion", "person", "retainedImage", "liveVideo"]);
+
+  const accessory = describeCameraCapabilities({
+    serial: "entry", model: "T8900", category: "eufy_security", deviceType: 2, paramTypes: [1101],
+  }, { doorbellSupported: false, streamSupported: true });
+  assert.equal(accessory.acceptedAsCamera, false);
+  assert.deepEqual(accessory.capabilities, []);
+
+  const mains = describeCameraCapabilities({
+    serial: "floodlight", model: "T8425", category: "eufy_security", deviceType: 47, paramTypes: [1101],
+  }, { doorbellSupported: false, streamSupported: true });
+  assert.equal(mains.capabilities.some(({ id }) => id === "batteryLevel"), false);
+  assert.equal(mains.matrix.find(({ id }) => id === "battery.level")?.deviceEvidence, "suppressed-sentinel");
+});
+
+test("describes only battery reads reported by this camera", () => {
+  const manifest = describeCameraCapabilities({
+    serial: "battery", model: "T8170", category: "eufy_security", deviceType: 48,
+    paramTypes: [1101, 2111, 1138],
+  }, { doorbellSupported: false, streamSupported: true });
+  assert.deepEqual(manifest.capabilities.filter(({ id }) => id.startsWith("battery")).map(({ id, kind, unit }) => ({ id, kind, unit })), [
+    { id: "batteryLevel", kind: "measurement", unit: "%" },
+    { id: "batteryCharging", kind: "state", unit: null },
+    { id: "batteryTemperature", kind: "measurement", unit: "°C" },
+  ]);
+});
+
+test("keeps advanced research out of the published device matrix", () => {
+  const manifest = describeCameraCapabilities({
+    serial: "indoor", model: "T8410", category: "eufy_security", deviceType: 31,
+    paramTypes: [6043, 6044, 1240, 1101, 9_999],
+  }, { doorbellSupported: false, streamSupported: true });
+  assert.equal(manifest.matrix.length, 11);
+  assert.equal(manifest.matrix.some(({ id }) => id === "camera.sound_detection"), false);
+  assert.equal(manifest.matrix.find(({ id }) => id === "battery.level")?.offerable, false);
+  assert.equal(manifest.matrix.find(({ id }) => id === "camera.live_stream")?.offerable, true);
+  assert.deepEqual(manifest.unmappedParamIds, [6043, 6044, 1240, 9_999]);
+});
+
+test("marks an unknown camera-like row for review without admitting it", () => {
+  const candidate = describeCameraCapabilities({
+    serial: "new", model: "T9999", category: "eufy_security", deviceType: 109,
+    paramTypes: [1004, 1056],
+  }, { doorbellSupported: false, streamSupported: false, routeReady: true });
+  assert.equal(candidate.acceptedAsCamera, false);
+  assert.equal(candidate.reviewCandidate, true);
+  assert.equal(candidate.peerRouteReady, true);
+  assert.equal(candidate.matrix.some(({ offerable }) => offerable), false);
+  assert.match(cameraCapabilityLogSummaries([candidate])[0]?.message ?? "", /admission=review-camera-like ha_adapter=none accepted=false.*peer_route_ready=true media_supported=false/);
+
+  const sensor = describeCameraCapabilities({
+    serial: "sensor", model: "T8900", category: "eufy_security", deviceType: 2,
+    paramTypes: [1004, 1056],
+  }, { doorbellSupported: false, streamSupported: false, routeReady: true });
+  assert.equal(sensor.reviewCandidate, false);
+
+  const station = describeCameraCapabilities({
+    serial: "station", model: "T8010", category: "eufy_security", deviceType: 0,
+    paramTypes: [1004, 1056],
+  }, { doorbellSupported: false, streamSupported: false, routeReady: true });
+  assert.equal(station.reviewCandidate, false);
+});
+
+test("groups camera capability logs without device identifiers or parameter values", () => {
+  const manifest = describeCameraCapabilities({
+    serial: "PRIVATE-SERIAL", model: "T8410", category: "eufy_security", deviceType: 31,
+    paramTypes: [1101, 9_999],
+  }, { doorbellSupported: false, streamSupported: true });
+  const summaries = cameraCapabilityLogSummaries([manifest, { ...manifest, serial: "ANOTHER-PRIVATE-SERIAL" }]);
+  assert.equal(summaries[0]?.count, 2);
+  assert.match(summaries[0]?.message ?? "", /model=T8410.*admission=known-camera-type ha_adapter=camera.*battery_read=reported.*reported_reads=1 reported_core=battery.level not_yet_implemented=battery.level.*unmapped_params=1/);
+  assert.equal(JSON.stringify(summaries).includes("PRIVATE-SERIAL"), false);
+  assert.equal(JSON.stringify(summaries).includes("9999"), false);
+});
+
+test("returns independent gateway copies of camera manifests", () => {
+  const state = new GatewayState();
+  const manifest = describeCameraCapabilities({
+    serial: "camera", model: "T8210", category: "eufy_security", deviceType: 7, paramTypes: [],
+  }, { doorbellSupported: true, streamSupported: true });
+  state.updateCameraCapabilities([manifest]);
+  const listed = state.listCameraCapabilities();
+  assert.deepEqual(listed[0]?.capabilities.map(({ id }) => id), ["motion", "person", "retainedImage", "doorbellPress", "liveVideo"]);
+  const mutable = listed as unknown as { capabilities: { id: string }[] }[];
+  mutable[0]!.capabilities[0]!.id = "batteryLevel";
+  assert.equal(state.listCameraCapabilities()[0]?.capabilities[0]?.id, "motion");
+});

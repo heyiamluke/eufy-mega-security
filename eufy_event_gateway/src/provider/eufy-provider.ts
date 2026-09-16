@@ -20,6 +20,7 @@ import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
 import { FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
 import { HomeBasePpcsSession, type HomeBasePpcsState } from "../stream/homebase-ppcs.js";
+import { cameraCapabilityLogSummaries, describeCameraCapabilities, isSupportedCameraType, describeDeviceCapabilities, deviceCapabilityLogSummaries } from "./device-capabilities-core.js";
 import type { CameraProvider, CaptchaChallenge, CaptchaProvider, ProviderEvents } from "./provider.js";
 
 const logger = createLogger("provider");
@@ -49,6 +50,7 @@ export interface MegaInventoryDevice {
   readonly adminUserId: string | null;
   readonly userName: string | null;
   readonly firmware: string | null;
+  readonly paramTypes: readonly number[];
 }
 
 /** Safe, grouped inventory evidence suitable for copied support logs. */
@@ -275,6 +277,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         logger.warn("dsk_lookup_unavailable", `Mega DSK lookup unavailable: ${safeError(error)}`);
       }
     }
+    const dskPeerSerials = new Set(this.#dskKeys.keys());
     for (const device of devices) {
       if (!isSupportedMegaCamera(device)) continue;
       events.camera({
@@ -283,8 +286,28 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         model: device.model,
         stationSerial: device.parentSerial,
         doorbellSupported: isDoorbellDevice(device),
-        streamSupported: isPpcsStreamSupported(device, this.#devices, new Set(this.#dskKeys.keys())),
+        streamSupported: isPpcsStreamSupported(device, this.#devices, dskPeerSerials),
       });
+    }
+    const manifests = devices.map((device) => describeCameraCapabilities(device, {
+      doorbellSupported: isDoorbellDevice(device),
+      streamSupported: isPpcsStreamSupported(device, this.#devices, dskPeerSerials),
+      routeReady: isPpcsRouteReady(device, this.#devices, dskPeerSerials),
+      homeBaseAttached: ppcsStreamRoute(device, this.#devices)?.homeBaseAttached ?? false,
+    }));
+    events.cameraCapabilities(manifests);
+    for (const { count, message } of cameraCapabilityLogSummaries(manifests)) {
+      logger.info("camera_capability_group", `count=${count} ${message}`);
+    }
+    const deviceManifests = devices.flatMap((device) => describeDeviceCapabilities(device, {
+      homeBaseSupported: isHomeBase3(device),
+      homeBaseRouteReady: Boolean(device.p2pDid && device.p2pConnection && this.#dskKeys.has(device.serial)),
+      doorbellSupported: isDoorbellDevice(device),
+      cameraStreamSupported: isPpcsStreamSupported(device, this.#devices, dskPeerSerials),
+    }));
+    events.deviceCapabilities(deviceManifests);
+    for (const { count, message } of deviceCapabilityLogSummaries(deviceManifests)) {
+      logger.info("device_capability_group", `count=${count} ${message}`);
     }
     this.#stations.clear();
     for (const device of devices.filter(isHomeBase3)) {
@@ -522,6 +545,7 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
       adminUserId: isRecord(value.member) ? safeValue(value.member.admin_user_id, 128) : null,
       userName: isRecord(value.member) ? safeValue(value.member.nick_name, 128) : null,
       firmware: safeValue(value.main_sw_version, 100),
+      paramTypes: safeParamTypes(value.params),
     });
   }
   const adminUserIds = new Map(
@@ -631,22 +655,21 @@ export function inventoryLogSummaries(
 
 /** Return whether Mega metadata identifies a device as a supported camera. */
 export function isSupportedMegaCamera(device: Pick<MegaInventoryDevice, "category" | "deviceType">): boolean {
-  return device.category === "eufy_security"
-    && (device.deviceType === 7
-      || device.deviceType === 8
-      || device.deviceType === 19
-      || device.deviceType === 23
-      || device.deviceType === 26
-      || device.deviceType === 47
-      || device.deviceType === 48
-      || device.deviceType === 151
-      || device.deviceType === 31
-      || device.deviceType === 63
-      || device.deviceType === 91
-      || device.deviceType === 94
-      || device.deviceType === 104
-      || device.deviceType === 10005
-      || device.deviceType === 10031);
+  return isSupportedCameraType(device);
+}
+
+/** Retain only bounded numeric parameter IDs, never provider values or blobs. */
+export function safeParamTypes(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const types = new Set<number>();
+  for (const row of value.slice(0, 512)) {
+    if (!isRecord(row)) continue;
+    const rawType = row.param_type;
+    const type = typeof rawType === "number" && Number.isSafeInteger(rawType) ? rawType
+      : typeof rawType === "string" && /^\d{1,5}$/.test(rawType) ? Number(rawType) : null;
+    if (type !== null && type >= 0 && type <= 65_535) types.add(type);
+  }
+  return [...types].sort((left, right) => left - right);
 }
 
 /**
@@ -674,7 +697,15 @@ export function isPpcsStreamSupported(
   devicesBySerial: ReadonlyMap<string, MegaInventoryDevice>,
   dskPeerSerials: ReadonlySet<string>,
 ): boolean {
-  if (!isSupportedMegaCamera(device)) return false;
+  return isSupportedMegaCamera(device) && isPpcsRouteReady(device, devicesBySerial, dskPeerSerials);
+}
+
+/** Check peer transport prerequisites without treating the row as a camera. */
+export function isPpcsRouteReady(
+  device: MegaInventoryDevice,
+  devicesBySerial: ReadonlyMap<string, MegaInventoryDevice>,
+  dskPeerSerials: ReadonlySet<string>,
+): boolean {
   const route = ppcsStreamRoute(device, devicesBySerial);
   return Boolean(
     route?.peer.p2pDid

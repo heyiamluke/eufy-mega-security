@@ -52,6 +52,7 @@ test("parses only whitelisted Mega inventory fields and de-duplicates serials", 
     serial: "T8113ABC", name: "Path", model: "T8113-Z", parentSerial: "T8030ABC",
     deviceType: 8, category: "eufy_security", channel: 3, p2pDid: "ABC-123456-XYZ",
     adminUserId: null, userName: null, firmware: null, p2pConnection: null, cipherId: null,
+    paramTypes: [],
   }]);
   assert.equal(JSON.stringify(result).includes("must-not-escape"), false);
 });

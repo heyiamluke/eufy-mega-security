@@ -13,6 +13,8 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `SECURITY.md` | Private reporting and secret-handling rules. |
 | `docs/DEVELOPERS_START_HERE.md` | First-day developer guide to the architecture, Mega/PPCS protocols, data transformations, and debugging workflow. |
 | `docs/MEGA_PLATFORM.md` | Detailed Mega API, authentication, inventory, push, event-image, PPCS, and Home Assistant transformation reference. |
+| `docs/CAMERA_CAPABILITY_MATRIX.md` | Camera core discovery boundary and battery read candidates. |
+| `docs/DEVICE_CAPABILITY_BASELINES.md` | Separate sensor, HomeBase, and doorbell core discovery boundaries. |
 | `hacs.json` | HACS metadata for the custom integration. |
 | `examples/node-red-gate-and-motion.json` | Importable Node-RED flow showing motion events and gateway actions. |
 | `.github/workflows/validate.yml` | CI for gateway tests/build, HACS validation, and Home Assistant metadata. |
@@ -32,6 +34,10 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `eufy_event_gateway/src/storage/snapshot-store.ts` | Persists one verified last-good image per camera with hashed filenames, serialized writes, and atomic replacement. |
 | `eufy_event_gateway/src/provider/provider.ts` | Narrow adapter interface separating a real or simulated provider from state and HTTP code. |
 | `eufy_event_gateway/src/provider/eufy-provider.ts` | Translates Mega inventory/push/media observations into provider callbacks and selects first-party PPCS for live video. |
+| `eufy_event_gateway/src/provider/camera-capability-core.ts` | Small live lookup of existing camera media/events and battery read candidates. |
+| `eufy_event_gateway/src/provider/{sensor,homebase,doorbell}-capability-core.ts` | Small core family lookups. |
+| `eufy_event_gateway/src/provider/device-capability-core.ts` | Shared row shape used by each family definition file. |
+| `eufy_event_gateway/src/provider/device-capabilities-core.ts` | Shared evaluator for all camera, sensor, HomeBase, and doorbell core lookups; separates evidence from support without admitting unsupported devices. |
 | `eufy_event_gateway/src/provider/simulated-provider.ts` | Deterministic provider for local UI, API, SSE, and lifecycle testing without an Eufy account. |
 
 ### Mega protocol
@@ -68,7 +74,7 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `custom_components/eufy_event_gateway/entity.py` | Shared device registry information and availability for all entities. |
 | `custom_components/eufy_event_gateway/camera.py` | Retained-image cameras, live stream URLs, fresh snapshots, and clip actions. |
 | `custom_components/eufy_event_gateway/alarm_control_panel.py` | Code-free Away, Home, and Disarmed control with transient command progress. |
-| `custom_components/eufy_event_gateway/binary_sensor.py` | Motion, person, and HomeBase PPCS connection sensors. |
+| `custom_components/eufy_event_gateway/binary_sensor.py` | Motion, person, doorbell press, and HomeBase PPCS connection sensors. |
 | `custom_components/eufy_event_gateway/number.py` | HomeBase alarm and prompt volume controls. |
 | `custom_components/eufy_event_gateway/select.py` | Configured guard-mode and alarm-tone controls. |
 | `custom_components/eufy_event_gateway/sensor.py` | Last-recognized-person, effective-mode, and HomeBase storage sensors. |
