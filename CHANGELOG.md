@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.33
+
+- Retry authenticated push-thumbnail downloads after brief HTTP 404 responses while Eufy's cloud object is still becoming available.
+- Log successful retained push snapshots explicitly so notification-image recovery can be confirmed from privacy-safe support logs.
+
 ## 0.1.32
 
 - Restore the Home Assistant app's displayed release history by backfilling its changelog for versions 0.1.27 through 0.1.31.

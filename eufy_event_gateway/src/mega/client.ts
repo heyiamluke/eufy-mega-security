@@ -37,6 +37,7 @@ const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
 const AUTH_SESSION_INVALID_CODES = new Set([26084, 26884]);
 const MEDIA_HOST = /^security-app(?:-(?:eu|ie))?\.eufylife\.com$/;
 const MEDIA_OBJECT_HOST = /^zhixin-security-[a-z0-9]+(?:-[a-z0-9]+)*\.s3(?:\.[a-z]{2}(?:-[a-z0-9]+)+-\d)?\.amazonaws\.com$/;
+const MEDIA_NOT_READY_DELAYS_MS = [1_000, 2_000] as const;
 
 /** Runtime dependencies and account settings for {@link MegaClient}. */
 export interface MegaClientOptions {
@@ -47,6 +48,7 @@ export interface MegaClientOptions {
   readonly minimumRequestIntervalMs?: number;
   readonly fetch?: typeof fetch;
   readonly now?: () => number;
+  readonly wait?: (milliseconds: number) => Promise<void>;
 }
 
 /**
@@ -65,6 +67,7 @@ export class MegaClient {
   readonly #store: MegaSessionStore;
   readonly #fetch: typeof fetch;
   readonly #now: () => number;
+  readonly #wait: (milliseconds: number) => Promise<void>;
   readonly #minimumRequestIntervalMs: number;
   #lastRequestAt = 0;
   #session: MegaSession | null = null;
@@ -76,6 +79,7 @@ export class MegaClient {
     this.#country = options.country.toLowerCase();
     this.#fetch = options.fetch ?? globalThis.fetch;
     this.#now = options.now ?? Date.now;
+    this.#wait = options.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
     this.#minimumRequestIntervalMs = options.minimumRequestIntervalMs ?? 3_000;
     this.#store = new MegaSessionStore(join(options.persistentDirectory, "mega-session.json"));
   }
@@ -226,7 +230,26 @@ export class MegaClient {
   async download(url: string, maximumBytes = 20 * 1024 * 1024): Promise<Buffer> {
     const parsed = allowedMediaUrl(url, MEDIA_HOST);
     const signal = AbortSignal.timeout(30_000);
-    let response = await this.#fetch(parsed, {
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= MEDIA_NOT_READY_DELAYS_MS.length; attempt += 1) {
+      response = await this.#fetchMedia(parsed, signal);
+      if (response.status !== 404 || attempt === MEDIA_NOT_READY_DELAYS_MS.length) break;
+      const delay = MEDIA_NOT_READY_DELAYS_MS[attempt];
+      if (delay === undefined) break;
+      await this.#wait(delay);
+    }
+    if (!response) throw new Error("Mega media download failed");
+    if (!response.ok) throw new Error(`Mega media download failed (HTTP ${response.status})`);
+    const length = Number(response.headers.get("content-length") ?? 0);
+    if (length > maximumBytes) throw new Error("Mega media exceeds the safety limit");
+    const data = Buffer.from(await response.arrayBuffer());
+    if (data.length === 0 || data.length > maximumBytes) throw new Error("Mega media has an invalid size");
+    return data;
+  }
+
+  /** Perform one authenticated media lookup and its optional credential-free object-store redirect. */
+  async #fetchMedia(url: URL, signal: AbortSignal): Promise<Response> {
+    let response = await this.#fetch(url, {
       headers: this.#mediaHeaders(), redirect: "manual", signal,
     });
     if (response.status >= 300 && response.status < 400) {
@@ -235,12 +258,7 @@ export class MegaClient {
       const target = allowedMediaUrl(location, MEDIA_OBJECT_HOST);
       response = await this.#fetch(target, { redirect: "manual", signal });
     }
-    if (!response.ok) throw new Error(`Mega media download failed (HTTP ${response.status})`);
-    const length = Number(response.headers.get("content-length") ?? 0);
-    if (length > maximumBytes) throw new Error("Mega media exceeds the safety limit");
-    const data = Buffer.from(await response.arrayBuffer());
-    if (data.length === 0 || data.length > maximumBytes) throw new Error("Mega media has an invalid size");
-    return data;
+    return response;
   }
 
   #mediaHeaders(): Record<string, string> {

@@ -601,7 +601,10 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     const previous = this.#pushSnapshotQueues.get(event.cameraSerial) ?? Promise.resolve();
     const current = previous.then(async () => {
       const picture = await downloadPushSnapshot(this.#client, event, this.#devices);
-      if (picture) events.snapshot(event.cameraSerial, picture.data, "image/jpeg");
+      if (picture) {
+        events.snapshot(event.cameraSerial, picture.data, "image/jpeg");
+        logger.info("push_snapshot_updated", "Eufy push snapshot retained");
+      }
     }).catch((error: unknown) => {
       logger.warn("push_snapshot_unavailable", `Eufy push snapshot unavailable: ${safeError(error)}`);
     });

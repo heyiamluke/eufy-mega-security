@@ -46,6 +46,35 @@ test("authenticates only the Eufy leg of an allowlisted media redirect", async (
   }
 });
 
+test("retries a push thumbnail while Eufy's cloud object is not ready", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-media-retry-"));
+  const waits: number[] = [];
+  let requests = 0;
+  try {
+    await writeFile(join(directory, "mega-session.json"), JSON.stringify({
+      version: 2, country: "au", openUdid: "device", credentialVerifier: credentialVerifier("device", "user@example.invalid", "password"),
+      authToken: "media-token", tokenExpiresAt: 2_000_000_000, userId: "user", megaDomain: "mega-eu-pr.eufy.com",
+      domains: {}, identities: {},
+    }));
+    const client = new MegaClient({
+      email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory,
+      minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000,
+      wait: async (milliseconds) => { waits.push(milliseconds); },
+      fetch: async () => {
+        requests += 1;
+        if (requests < 3) return new Response(null, { status: 404 });
+        return new Response(Buffer.from([0xff, 0xd8, 0xff, 0xd9]), { status: 200 });
+      },
+    });
+    assert.deepEqual(await client.connect(), { state: "authenticated" });
+    assert.equal((await client.download("https://security-app-eu.eufylife.com/image")).length, 4);
+    assert.equal(requests, 3);
+    assert.deepEqual(waits, [1_000, 2_000]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("retains the limited verification session across an app restart", async () => {
   const directory = await mkdtemp(join(tmpdir(), "mega-verification-"));
   const sessionPath = join(directory, "mega-session.json");
