@@ -114,6 +114,12 @@ The project does not need to be accepted into HACS's default catalogue. Add it a
 4. Select **Integration** as the category and add it.
 5. Find **Eufy Mega Security**, choose **Download**, and restart Home Assistant.
 
+After every integration update, fully restart Home Assistant so it loads the
+new integration code. Updating or restarting the Eufy Mega Security app only
+restarts the gateway; it does not reload the integration running inside Home
+Assistant. If a release updates both parts, update the integration in HACS and
+the app separately, then restart Home Assistant.
+
 If you do not use HACS, copy `custom_components/eufy_event_gateway` into `/config/custom_components/eufy_event_gateway` and restart Home Assistant.
 
 ## Install the Home Assistant app
