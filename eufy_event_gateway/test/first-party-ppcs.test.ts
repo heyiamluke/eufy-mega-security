@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { acceptsAttachedCameraMedia, needsAttachedMediaReassert } from "../src/stream/first-party-ppcs.js";
+import { acceptsAttachedCameraMedia, needsAttachedMediaReassert, ppcsFrameChannel } from "../src/stream/first-party-ppcs.js";
 
 test("reasserts attached media only until a frame arrives or after a stall", () => {
   assert.equal(needsAttachedMediaReassert(null, 1_000), true);
@@ -19,4 +19,14 @@ test("accepts only the requested camera's HomeBase video", () => {
   assert.equal(acceptsAttachedCameraMedia(1300, 4, 4), true);
   assert.equal(acceptsAttachedCameraMedia(1300, 3, 4), false);
   assert.equal(acceptsAttachedCameraMedia(1100, 3, 4), true);
+});
+
+test("reads the media channel from the current frame before the parser advances", () => {
+  const currentFrame = Buffer.alloc(16);
+  Buffer.from("XZYH").copy(currentFrame);
+  currentFrame[12] = 4;
+  const followingFrame = Buffer.alloc(16, 9);
+
+  assert.equal(ppcsFrameChannel(Buffer.concat([currentFrame, followingFrame])), 4);
+  assert.equal(ppcsFrameChannel(followingFrame), null);
 });

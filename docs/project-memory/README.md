@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.44 captures the HomeBase camera channel before advancing the PPCS parser buffer. v0.1.42 had accidentally read the following frame's byte 12, causing valid T817L video to be counted as foreign; hardware validation remains pending.
+
 v0.1.43 reports natural PPCS session endings with final counters and a bounded close reason. A connected session that produces no usable frame within 20 seconds now ends cleanly so Home Assistant can retry and the T817L failure stage can be observed.
 
 v0.1.42 accepts HomeBase video only for the requested camera channel. This stops a sibling camera's media from reaching the wrong Home Assistant stream or falsely settling the requested camera's retry cycle; hardware validation remains pending.

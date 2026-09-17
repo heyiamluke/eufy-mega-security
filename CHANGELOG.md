@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.44
+
+- Read the HomeBase camera channel from the current PPCS frame before advancing the parser buffer. This prevents valid requested-camera video from being rejected as sibling media.
+
 ## 0.1.43
 
 - Report PPCS sessions that end naturally, including a privacy-safe close reason and their final media counters.
