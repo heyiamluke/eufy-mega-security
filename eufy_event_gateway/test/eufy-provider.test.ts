@@ -101,13 +101,14 @@ test("parses only whitelisted Mega inventory fields and de-duplicates serials", 
     device_sn: "T8113ABC", device_name: "Path", device_model: "T8113-Z", parent_sn: "T8030ABC",
     device_type: 8, device_channel: 3, category: "eufy_security", p2p_did: "ABC-123456-XYZ",
     device_key: "must-not-escape",
+    charging_days: "44",
   }, { device_sn: "T8113ABC", device_name: "duplicate" }, { device_name: "missing serial" }] });
 
   assert.deepEqual(result, [{
     serial: "T8113ABC", name: "Path", model: "T8113-Z", parentSerial: "T8030ABC",
     deviceType: 8, category: "eufy_security", channel: 3, p2pDid: "ABC-123456-XYZ",
     adminUserId: null, userName: null, firmware: null, p2pConnection: null, cipherId: null,
-    paramTypes: [], reads: {},
+    paramTypes: [], reads: { lastChargingDays: 44 },
   }]);
   assert.equal(JSON.stringify(result).includes("must-not-escape"), false);
 });
@@ -137,6 +138,12 @@ test("decodes only validated capability-backed inventory values", () => {
     { param_type: 1101, param_value: "50" },
     { param_type: 1101, param_value: "49" },
   ]).batteryLevel, 49);
+});
+
+test("accepts only bounded whole days from the cloud inventory field", () => {
+  assert.equal(parseMegaInventory({ devices: [{ device_sn: "valid", charging_days: 44 }] })[0]?.reads.lastChargingDays, 44);
+  assert.equal(parseMegaInventory({ devices: [{ device_sn: "negative", charging_days: -1 }] })[0]?.reads.lastChargingDays, undefined);
+  assert.equal(parseMegaInventory({ devices: [{ device_sn: "fraction", charging_days: 2.5 }] })[0]?.reads.lastChargingDays, undefined);
 });
 
 test("inherits the HomeBase live-view account identity for child cameras", () => {
@@ -275,8 +282,21 @@ test("admits issue 27 Mega cameras through a ready T9000 HomeBase", () => {
 });
 
 test("identifies the T8214 doorbell without classifying the T8416 indoor camera as one", () => {
+  assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 5 }), true);
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 94 }), true);
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 104 }), false);
+});
+
+test("admits a self-parented T8200 through its own PPCS route", () => {
+  const [doorbell] = parseMegaInventory({ devices: [{
+    device_sn: "t8200", parent_sn: "t8200", device_model: "T8200", device_type: 5,
+    device_channel: 0, category: "eufy_security", p2p_did: "direct-did", p2p_conn: "direct-connection",
+  }] });
+  assert.ok(doorbell);
+  const devices = new Map([[doorbell.serial, doorbell]]);
+  assert.deepEqual(ppcsStreamRoute(doorbell, devices), { peer: doorbell, homeBaseAttached: false });
+  assert.equal(isPpcsStreamSupported(doorbell, devices, new Set([doorbell.serial])), true);
+  assert.equal(isDoorbellDevice(doorbell), true);
 });
 
 test("accepts SoloCam C20 inventory through a ready HomeBase 3", () => {

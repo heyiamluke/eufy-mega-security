@@ -60,11 +60,12 @@ export class SimulatedProvider implements CameraProvider {
       streamSupported: true,
       doorbellSupported: false,
       battery: {
-        supported: ["level", "charging", "health", "temperature"],
+        supported: ["level", "charging", "health", "temperature", "lastChargingDays"],
         level: 82,
         charging: false,
         health: 96,
         temperature: 24,
+        lastChargingDays: 12,
       },
     });
     events.sensor({

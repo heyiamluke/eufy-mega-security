@@ -43,6 +43,7 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 
 ### Doorbells
 
+- 🟠 Video Doorbell T8200: Mega type 5 is admitted as a self-parented doorbell through its own PPCS route. Discovery, press notifications, snapshots, and live video need confirmation on real hardware.
 - ✅ Video Doorbell T8210: live streams and snapshots produced on real hardware.
 - ✅ Video Doorbell T8213: discovered with sensors, retained images, and a live stream through HomeBase 3.
 - 🟠 Video Doorbell E340 T8214: the gateway now admits its Mega inventory type and creates a doorbell press sensor. Discovery, press notifications, snapshots, and live video still need a test on this device.
@@ -67,7 +68,7 @@ Supported doorbells also get a Doorbell binary sensor. A bell press turns it on
 for 10 seconds, so an automation can catch the press without opening a video stream.
 
 Cameras and doorbells that report Mega battery fields also get battery percentage,
-charging, health, and temperature entities for the fields that device supplies.
+charging, health, temperature, and days-since-last-charging entities for the fields that device supplies.
 Known mains-powered models with dummy battery values do not get battery entities.
 
 Standalone sensors get entities only for capabilities they report. The first

@@ -80,11 +80,12 @@ export interface CameraState {
 
 /** Normalized battery reads exposed only when a device reports each field. */
 export interface BatteryState {
-  readonly supported: readonly ("level" | "charging" | "health" | "temperature")[];
+  readonly supported: readonly ("level" | "charging" | "health" | "temperature" | "lastChargingDays")[];
   readonly level: number | null;
   readonly charging: boolean | null;
   readonly health: number | null;
   readonly temperature: number | null;
+  readonly lastChargingDays: number | null;
 }
 
 /** Complete normalized state for one supported standalone security sensor. */
