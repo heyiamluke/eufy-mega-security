@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.37 adds a limited live-PPCS probe for the otherwise opaque battery-history parameter 3100. When a camera reports it through `CMD_CAMERA_INFO`, the PPCS outcome log includes only bounded JSON field names and structural types. Raw timestamps, measurements, strings, account data, device identifiers, and the original payload are never retained or logged. The probe exists to establish the T8210 field semantics against the Eufy app before adding a “Days since last charging” entity.
+
 v0.1.36 adds read-only T8010/HomeBase 2 discovery while keeping every station poll and command behind the verified T8030 gate. It also adds privacy-safe on-demand media diagnostics: snapshot and clip failures identify the operation, while PPCS summaries report only model, direct/HomeBase route, failure stage, and bounded transport counters. Serial numbers, peer identities, connection data, packet bytes, and cryptographic material remain excluded.
 
 ## Current architecture

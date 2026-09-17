@@ -979,7 +979,7 @@ export function isPpcsRouteReady(
 export function ppcsStreamLogSummary(
   model: string,
   route: PpcsStreamRoute | null,
-  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames">,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory">>,
   error?: unknown,
 ): string {
   const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
@@ -991,6 +991,7 @@ export function ppcsStreamLogSummary(
     `data_datagrams=${stats.dataDatagrams}`,
     `frame_headers=${stats.frameHeaders}`,
     `video_frames=${stats.videoFrames}`,
+    `battery_history=${stats.batteryHistory ?? "not-reported"}`,
     ...(error === undefined ? [] : [`error=${safeError(error)}`]),
   ].join(" ");
 }
