@@ -5,17 +5,32 @@
  * that prevents a healthy HomeBase stream being reset by its own heartbeat.
  */
 import assert from "node:assert/strict";
-import { createCipheriv } from "node:crypto";
+import { createCipheriv, createDecipheriv } from "node:crypto";
 import test from "node:test";
 
 import {
   acceptsAttachedCameraMedia,
+  buildStandaloneLiveStartPayload,
   decodePpcsVideoFrame,
   needsAttachedMediaReassert,
   PpcsVideoStreamNormalizer,
   ppcsFrameChannel,
   ppcsSequenceDisposition,
 } from "../src/stream/first-party-ppcs.js";
+
+test("labels a standalone live start as level-one frame type 11", () => {
+  const key = Buffer.from("0123456789abcdef", "utf8");
+  const value = JSON.stringify({ commandType: 1000, data: { cmd: 1000 } });
+  const payload = buildStandaloneLiveStartPayload(value, 4, key);
+
+  assert.equal(payload.readUInt16LE(0), payload.length - 10);
+  assert.deepEqual(payload.subarray(4, 10), Buffer.from([1, 0, 4, 1, 11, 0]));
+
+  const decipher = createDecipheriv("aes-128-ecb", key, null);
+  decipher.setAutoPadding(false);
+  const clear = Buffer.concat([decipher.update(payload.subarray(10)), decipher.final()]);
+  assert.equal(clear.subarray(0, value.length).toString("utf8"), value);
+});
 
 test("reasserts attached media only until a frame arrives or after a stall", () => {
   assert.equal(needsAttachedMediaReassert(null, 1_000), true);
