@@ -12,7 +12,7 @@ import {
   acceptsAttachedCameraMedia,
   decodePpcsVideoFrame,
   needsAttachedMediaReassert,
-  normalizePpcsVideoPayload,
+  PpcsVideoStreamNormalizer,
   ppcsFrameChannel,
   ppcsSequenceDisposition,
 } from "../src/stream/first-party-ppcs.js";
@@ -83,16 +83,41 @@ test("converts complete length-prefixed H.264 NAL units to Annex-B", () => {
   lengthPrefixed.writeUInt32BE(idr.length, 4 + sei.length);
   idr.copy(lengthPrefixed, 8 + sei.length);
 
+  const normalizer = new PpcsVideoStreamNormalizer();
   assert.deepEqual(
-    normalizePpcsVideoPayload(lengthPrefixed),
+    normalizer.push(lengthPrefixed),
     Buffer.concat([Buffer.from([0, 0, 0, 1]), sei, Buffer.from([0, 0, 0, 1]), idr]),
   );
+  assert.equal(normalizer.framing, "length-prefixed");
 });
 
-test("leaves Annex-B and incomplete length-prefixed payloads unchanged", () => {
+test("leaves an Annex-B stream unchanged", () => {
   const annexB = Buffer.from([0, 0, 0, 1, 0x65, 0x88]);
-  const incomplete = Buffer.from([0, 0, 0, 0x3f, 0x06, 0x05, 0x3a, 0xfe]);
+  const normalizer = new PpcsVideoStreamNormalizer();
 
-  assert.equal(normalizePpcsVideoPayload(annexB), annexB);
-  assert.equal(normalizePpcsVideoPayload(incomplete), incomplete);
+  assert.equal(normalizer.push(annexB), annexB);
+  assert.equal(normalizer.framing, "annexb");
+});
+
+test("converts a length-prefixed NAL split across PPCS video frames", () => {
+  const normalizer = new PpcsVideoStreamNormalizer();
+  const first = Buffer.from([0, 0, 0, 0xfc, 0x21, 0xe6, 0x03, 0x04]);
+  const second = Buffer.alloc(248, 0x55);
+
+  assert.deepEqual(
+    normalizer.push(first),
+    Buffer.from([0, 0, 0, 1, 0x21, 0xe6, 0x03, 0x04]),
+  );
+  assert.deepEqual(normalizer.push(second), second);
+  assert.equal(normalizer.framing, "length-prefixed");
+});
+
+test("retains a split length prefix until the next PPCS video frame", () => {
+  const normalizer = new PpcsVideoStreamNormalizer();
+
+  assert.deepEqual(normalizer.push(Buffer.from([0, 0])), Buffer.alloc(0));
+  assert.deepEqual(
+    normalizer.push(Buffer.from([0, 3, 0x65, 0x88, 0x84])),
+    Buffer.from([0, 0, 0, 1, 0x65, 0x88, 0x84]),
+  );
 });
