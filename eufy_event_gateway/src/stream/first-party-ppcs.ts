@@ -117,6 +117,23 @@ export function decodePpcsVideoFrame(
 }
 
 /**
+ * Build the level-one control payload that starts a standalone camera stream.
+ *
+ * The encrypted JSON is labelled with sign code 1 and frame type 11 so the
+ * camera decrypts it as its own-session START_LIVE command. HomeBase-attached
+ * cameras use the separate negotiated level-two path.
+ */
+export function buildStandaloneLiveStartPayload(value: string, channel: number, key: Buffer): Buffer {
+  const bytes = Buffer.from(value);
+  const plain = Buffer.alloc(Math.ceil(Math.max(bytes.length, 16) / 16) * 16);
+  bytes.copy(plain);
+  const cipher = createCipheriv("aes-128-ecb", key, null);
+  cipher.setAutoPadding(false);
+  const encrypted = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return rawPayload(encrypted, channel, 1, [1, 0], 11);
+}
+
+/**
  * Normalizes one camera's continuous H.264 byte stream to Annex-B framing.
  *
  * Length prefixes and NAL bodies may cross PPCS frame boundaries, so one
@@ -570,7 +587,11 @@ export class FirstPartyPpcsSession {
       msg_id: 1, camera_type: 0, entrytype: 0, extValue: 1000, ivalue: 1, restore: 0, streamtype: 2,
       video_type: 12, timestamp: now, transaction: `${now}`, encryptkey: key,
     } });
-    this.#sendCommand(1700, stringPayload(value, this.#options.channel, commandKey(this.#options.stationSerial, this.#options.p2pDid)));
+    this.#sendCommand(1700, buildStandaloneLiveStartPayload(
+      value,
+      this.#options.channel,
+      commandKey(this.#options.stationSerial, this.#options.p2pDid),
+    ));
   }
 
   #check(address: { host: string; port: number }): void { this.#send(REQ.check, Buffer.concat([encodeDid(this.#options.p2pDid), Buffer.alloc(3)]), address); }
@@ -584,11 +605,6 @@ export class FirstPartyPpcsSession {
   }
 }
 
-function stringPayload(value: string, channel: number, key: Buffer): Buffer {
-  const bytes = Buffer.from(value); const plain = Buffer.alloc(Math.ceil(Math.max(bytes.length, 16) / 16) * 16); bytes.copy(plain);
-  const cipher = createCipheriv("aes-128-ecb", key, null); cipher.setAutoPadding(false); const padded = Buffer.concat([cipher.update(plain), cipher.final()]);
-  const result = Buffer.alloc(10 + padded.length); result.writeUInt16LE(padded.length, 0); result.writeUInt16LE(1, 4); result[6] = channel; result[7] = 0; padded.copy(result, 10); return result;
-}
 function voidPayload(channel: number): Buffer { const result = Buffer.alloc(10); result.writeUInt16LE(1, 4); result[6] = channel; return result; }
 function commandHeader(sequence: number, command: number): Buffer {
   const result = Buffer.concat([DATA.data, u16(sequence), MAGIC, Buffer.alloc(2)]);

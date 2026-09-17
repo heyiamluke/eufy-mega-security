@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.50
+
+- Label standalone-camera live-start commands with the level-one signature and frame type expected by direct PPCS cameras. This addresses the T84A1 path that connected and accepted commands but never returned a video frame.
+
 ## 0.1.49
 
 - Admit the T8142-Z / eufyCam 2C Pro as Mega camera type 15 through its reported HomeBase 2 route. Discovery, events, snapshots, and live video still need confirmation on this model.
