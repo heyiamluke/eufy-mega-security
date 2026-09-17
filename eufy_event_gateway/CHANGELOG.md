@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.38
+
+- Admit the standalone T8200 / Mega type 5 as a doorbell camera through its self-parented direct PPCS route, including the existing doorbell press entity.
+- Add a diagnostic **Days since last charging** sensor when Eufy's cloud inventory reports its validated `charging_days` value.
+
 ## 0.1.37
 
 - Add a privacy-safe live PPCS probe for battery-history parameter 3100. Support logs report only bounded JSON field names and structural types, never timestamps, measurements, account data, or device identifiers.

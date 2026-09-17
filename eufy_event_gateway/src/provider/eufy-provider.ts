@@ -62,6 +62,7 @@ export interface MegaInventoryReads {
   readonly batteryCharging?: boolean;
   readonly batteryHealth?: number;
   readonly batteryTemperature?: number;
+  readonly lastChargingDays?: number;
   readonly contactOpen?: boolean;
   readonly lastSeen?: string;
 }
@@ -660,6 +661,8 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
     if (!serial || seen.has(serial)) continue;
     seen.add(serial);
     const model = safeValue(value.device_model, 100) ?? "Unknown Eufy device";
+    const reads = safeInventoryReads(value.params);
+    const lastChargingDays = safeLastChargingDays(value.charging_days);
     devices.push({
       serial,
       name: safeValue(value.device_name, 100) ?? model,
@@ -675,7 +678,7 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
       userName: isRecord(value.member) ? safeValue(value.member.nick_name, 128) : null,
       firmware: safeValue(value.main_sw_version, 100),
       paramTypes: safeParamTypes(value.params),
-      reads: safeInventoryReads(value.params),
+      reads: lastChargingDays === undefined ? reads : { ...reads, lastChargingDays },
     });
   }
   const adminUserIds = new Map(
@@ -684,6 +687,13 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
   return devices.map((device) => device.adminUserId || !device.parentSerial
     ? device
     : { ...device, adminUserId: adminUserIds.get(device.parentSerial) ?? null });
+}
+
+function safeLastChargingDays(value: unknown): number | undefined {
+  const parsed = finiteNumber(value);
+  return parsed !== null && Number.isInteger(parsed) && parsed >= 0 && parsed <= 36_500
+    ? parsed
+    : undefined;
 }
 
 /** Decode only capability-backed numeric inventory reads; arbitrary values are discarded. */
@@ -768,6 +778,7 @@ function batteryState(device: MegaInventoryDevice): BatteryState | null {
     ...(device.paramTypes.includes(2111) ? ["charging" as const] : []),
     ...(device.paramTypes.includes(1198) ? ["health" as const] : []),
     ...(device.paramTypes.includes(1138) ? ["temperature" as const] : []),
+    ...(device.reads.lastChargingDays !== undefined ? ["lastChargingDays" as const] : []),
   ];
   return {
     supported,
@@ -775,6 +786,7 @@ function batteryState(device: MegaInventoryDevice): BatteryState | null {
     charging: device.reads.batteryCharging ?? null,
     health: device.reads.batteryHealth ?? null,
     temperature: device.reads.batteryTemperature ?? null,
+    lastChargingDays: device.reads.lastChargingDays ?? null,
   };
 }
 
@@ -1070,7 +1082,7 @@ export function cameraDetectionKind(eventType: number | null): "motion" | "perso
 
 /** Identify supported Mega doorbells that should expose a press sensor. */
 export function isDoorbellDevice(device: Pick<MegaInventoryDevice, "deviceType" | "category">): boolean {
-  return device.category === "eufy_security" && [7, 91, 94, 10031].includes(device.deviceType ?? -1);
+  return device.category === "eufy_security" && [5, 7, 91, 94, 10031].includes(device.deviceType ?? -1);
 }
 
 function isGenericPersonLabel(value: string): boolean {

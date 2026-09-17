@@ -11,6 +11,7 @@ import test from "node:test";
 import { isSupportedMegaCamera } from "../src/provider/eufy-provider.js";
 
 test("recognizes the security camera types present in Mega inventory", () => {
+  assert.equal(isSupportedMegaCamera({ category: "eufy_security", deviceType: 5 }), true);
   assert.equal(isSupportedMegaCamera({ category: "eufy_security", deviceType: 7 }), true);
   assert.equal(isSupportedMegaCamera({ category: "eufy_security", deviceType: 8 }), true);
   assert.equal(isSupportedMegaCamera({ category: "eufy_security", deviceType: 19 }), true);

@@ -17,7 +17,12 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, UnitOfInformation, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfInformation,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
@@ -51,7 +56,7 @@ async def async_setup_entry(
                 entities.append(EufyRecognizedPersonSensor(coordinator, serial))
                 battery = coordinator.cameras[serial].get("battery") or {}
                 for field in battery.get("supported", []):
-                    if field in ("level", "health", "temperature"):
+                    if field in ("level", "health", "temperature", "lastChargingDays"):
                         entities.append(
                             EufyCameraBatterySensor(coordinator, serial, field)
                         )
@@ -161,7 +166,7 @@ class EufyRecognizedPersonSensor(EufyGatewayEntity, SensorEntity):
 class EufyCameraBatterySensor(EufyGatewayEntity, SensorEntity):
     """Expose one supported battery measurement for a camera or doorbell.
 
-    A separate entity is created for level, health, or temperature only when
+    A separate entity is created for each reported battery measurement only when
     the gateway advertises that field. Values are already validated and
     normalized before they enter coordinator state.
     """
@@ -171,11 +176,15 @@ class EufyCameraBatterySensor(EufyGatewayEntity, SensorEntity):
     def __init__(
         self, coordinator: EufyGatewayCoordinator, serial: str, field: str
     ) -> None:
-        """Create a battery level, health, or temperature measurement."""
+        """Create one inventory-backed battery measurement."""
         EufyGatewayEntity.__init__(self, coordinator, serial)
         SensorEntity.__init__(self)
         self.field = field
-        self._attr_unique_id = f"{serial}_battery_{field}"
+        self._attr_unique_id = (
+            f"{serial}_last_charging_days"
+            if field == "lastChargingDays"
+            else f"{serial}_battery_{field}"
+        )
         if field == "level":
             self._attr_name = "Battery"
             self._attr_device_class = SensorDeviceClass.BATTERY
@@ -185,10 +194,15 @@ class EufyCameraBatterySensor(EufyGatewayEntity, SensorEntity):
             self._attr_native_unit_of_measurement = PERCENTAGE
             self._attr_icon = "mdi:battery-heart"
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        else:
+        elif field == "temperature":
             self._attr_name = "Battery temperature"
             self._attr_device_class = SensorDeviceClass.TEMPERATURE
             self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        else:
+            self._attr_name = "Days since last charging"
+            self._attr_native_unit_of_measurement = UnitOfTime.DAYS
+            self._attr_icon = "mdi:battery-clock"
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
