@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.46
+
+- Convert complete four-byte length-prefixed camera video payloads to Annex-B before handing them to Home Assistant. This addresses the T817L `unsupported header: 0000003f...` playback failure while leaving existing Annex-B streams unchanged.
+
 ## 0.1.45
 
 - Ignore duplicate and stale PPCS datagrams instead of feeding retransmitted bytes into the media parser.

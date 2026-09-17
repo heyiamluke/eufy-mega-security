@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.46 converts a complete sequence of four-byte length-prefixed camera NAL units to Annex-B before writing it to the shared stream. The T817L hardware test reached go2rtc but failed with `bitstream: unsupported header: 0000003f06053afe`; the leading `0000003f` declares the following 63-byte NAL rather than an Annex-B start code. Existing Annex-B and incomplete or unrecognised payloads remain byte-for-byte unchanged. Hardware playback confirmation remains pending.
+
 v0.1.45 distinguishes forward PPCS loss from duplicate and stale retransmissions, discards incomplete command payloads after genuine loss, and resumes only from a complete command header. It also fixes a separate mixed-media bug: the gateway retained one encrypted frame's AES key and applied it to later plaintext T817L frames. Media decoding now uses only the key carried by the current encrypted frame and leaves plaintext frames untouched. This addresses the T817L run with 1,660 reported gaps, a blocked parser, and both clear and decrypted output in one session; hardware video remains pending.
 
 v0.1.44 captures the HomeBase camera channel before advancing the PPCS parser buffer. v0.1.42 had accidentally read the following frame's byte 12, causing valid T817L video to be counted as foreign; hardware validation remains pending.
