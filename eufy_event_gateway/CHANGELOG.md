@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.37
+
+- Add a privacy-safe live PPCS probe for battery-history parameter 3100. Support logs report only bounded JSON field names and structural types, never timestamps, measurements, account data, or device identifiers.
+
 ## 0.1.36
 
 - Discover T8010 HomeBase 2 as a read-only Home Assistant device with firmware, inventory availability, and child-camera route readiness, without enabling unverified T8030 controls.

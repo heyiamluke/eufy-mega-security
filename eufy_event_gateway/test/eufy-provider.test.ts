@@ -438,6 +438,7 @@ test("summarizes PPCS failure stages without private transport data", () => {
     videoFrames: 0,
   }, new Error("Timed out waiting for a fresh camera frame"));
   assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 data_datagrams=3 frame_headers=2 video_frames=0/);
+  assert.match(summary, /battery_history=not-reported/);
   assert.equal(summary.includes("PRIVATE"), false);
 });
 

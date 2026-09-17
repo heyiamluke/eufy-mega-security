@@ -6,6 +6,8 @@ The core lookup is [`camera-capability-core.ts`](../eufy_event_gateway/src/provi
 
 The authenticated `GET /api/camera-capabilities` endpoint returns only these core rows. Each row separates device evidence from gateway support and says whether the feature is offerable. Startup writes a grouped `camera_capability_group` diagnostic with the admission decision, HA adapter, peer-route readiness, admitted media support, battery-read status, reported core reads, reads not yet implemented, and gateway-offerable paths. It omits serial numbers, names, raw parameter values, and push payloads.
 
+Battery-history parameter 3100 remains diagnostic-only because its JSON fields are not yet verified. A live PPCS camera-info response is reduced to bounded field names and structural types in the stream outcome log; the raw JSON and all values are discarded. This probe must be compared with the device's Eufy-app reading before any Home Assistant entity is defined.
+
 Unknown device types remain outside the camera admission list. A device must report both cover-image and video-specific inventory evidence, have a ready peer route, and not be a known accessory or station before the gateway flags it for review. This is only a diagnostic candidate, not automatic entity registration.
 
 The gateway will add further camera features one at a time after checking its own protocol path, current-value freshness where needed, and real-device behaviour. [Sensors, HomeBases, and doorbells](DEVICE_CAPABILITY_BASELINES.md) have separate core decisions.

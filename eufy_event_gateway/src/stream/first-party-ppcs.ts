@@ -64,7 +64,7 @@ export interface PpcsCameraOptions {
  */
 export class FirstPartyPpcsSession {
   readonly output = new PassThrough();
-  readonly stats = { camId: 0, dataDatagrams: 0, frameHeaders: 0, gatewayInfo: 0, level2: 0, videoFrames: 0, firstDataHex: "", cipherId: 0, level2Error: "", commands: [] as number[], responseLengths: [] as number[], startHex: "", types: [] as number[] };
+  readonly stats = { camId: 0, dataDatagrams: 0, frameHeaders: 0, gatewayInfo: 0, level2: 0, videoFrames: 0, batteryHistory: "not-reported", firstDataHex: "", cipherId: 0, level2Error: "", commands: [] as number[], responseLengths: [] as number[], startHex: "", types: [] as number[] };
   readonly #options: PpcsCameraOptions;
   readonly #socket: Socket = createSocket("udp4");
 
@@ -189,6 +189,7 @@ export class FirstPartyPpcsSession {
       // 1100 carries the encrypted HomeBase gateway details. 1300 carries
       // media frames after the level-2 request has been accepted.
       if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
+      else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
       else if (command === 1300) { this.stats.videoFrames++; this.#writeVideo(payload, signCode); }
     }
     this.#pendingByType.set(type, pending);
@@ -206,6 +207,26 @@ export class FirstPartyPpcsSession {
     const tail = frame.subarray(start + encrypted.length, Math.min(frame.length, start + length));
     const video = Buffer.concat([clear, tail]);
     if (video.length > 0) this.output.write(video);
+  }
+
+  #inspectCameraInfo(payload: Buffer, signCode: number): void {
+    let clear = payload;
+    if ((signCode === 2 || signCode === 8) && this.#level2Key) {
+      clear = decryptLevel2(payload, this.#level2Key, signCode) ?? payload;
+    } else if (signCode > 0 && payload.length > 0 && payload.length % 16 === 0) {
+      try { clear = decryptEcb(payload, commandKey(this.#options.stationSerial, this.#options.p2pDid)); } catch { return; }
+    }
+    const text = clear.toString("utf8").replace(/\0+$/g, "").trim();
+    if (!text.startsWith("{")) return;
+    try {
+      const decoded: unknown = JSON.parse(text);
+      if (!isRecord(decoded) || !Array.isArray(decoded.params)) return;
+      const entry = decoded.params.find((candidate) => isRecord(candidate) && candidate.param_type === 3100);
+      if (!isRecord(entry) || typeof entry.param_value !== "string") return;
+      this.stats.batteryHistory = batteryHistoryProbeSummary(entry.param_value);
+    } catch {
+      return;
+    }
   }
 
   async #handleGatewayInfo(payload: Buffer): Promise<void> {
@@ -299,6 +320,56 @@ function encryptLevel2(plaintext: Buffer, key: Buffer, sequence: number): Buffer
   const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   return Buffer.concat([cipher.getAuthTag(), nonce, Buffer.from([sequence & 0xff, 3, 2, 1]), ciphertext]);
 }
+function decryptLevel2(payload: Buffer, key: Buffer, signCode: number): Buffer | undefined {
+  const ciphertextOffset = signCode === 8 ? 32 : 28;
+  if (payload.length < ciphertextOffset) return undefined;
+  try {
+    const decipher = createDecipheriv("aes-256-gcm", key, payload.subarray(16, 28));
+    decipher.setAAD(Buffer.from("eufy security", "utf8"));
+    decipher.setAuthTag(payload.subarray(0, 16));
+    return Buffer.concat([decipher.update(payload.subarray(ciphertextOffset)), decipher.final()]);
+  } catch { return undefined; }
+}
+
+/**
+ * Describe battery-history JSON without retaining its values.
+ *
+ * The diagnostic intentionally reports only bounded field names and structural
+ * types. A reporter can compare that schema with the Eufy app while account,
+ * device, timestamp, and usage values stay out of logs.
+ */
+export function batteryHistoryProbeSummary(value: string): string {
+  if (value.length === 0 || value.length > 65_536) return "invalid-size";
+  try {
+    return describeProbeValue(JSON.parse(value), 0);
+  } catch {
+    return "invalid-json";
+  }
+}
+
+function describeProbeValue(value: unknown, depth: number): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) {
+    if (depth >= 2) return "array";
+    const kinds = [...new Set(value.slice(0, 8).map((item) => describeProbeValue(item, depth + 1)))].slice(0, 4);
+    return `array[${kinds.join("|") || "empty"}]`;
+  }
+  if (isRecord(value)) {
+    if (depth >= 2) return "object";
+    const fields = Object.keys(value)
+      .filter((key) => /^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(key))
+      .sort()
+      .slice(0, 16)
+      .map((key) => `${key}:${describeProbeValue(value[key], depth + 1)}`);
+    return `object{${fields.join(",") || "empty"}}`;
+  }
+  if (typeof value === "number") return Number.isFinite(value) ? "number" : "invalid-number";
+  if (typeof value === "string") return "string";
+  if (typeof value === "boolean") return "boolean";
+  return "unknown";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function unwrapGatewayInfo(envelope: Buffer, privateKeyHex: string): Buffer | undefined {
   try {
     if (envelope.length < 129) return undefined;
