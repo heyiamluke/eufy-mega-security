@@ -35,6 +35,8 @@ const RESP = {
 const DATA = { data: Buffer.from([0xd1, 0]), video: Buffer.from([0xd1, 1]) } as const;
 const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
 const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
+const PPCS_SEQUENCE_LOOKBACK = 0x8000;
+const PPCS_STALE_RETRANSMIT_DEPTH = 1024;
 
 type PpcsStreamCloseReason = "client_stop" | "first_frame_timeout" | "max_duration" | "replaced" | "start_failed";
 
@@ -66,6 +68,55 @@ export function acceptsAttachedCameraMedia(command: number, frameChannel: number
 /** Read the camera channel from the current 16-byte PPCS command header. */
 export function ppcsFrameChannel(frame: Buffer): number | null {
   return frame.length >= 16 && frame.subarray(0, 4).equals(MAGIC) ? (frame[12] ?? null) : null;
+}
+
+/** Classify a 16-bit PPCS datagram sequence relative to the last accepted value. */
+export function ppcsSequenceDisposition(
+  previous: number | null,
+  current: number,
+): "first" | "next" | "gap" | "duplicate" | "stale" | "restart" {
+  if (previous === null) return "first";
+  const advance = (current - previous) & 0xffff;
+  if (advance === 0) return "duplicate";
+  if (advance > PPCS_SEQUENCE_LOOKBACK) {
+    return 0x10000 - advance > PPCS_STALE_RETRANSMIT_DEPTH ? "restart" : "stale";
+  }
+  return advance === 1 ? "next" : "gap";
+}
+
+/**
+ * Decode one legacy PPCS video frame using only the key carried by that frame.
+ *
+ * Encrypted frames wrap a fresh AES key ahead of their media bytes. Plaintext
+ * frames must never inherit that key: HomeBase streams can switch between the
+ * two forms, and decrypting a later plaintext frame corrupts valid Annex-B.
+ */
+export function decodePpcsVideoFrame(
+  frame: Buffer,
+  signCode: number,
+  unwrapKey: (wrapped: Buffer) => Buffer | undefined,
+): Buffer | undefined {
+  if (frame.length < 22) return undefined;
+  const length = frame.readUInt32LE(0);
+  if (signCode <= 0 || length < 128) {
+    if (frame.length < 22 + length) return undefined;
+    return frame.subarray(22, 22 + length);
+  }
+  if (frame.length < 151 + length) return undefined;
+  try {
+    const key = unwrapKey(frame.subarray(22, 150));
+    if (!key || (key.length !== 16 && key.length !== 32)) return undefined;
+    const encrypted = frame.subarray(151, 151 + 128);
+    const clear = decryptEcb(encrypted, key);
+    return Buffer.concat([clear, frame.subarray(151 + 128, 151 + length)]);
+  } catch {
+    return undefined;
+  }
+}
+
+interface PendingPpcsFrame {
+  readonly header: Buffer;
+  readonly payload: Buffer;
 }
 
 /** Peer and camera values required to establish one PPCS media session. */
@@ -115,6 +166,10 @@ export class FirstPartyPpcsSession {
     frameShapes: [] as string[],
     responseLengths: [] as number[],
     sequenceGaps: 0,
+    sequenceRestarts: 0,
+    duplicateDatagrams: 0,
+    staleDatagrams: 0,
+    parserResyncs: 0,
     parserBlocked: false,
     pendingBytes: 0,
     startHex: "",
@@ -134,8 +189,7 @@ export class FirstPartyPpcsSession {
   #closed = false;
   #maximumDurationTimer: ReturnType<typeof setTimeout> | null = null;
   #firstFrameTimer: ReturnType<typeof setTimeout> | null = null;
-  #pendingByType = new Map<number, Buffer>();
-  #videoKey: Buffer | null = null;
+  #pendingByType = new Map<number, PendingPpcsFrame>();
   #level2Key: Buffer | null = null;
   #level2Seq = 0;
   #gatewayPromise: Promise<void> | null = null;
@@ -241,57 +295,89 @@ export class FirstPartyPpcsSession {
 
   #consumeData(data: Buffer, sequence: number, type: number): void {
     const previous = this.#lastSequenceByType.get(type);
-    if (previous !== undefined && ((sequence - previous) & 0xffff) > 1) {
-      this.stats.sequenceGaps++;
+    const disposition = ppcsSequenceDisposition(previous ?? null, sequence);
+    if (disposition === "duplicate") {
+      this.stats.duplicateDatagrams++;
+      return;
+    }
+    if (disposition === "stale") {
+      this.stats.staleDatagrams++;
+      return;
+    }
+    if (disposition === "gap" || disposition === "restart") {
+      if (disposition === "restart") this.stats.sequenceRestarts++;
+      else this.stats.sequenceGaps++;
       this.#pendingByType.delete(type);
     }
     this.#lastSequenceByType.set(type, sequence);
-    let pending = Buffer.concat([this.#pendingByType.get(type) ?? Buffer.alloc(0), data]);
-    while (pending.length >= 16 && pending.subarray(0, 4).equals(MAGIC)) {
-      const command = pending.readUInt16LE(4);
+    const carried = this.#pendingByType.get(type);
+    this.#pendingByType.delete(type);
+    let body = data;
+    if (carried) {
+      const size = carried.header.readUInt32LE(6);
+      const payload = Buffer.concat([carried.payload, body]);
+      if (payload.length < size) {
+        this.#pendingByType.set(type, { header: carried.header, payload });
+        this.#updatePendingBytes();
+        return;
+      }
+      this.#handleFrame(carried.header, payload.subarray(0, size), type);
+      body = payload.subarray(size);
+    }
+    while (body.length >= 16 && body.subarray(0, 4).equals(MAGIC)) {
+      const header = body.subarray(0, 16);
+      const command = header.readUInt16LE(4);
       if (this.stats.commands.length < 20) this.stats.commands.push(command);
-      const size = pending.readUInt32LE(6);
+      const size = header.readUInt32LE(6);
       if (command === 1350 && this.stats.responseLengths.length < 5) this.stats.responseLengths.push(size);
-      const signCode = pending[13] ?? 0;
       if (size > 16 * 1024 * 1024) {
         this.#pendingByType.delete(type);
         this.#updatePendingBytes();
         return;
       }
-      if (pending.length < 16 + size) {
-        this.#pendingByType.set(type, pending);
+      const payload = body.subarray(16);
+      if (payload.length < size) {
+        this.#pendingByType.set(type, { header: Buffer.from(header), payload: Buffer.from(payload) });
         this.#updatePendingBytes();
         return;
       }
-      const payload = pending.subarray(16, 16 + size);
-      const frameChannel = ppcsFrameChannel(pending);
-      this.stats.frameHeaders++;
-      const shape = `${command}:${signCode}:${size}:${type}`;
-      if (!this.stats.frameShapes.includes(shape) && this.stats.frameShapes.length < 20) {
-        this.stats.frameShapes.push(shape);
-      }
-      pending = pending.subarray(16 + size);
-
-      // 1100 carries the encrypted HomeBase gateway details. 1300 carries
-      // media frames after the level-2 request has been accepted.
-      if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
-      else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
-      else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, frameChannel ?? -1, this.#options.channel))) {
-        this.stats.videoFrames++;
-        if (this.#writeVideo(payload, signCode)) {
-          if (this.#firstFrameTimer) {
-            clearTimeout(this.#firstFrameTimer);
-            this.#firstFrameTimer = null;
-          }
-          if (this.#options.homeBaseAttached) this.#lastAttachedMediaFrameAt = Date.now();
-        }
-      } else if (command === 1300 && this.#options.homeBaseAttached) {
-        this.stats.foreignVideoFrames++;
-      }
+      this.#handleFrame(header, payload.subarray(0, size), type);
+      body = body.subarray(16 + size);
     }
-    this.stats.parserBlocked ||= pending.length >= 16 && !pending.subarray(0, 4).equals(MAGIC);
-    this.#pendingByType.set(type, pending);
+    if (body.length > 0) {
+      this.stats.parserBlocked = true;
+      this.stats.parserResyncs++;
+    }
     this.#updatePendingBytes();
+  }
+
+  #handleFrame(header: Buffer, payload: Buffer, type: number): void {
+    const command = header.readUInt16LE(4);
+    const size = header.readUInt32LE(6);
+    const frameChannel = ppcsFrameChannel(header);
+    const signCode = header[13] ?? 0;
+    this.stats.frameHeaders++;
+    const shape = `${command}:${signCode}:${size}:${type}`;
+    if (!this.stats.frameShapes.includes(shape) && this.stats.frameShapes.length < 20) {
+      this.stats.frameShapes.push(shape);
+    }
+
+    // 1100 carries the encrypted HomeBase gateway details. 1300 carries
+    // media frames after the level-2 request has been accepted.
+    if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
+    else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
+    else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, frameChannel ?? -1, this.#options.channel))) {
+      this.stats.videoFrames++;
+      if (this.#writeVideo(payload, signCode)) {
+        if (this.#firstFrameTimer) {
+          clearTimeout(this.#firstFrameTimer);
+          this.#firstFrameTimer = null;
+        }
+        if (this.#options.homeBaseAttached) this.#lastAttachedMediaFrameAt = Date.now();
+      }
+    } else if (command === 1300 && this.#options.homeBaseAttached) {
+      this.stats.foreignVideoFrames++;
+    }
   }
 
   #writeVideo(frame: Buffer, signCode: number): boolean {
@@ -299,36 +385,16 @@ export class FirstPartyPpcsSession {
       this.#recordVideoResult("short");
       return false;
     }
-    const length = frame.readUInt32LE(0); const encryptedKey = frame.subarray(22, 150);
-    let start = 22;
-    if (signCode > 0 && encryptedKey.length === 128 && frame[4] === 1) {
-      try {
-        this.#videoKey = privateDecrypt({ key: this.#rsa.privateKey, padding: 1 }, encryptedKey);
-        start = 150 + 1;
-      } catch {
-        this.#recordVideoResult("key-unwrapping-failed");
-        return false;
-      }
-    }
-    const encrypted = frame.subarray(start, Math.min(frame.length, start + Math.min(length, 128)));
-    let clear = encrypted;
-    if (this.#videoKey && encrypted.length === 128) {
-      try {
-        clear = decryptEcb(encrypted, this.#videoKey);
-      } catch {
-        this.#recordVideoResult("frame-decryption-failed");
-        return false;
-      }
-    }
-    const tail = frame.subarray(start + encrypted.length, Math.min(frame.length, start + length));
-    const video = Buffer.concat([clear, tail]);
-    if (video.length === 0) {
-      this.#recordVideoResult("empty");
+    const video = decodePpcsVideoFrame(frame, signCode, (wrapped) => (
+      privateDecrypt({ key: this.#rsa.privateKey, padding: 1 }, wrapped)
+    ));
+    if (!video?.length) {
+      this.#recordVideoResult(signCode > 0 ? "encrypted-frame-rejected" : "plaintext-frame-rejected");
       return false;
     }
     this.output.write(video);
     this.stats.videoOutputFrames++;
-    this.#recordVideoResult(this.#videoKey ? "written-decrypted" : "written-clear");
+    this.#recordVideoResult(signCode > 0 ? "written-decrypted" : "written-clear");
     return true;
   }
 
@@ -340,7 +406,7 @@ export class FirstPartyPpcsSession {
 
   #updatePendingBytes(): void {
     this.stats.pendingBytes = [...this.#pendingByType.values()]
-      .reduce((total, value) => total + value.length, 0);
+      .reduce((total, value) => total + value.header.length + value.payload.length, 0);
   }
 
   #inspectCameraInfo(payload: Buffer, signCode: number): void {

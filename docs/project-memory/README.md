@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.45 distinguishes forward PPCS loss from duplicate and stale retransmissions, discards incomplete command payloads after genuine loss, and resumes only from a complete command header. It also fixes a separate mixed-media bug: the gateway retained one encrypted frame's AES key and applied it to later plaintext T817L frames. Media decoding now uses only the key carried by the current encrypted frame and leaves plaintext frames untouched. This addresses the T817L run with 1,660 reported gaps, a blocked parser, and both clear and decrypted output in one session; hardware video remains pending.
+
 v0.1.44 captures the HomeBase camera channel before advancing the PPCS parser buffer. v0.1.42 had accidentally read the following frame's byte 12, causing valid T817L video to be counted as foreign; hardware validation remains pending.
 
 v0.1.43 reports natural PPCS session endings with final counters and a bounded close reason. A connected session that produces no usable frame within 20 seconds now ends cleanly so Home Assistant can retry and the T817L failure stage can be observed.
