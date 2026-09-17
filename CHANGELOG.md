@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.40
+
+- Stop re-sending a HomeBase camera's full media-start command while its frames are flowing. The command is reasserted only during startup or after a genuine stall, preventing T8210 live-view resets and jumps.
+
 ## 0.1.39
 
 - Add privacy-safe PPCS frame-shape diagnostics for data channels, command IDs, signature modes, bounded payload lengths, sequence gaps, parser state, and video-output outcomes.
