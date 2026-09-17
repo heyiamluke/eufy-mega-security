@@ -14,10 +14,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { GatewayConfig } from "./config.js";
 import { GatewayState } from "./domain/gateway-state.js";
 import type { GatewayEvent } from "./domain/types.js";
+import { createLogger } from "./logging.js";
 import { SimulatedProvider } from "./provider/simulated-provider.js";
 import type { CameraProvider, CaptchaProvider } from "./provider/provider.js";
 import { SnapshotStore } from "./storage/snapshot-store.js";
 import { LiveStreamManager } from "./stream/live-stream-manager.js";
+
+const logger = createLogger("gateway");
 
 /**
  * Serves the gateway's public HTTP contract and optional local auth page.
@@ -294,8 +297,13 @@ export class GatewayServer {
     if (!this.state.getCamera(serial).streamSupported) {
       return json(response, 409, { error: "Fresh snapshot capture is unavailable for this camera" });
     }
-    const snapshot = await this.streams.captureSnapshot(serial);
-    return json(response, 200, { snapshot });
+    try {
+      const snapshot = await this.streams.captureSnapshot(serial);
+      return json(response, 200, { snapshot });
+    } catch (error) {
+      logger.warn("snapshot_capture_failed", `Fresh snapshot capture failed: ${safeError(error)}`);
+      throw error;
+    }
   }
 
   async #recordClip(request: IncomingMessage, serial: string, response: ServerResponse): Promise<void> {
@@ -308,13 +316,18 @@ export class GatewayServer {
     if (!Number.isInteger(duration) || (duration as number) < 1 || (duration as number) > 120) {
       return json(response, 400, { error: "Recording duration must be between 1 and 120 seconds" });
     }
-    const clip = await this.streams.recordClip(serial, duration as number);
-    response.writeHead(200, {
-      "Content-Type": "video/mp4",
-      "Content-Length": clip.length,
-      "Cache-Control": "no-store",
-    });
-    response.end(clip);
+    try {
+      const clip = await this.streams.recordClip(serial, duration as number);
+      response.writeHead(200, {
+        "Content-Type": "video/mp4",
+        "Content-Length": clip.length,
+        "Cache-Control": "no-store",
+      });
+      response.end(clip);
+    } catch (error) {
+      logger.warn("clip_recording_failed", `Camera clip recording failed: ${safeError(error)}`);
+      throw error;
+    }
   }
 
   #events(request: IncomingMessage, response: ServerResponse): void {

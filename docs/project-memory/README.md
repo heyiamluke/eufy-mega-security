@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.36 adds read-only T8010/HomeBase 2 discovery while keeping every station poll and command behind the verified T8030 gate. It also adds privacy-safe on-demand media diagnostics: snapshot and clip failures identify the operation, while PPCS summaries report only model, direct/HomeBase route, failure stage, and bounded transport counters. Serial numbers, peer identities, connection data, packet bytes, and cryptographic material remain excluded.
+
 ## Current architecture
 
 The Home Assistant integration talks only to the companion gateway over its authenticated local API. The gateway owns the Eufy-specific protocol boundary.

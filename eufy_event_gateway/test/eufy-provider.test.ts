@@ -19,6 +19,7 @@ import {
   isPpcsStreamSupported,
   parseMegaInventory,
   personNameFromPush,
+  ppcsStreamLogSummary,
   ppcsStreamRoute,
   safePushLogSummary,
   safeInventoryReads,
@@ -421,6 +422,23 @@ test("routes a standalone camera through its own PPCS peer", () => {
   const devices = new Map([[wallLight.serial, wallLight]]);
   assert.deepEqual(ppcsStreamRoute(wallLight, devices), { peer: wallLight, homeBaseAttached: false });
   assert.equal(isPpcsStreamSupported(wallLight, devices, new Set([wallLight.serial])), true);
+});
+
+test("summarizes PPCS failure stages without private transport data", () => {
+  const device = parseMegaInventory({ devices: [{
+    device_sn: "PRIVATE-SERIAL", device_model: "T81A0", parent_sn: "PRIVATE-SERIAL",
+    device_type: 10005, device_channel: 0, category: "eufy_security",
+    p2p_did: "PRIVATE-DID", p2p_conn: "PRIVATE-CONNECTION",
+  }] })[0]!;
+  const route = ppcsStreamRoute(device, new Map([[device.serial, device]]));
+  const summary = ppcsStreamLogSummary(device.model, route, {
+    camId: 1,
+    dataDatagrams: 3,
+    frameHeaders: 2,
+    videoFrames: 0,
+  }, new Error("Timed out waiting for a fresh camera frame"));
+  assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 data_datagrams=3 frame_headers=2 video_frames=0/);
+  assert.equal(summary.includes("PRIVATE"), false);
 });
 
 test("uses a self-parented camera as its own PPCS peer and blocks a missing parent", () => {

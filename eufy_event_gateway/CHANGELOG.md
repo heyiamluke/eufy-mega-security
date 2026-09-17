@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.36
+
+- Discover T8010 HomeBase 2 as a read-only Home Assistant device with firmware, inventory availability, and child-camera route readiness, without enabling unverified T8030 controls.
+- Log privacy-safe snapshot, clip, and PPCS failure stages with model, route, and bounded transport counters so direct-camera media failures can be diagnosed without device identifiers or packet data.
+
 ## 0.1.35
 
 - Clarify that Home Assistant must be fully restarted after updating the integration, and that the HACS integration and app are updated separately.
