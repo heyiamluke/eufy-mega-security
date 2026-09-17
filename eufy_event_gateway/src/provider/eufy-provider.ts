@@ -175,7 +175,17 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         maxSeconds: this.config.maxStreamSeconds,
       });
       this.#ppcsStreams.set(serial, stream);
-      await stream.start();
+      try {
+        await stream.start();
+      } catch (error) {
+        logger.warn(
+          "camera_stream_start_failed",
+          ppcsStreamLogSummary(device.model, route, stream.stats, error),
+        );
+        stream.close();
+        if (this.#ppcsStreams.get(serial) === stream) this.#ppcsStreams.delete(serial);
+        throw error;
+      }
       this.#events?.streamStarted(serial, stream.output);
       stream.output.once("close", () => { if (this.#ppcsStreams.get(serial) !== stream) return; this.#ppcsStreams.delete(serial); this.#events?.streamStopped(serial); });
       return;
@@ -184,7 +194,16 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   }
 
   async stopStream(serial: string): Promise<void> {
-    this.#ppcsStreams.get(serial)?.close();
+    const stream = this.#ppcsStreams.get(serial);
+    const device = this.#devices.get(serial);
+    if (stream && device) {
+      const route = ppcsStreamRoute(device, this.#devices);
+      logger.info(
+        "camera_stream_closed",
+        ppcsStreamLogSummary(device.model, route, stream.stats),
+      );
+    }
+    stream?.close();
     this.#ppcsStreams.delete(serial);
     this.#events?.streamStopped(serial);
   }
@@ -956,6 +975,26 @@ export function isPpcsRouteReady(
   );
 }
 
+/** Build a privacy-safe PPCS outcome summary without peer identities or packet data. */
+export function ppcsStreamLogSummary(
+  model: string,
+  route: PpcsStreamRoute | null,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames">,
+  error?: unknown,
+): string {
+  const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
+  return [
+    `model=${safeLogModel(model)}`,
+    `route=${route ? route.homeBaseAttached ? "homebase" : "direct" : "unavailable"}`,
+    `stage=${stage}`,
+    `cam_id=${stats.camId}`,
+    `data_datagrams=${stats.dataDatagrams}`,
+    `frame_headers=${stats.frameHeaders}`,
+    `video_frames=${stats.videoFrames}`,
+    ...(error === undefined ? [] : [`error=${safeError(error)}`]),
+  ].join(" ");
+}
+
 /**
  * Summarize push routing for copyable logs without private device or event fields.
  *
@@ -1043,6 +1082,10 @@ function safeError(error: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function safeLogModel(value: string): string {
+  return /^T[0-9A-Z-]{3,12}$/.test(value) ? value : "unknown";
 }
 
 function safeValue(value: unknown, maxLength: number): string | null {
