@@ -63,6 +63,11 @@ export function acceptsAttachedCameraMedia(command: number, frameChannel: number
   return command !== 1300 || frameChannel === requestedChannel;
 }
 
+/** Read the camera channel from the current 16-byte PPCS command header. */
+export function ppcsFrameChannel(frame: Buffer): number | null {
+  return frame.length >= 16 && frame.subarray(0, 4).equals(MAGIC) ? (frame[12] ?? null) : null;
+}
+
 /** Peer and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
   readonly stationSerial: string;
@@ -259,6 +264,7 @@ export class FirstPartyPpcsSession {
         return;
       }
       const payload = pending.subarray(16, 16 + size);
+      const frameChannel = ppcsFrameChannel(pending);
       this.stats.frameHeaders++;
       const shape = `${command}:${signCode}:${size}:${type}`;
       if (!this.stats.frameShapes.includes(shape) && this.stats.frameShapes.length < 20) {
@@ -270,7 +276,7 @@ export class FirstPartyPpcsSession {
       // media frames after the level-2 request has been accepted.
       if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
       else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
-      else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, pending[12] ?? -1, this.#options.channel))) {
+      else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, frameChannel ?? -1, this.#options.channel))) {
         this.stats.videoFrames++;
         if (this.#writeVideo(payload, signCode)) {
           if (this.#firstFrameTimer) {
