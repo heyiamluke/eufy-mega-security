@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.41 restores the `DOMAIN` import required by the T817L migration helper. Without it, any entry containing a T817L fails while setting up because Home Assistant evaluates the migration's entity-registry lookup.
+
 v0.1.40 stops re-sending the full HomeBase-attached media start once valid video reaches the gateway. It reasserts only before the first usable frame or after ten seconds of no delivered media, while retaining the ordinary PPCS heartbeat. This prevents a T8210 stream from resetting itself every five seconds; the unproven `charging_days` discrepancy remains outside this release.
 
 v0.1.39 adds privacy-safe PPCS frame-shape diagnostics for issue #41. Stream outcomes now include bounded data-channel types, command IDs, command/signature/length shapes, sequence gaps, parser blockage, pending byte count, and video-output outcomes. They continue to exclude packet bytes, serials, peer identities, connection data, and cryptographic material. Explicit `camera_media_request` lines distinguish live-view and fresh-snapshot requests that reached the gateway API from failures in Home Assistant before transport startup. It also sources `charging_days` from Eufy's Security device inventory because issue #25 proved that the newer Mega house inventory can return a placeholder zero for the same T8210 that the established endpoint reports as 44 days.
