@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.48
+
+- Send HTTP response headers before writing cached H.264 codec data to repeat live-view connections. This prevents a returning Home Assistant viewer from receiving video bytes before the stream response is established.
+- Confirm live streaming on T817L, T8210, and three T8113-Z cameras using the packaged stream-framing and codec-bootstrap fixes.
+
 ## 0.1.47
 
 - Preserve length-prefixed H.264 NAL units across PPCS video-frame boundaries before converting them to Annex-B. This covers the T8210 stream whose declared 252-byte NAL arrived over more than one gateway frame.

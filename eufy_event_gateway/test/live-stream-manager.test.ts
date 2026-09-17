@@ -74,7 +74,16 @@ test("bootstraps first and repeat HTTP viewers with SPS and PPS", async () => {
   assert.deepEqual(Buffer.concat(firstBytes).subarray(0, sps.length + pps.length), Buffer.concat([sps, pps]));
 
   const repeatResponse = new PassThrough() as unknown as ServerResponse;
-  repeatResponse.writeHead = (() => repeatResponse) as ServerResponse["writeHead"];
+  let repeatHeadersWritten = false;
+  repeatResponse.writeHead = (() => {
+    repeatHeadersWritten = true;
+    return repeatResponse;
+  }) as ServerResponse["writeHead"];
+  const repeatWrite = repeatResponse.write.bind(repeatResponse);
+  repeatResponse.write = ((chunk: Buffer) => {
+    assert.equal(repeatHeadersWritten, true, "codec bootstrap must follow HTTP headers");
+    return repeatWrite(chunk);
+  }) as ServerResponse["write"];
   const repeatBytes: Buffer[] = [];
   repeatResponse.on("data", (chunk: Buffer) => repeatBytes.push(Buffer.from(chunk)));
   await manager.addClient(camera.serial, repeatResponse);

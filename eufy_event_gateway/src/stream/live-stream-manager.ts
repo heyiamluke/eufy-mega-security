@@ -137,6 +137,11 @@ export class LiveStreamManager extends EventEmitter {
   async addClient(serial: string, response: ServerResponse): Promise<void> {
     const session = this.#session(serial);
     this.#cancelStop(session);
+    response.writeHead(200, {
+      "Content-Type": "video/h264",
+      "Cache-Control": "no-store",
+      Connection: "keep-alive",
+    });
     session.clients.add(response);
     const bootstrap = session.parameterSets.bootstrap;
     if (bootstrap) response.write(bootstrap);
@@ -144,12 +149,6 @@ export class LiveStreamManager extends EventEmitter {
     this.#updateState(serial, session);
 
     response.on("close", () => this.#removeClient(serial, response));
-    response.writeHead(200, {
-      "Content-Type": "video/h264",
-      "Cache-Control": "no-store",
-      Connection: "keep-alive",
-    });
-
 
     // Start the provider only after the HTTP client is registered so the first
     // video bytes can be fanned out to Home Assistant immediately.
