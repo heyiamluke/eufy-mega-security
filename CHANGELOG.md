@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.43
+
+- Report PPCS sessions that end naturally, including a privacy-safe close reason and their final media counters.
+- End a connected camera session after 20 seconds without its first usable video frame, allowing Home Assistant to retry instead of retaining a silent stream.
+
 ## 0.1.42
 
 - Keep HomeBase camera streams isolated to their requested camera channel. Sibling-camera media no longer reaches the wrong Home Assistant stream or suppresses its retry cycle.

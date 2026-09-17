@@ -150,7 +150,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
 
     // The production path is deliberately first-party Mega/PPCS.
     if (route && peer?.p2pDid && peer.p2pConnection && dsk && device.channel !== null) {
-      this.#ppcsStreams.get(serial)?.close();
+      this.#ppcsStreams.get(serial)?.close("replaced");
       const stream = new FirstPartyPpcsSession({
         stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model, accountId: device.adminUserId,
@@ -183,12 +183,14 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
           "camera_stream_start_failed",
           ppcsStreamLogSummary(device.model, route, stream.stats, error),
         );
-        stream.close();
+        stream.close("start_failed");
         if (this.#ppcsStreams.get(serial) === stream) this.#ppcsStreams.delete(serial);
         throw error;
       }
       this.#events?.streamStarted(serial, stream.output);
-      stream.output.once("close", () => { if (this.#ppcsStreams.get(serial) !== stream) return; this.#ppcsStreams.delete(serial); this.#events?.streamStopped(serial); });
+      const finalize = () => this.#finalizeStream(serial, stream, device, route);
+      stream.output.once("end", finalize);
+      stream.output.once("close", finalize);
       return;
     }
     throw new Error("First-party PPCS camera transport is unavailable for this camera");
@@ -197,14 +199,20 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   async stopStream(serial: string): Promise<void> {
     const stream = this.#ppcsStreams.get(serial);
     const device = this.#devices.get(serial);
-    if (stream && device) {
-      const route = ppcsStreamRoute(device, this.#devices);
-      logger.info(
-        "camera_stream_closed",
-        ppcsStreamLogSummary(device.model, route, stream.stats),
-      );
-    }
-    stream?.close();
+    if (!stream || !device) return;
+    const route = ppcsStreamRoute(device, this.#devices);
+    stream.close("client_stop");
+    this.#finalizeStream(serial, stream, device, route);
+  }
+
+  #finalizeStream(
+    serial: string,
+    stream: FirstPartyPpcsSession,
+    device: MegaInventoryDevice,
+    route: PpcsStreamRoute | null,
+  ): void {
+    if (this.#ppcsStreams.get(serial) !== stream) return;
+    logger.info("camera_stream_closed", ppcsStreamLogSummary(device.model, route, stream.stats));
     this.#ppcsStreams.delete(serial);
     this.#events?.streamStopped(serial);
   }
@@ -991,7 +999,7 @@ export function isPpcsRouteReady(
 export function ppcsStreamLogSummary(
   model: string,
   route: PpcsStreamRoute | null,
-  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "commands" | "foreignVideoFrames" | "frameShapes" | "parserBlocked" | "pendingBytes" | "sequenceGaps" | "types" | "videoOutputFrames" | "videoResults">>,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "closeReason" | "commands" | "foreignVideoFrames" | "frameShapes" | "parserBlocked" | "pendingBytes" | "sequenceGaps" | "types" | "videoOutputFrames" | "videoResults">>,
   error?: unknown,
 ): string {
   const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
@@ -1012,6 +1020,7 @@ export function ppcsStreamLogSummary(
     `parser_blocked=${stats.parserBlocked ?? false}`,
     `pending_bytes=${stats.pendingBytes ?? 0}`,
     `video_results=${stats.videoResults?.join(",") || "none"}`,
+    `close_reason=${stats.closeReason ?? "unknown"}`,
     `battery_history=${stats.batteryHistory ?? "not-reported"}`,
     ...(error === undefined ? [] : [`error=${safeError(error)}`]),
   ].join(" ");
