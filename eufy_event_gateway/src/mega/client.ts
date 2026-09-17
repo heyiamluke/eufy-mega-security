@@ -164,9 +164,12 @@ export class MegaClient {
     if (!isRecord(value) || !Array.isArray(value.devices)) throw new Error("Mega returned an invalid device inventory");
     const chargingDays = await this.#legacyChargingDays().catch(() => new Map<string, unknown>());
     return {
-      devices: value.devices.filter(isMegaDevice).map((device) => chargingDays.has(device.device_sn)
-        ? { ...device, charging_days: chargingDays.get(device.device_sn) }
-        : device),
+      devices: value.devices.filter(isMegaDevice).map((device) => {
+        const { charging_days: _placeholder, ...withoutChargingDays } = device;
+        return chargingDays.has(device.device_sn)
+          ? { ...withoutChargingDays, charging_days: chargingDays.get(device.device_sn) }
+          : withoutChargingDays;
+      }),
       groups: Array.isArray(value.groups) ? value.groups : [],
     };
   }

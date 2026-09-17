@@ -154,7 +154,10 @@ test("uses the supported Mega inventory request and decrypts its response", asyn
       requests.push({ url: String(input), body, headers: new Headers(init?.headers) });
       const responseValue = String(input).endsWith("/v2/house/device_list")
         ? [{ device_sn: "camera", charging_days: 44 }]
-        : { devices: [{ device_sn: "camera", charging_days: 0 }], groups: [] };
+        : { devices: [
+          { device_sn: "camera", charging_days: 0 },
+          { device_sn: "placeholder-only", charging_days: 0 },
+        ], groups: [] };
       const data = encryptEnvelope(JSON.stringify(responseValue), sharedAesKey(sharedKey), Buffer.alloc(16, 1));
       return new Response(JSON.stringify({ code: 0, data }), { status: 200 });
     };
@@ -163,7 +166,10 @@ test("uses the supported Mega inventory request and decrypts its response", asyn
       minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000, fetch: fakeFetch,
     });
     assert.deepEqual(await client.connect(), { state: "authenticated" });
-    assert.deepEqual(await client.inventory(), { devices: [{ device_sn: "camera", charging_days: 44 }], groups: [] });
+    assert.deepEqual(await client.inventory(), { devices: [
+      { device_sn: "camera", charging_days: 44 },
+      { device_sn: "placeholder-only" },
+    ], groups: [] });
     assert.equal(requests.length, 2);
     assert.equal(requests[0]?.url, "https://app-house-eu-pr.eufy.com/app/house/get_devs_list");
     assert.deepEqual(JSON.parse(decryptEnvelope(requests[0]!.body, sharedAesKey(sharedKey))), { house_id: "", device_sns: {} });

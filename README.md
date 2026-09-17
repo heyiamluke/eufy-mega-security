@@ -22,8 +22,8 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 
 ### HomeBase
 
-- ✅ HomeBase 3 S380 / T8030: a community tester confirmed it as the parent of a working camera setup. Its new alarm and settings controls are still awaiting hardware tests.
-- 🟠 HomeBase 3 S380 / T8030 controls: the integration adds an alarm panel, configured and effective guard modes, siren state, connection and storage diagnostics, volume controls, and alarm tone. The command path, storage units and status meanings, writable ranges, and siren stop codes still need real-device confirmation before release.
+- ✅ HomeBase 3 S380 / T8030: confirmed as the parent of working camera setups. A community tester also confirmed alarm-panel state, guard-mode switching, and alarm-tone selection on real hardware.
+- 🟠 HomeBase 3 S380 / T8030 remaining controls: siren state, storage diagnostics, volume controls, storage units and status meanings, writable ranges, and siren stop codes still need focused real-device confirmation.
 - 🟠 HomeBase 2 T8010: discovered as a read-only HomeBase with firmware,
   inventory availability, and child-camera route readiness. HomeBase 3 alarm,
   guard-mode, storage, volume, and tone controls remain hidden until the T8010
@@ -32,6 +32,7 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 ### Cameras
 
 - ✅ EufyCam 2C: camera support tested by the project maintainer.
+- 🟠 EufyCam 2C Pro T8142-Z: Mega type 15 is admitted through its reported HomeBase 2 route. Discovery, events, snapshots, and live video still need confirmation on this model.
 - ✅ USB-C-powered camera T817L: live streams and snapshots produced on real hardware.
 - ✅ eufyCam S330 (Mega model T8160): discovered with sensors, retained images, and live streaming through HomeBase 3.
 - 🟠 eufyCam S300 / 3C (Mega model T8161): type 23 is now admitted by the gateway camera filter through HomeBase 3. Device discovery, events, snapshots, and live video still need a real-device result.

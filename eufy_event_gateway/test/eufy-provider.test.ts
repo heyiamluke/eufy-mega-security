@@ -185,6 +185,7 @@ test("classifies recognized Mega camera types without admitting stations or unkn
   const devices = parseMegaInventory({ devices: [
     { device_sn: "doorbell", device_name: "Door", device_model: "T8210", parent_sn: "homebase", device_type: 7, category: "eufy_security" },
     { device_sn: "battery", device_name: "Path", device_model: "T8113-Z", parent_sn: "homebase", device_type: 8, category: "eufy_security" },
+    { device_sn: "c2-pro", device_name: "Driveway", device_model: "T8142-Z", parent_sn: "homebase", device_type: 15, category: "eufy_security" },
     { device_sn: "s330", device_name: "Garden", device_model: "T8160", parent_sn: "homebase", device_type: 19, category: "eufy_security" },
     { device_sn: "s300", device_name: "Side", device_model: "T8161", parent_sn: "homebase", device_type: 23, category: "eufy_security" },
     { device_sn: "wall-light", device_name: "Side", device_model: "T84A1", device_type: 151, device_channel: 0, category: "eufy_security" },
@@ -197,10 +198,27 @@ test("classifies recognized Mega camera types without admitting stations or unkn
     { device_sn: "wrong-category", device_name: "Wrong category", device_model: "T8134", device_type: 63, category: "other" },
   ] });
   assert.deepEqual(inventoryDiagnostics(devices).map(({ serial, acceptedAsCamera }) => [serial, acceptedAsCamera]), [
-    ["doorbell", true], ["battery", true], ["s330", true], ["s300", true], ["wall-light", true], ["indoor", true],
+    ["doorbell", true], ["battery", true], ["c2-pro", true], ["s330", true], ["s300", true], ["wall-light", true], ["indoor", true],
     ["solocam", true], ["new-doorbell", true], ["wired", true], ["homebase", false],
     ["unknown", false], ["wrong-category", false],
   ]);
+});
+
+test("admits T8142-Z inventory through a ready HomeBase 2", () => {
+  const devices = parseMegaInventory({ devices: [
+    {
+      device_sn: "camera", device_model: "T8142-Z", parent_sn: "station", device_type: 15,
+      device_channel: 2, category: "eufy_security",
+    },
+    {
+      device_sn: "station", device_model: "T8010", device_type: 0,
+      category: "eufy_security", p2p_did: "did", p2p_conn: "connection",
+    },
+  ] });
+  const summaries = inventoryLogSummaries(devices, new Set(["station"]));
+  assert.equal(summaries[0]?.acceptedAsCamera, true);
+  assert.equal(summaries[0]?.streamRoute, "homebase");
+  assert.equal(summaries[0]?.streamSupported, true);
 });
 
 test("accepts T8161 inventory through a ready HomeBase 3", () => {

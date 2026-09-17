@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.49
+
+- Admit the T8142-Z / eufyCam 2C Pro as Mega camera type 15 through its reported HomeBase 2 route. Discovery, events, snapshots, and live video still need confirmation on this model.
+- Use days-since-last-charging only when Eufy's established device inventory supplies it. The newer inventory's placeholder zero is no longer exposed as a real reading.
+- Record community confirmation of HomeBase 3 alarm-panel state, guard-mode switching, and alarm-tone selection.
+- Keep the hardware-verified v0.1.48 H.264 framing and viewer-bootstrap path unchanged.
+
 ## 0.1.48
 
 - Send HTTP response headers before writing cached H.264 codec data to repeat live-view connections. This prevents a returning Home Assistant viewer from receiving video bytes before the stream response is established.
