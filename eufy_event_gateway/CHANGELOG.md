@@ -4,6 +4,7 @@
 
 - Add privacy-safe PPCS frame-shape diagnostics for data channels, command IDs, signature modes, bounded payload lengths, sequence gaps, parser state, and video-output outcomes.
 - Log explicit live-view and fresh-snapshot request markers before Home Assistant media requests enter the camera transport.
+- Read **Days since last charging** from Eufy's Security device inventory, which supplies the current value when the newer Mega inventory returns a placeholder zero.
 
 ## 0.1.38
 
