@@ -10,13 +10,48 @@ import test from "node:test";
 
 import {
   acceptsAttachedCameraMedia,
+  buildPpcsCloudLookup,
   buildStandaloneLiveStartPayload,
   decodePpcsVideoFrame,
+  isPpcsCameraIdentity,
   needsAttachedMediaReassert,
   PpcsVideoStreamNormalizer,
+  ppcsCandidatePorts,
   ppcsFrameChannel,
+  ppcsLookupCandidate,
   ppcsSequenceDisposition,
 } from "../src/stream/first-party-ppcs.js";
+
+test("builds the two PPCS cloud lookup variants", () => {
+  const did = "EUPRCAM-000000-XXXXX";
+  const dsk = "XXXXXXXXXXXXXXXXXXXX";
+  const fallback = buildPpcsCloudLookup(did, dsk);
+  assert.equal(fallback.type.toString("hex"), "f16a");
+  assert.equal(fallback.payload.length, 20 + dsk.length + 4);
+
+  const classic = buildPpcsCloudLookup(did, dsk, { host: "192.0.2.1", port: 12_345 });
+  assert.equal(classic.type.toString("hex"), "f126");
+  assert.equal(classic.payload.length, fallback.payload.length + 20);
+  assert.equal(classic.payload.subarray(20, 22).toString("hex"), "0002");
+  assert.equal(classic.payload.readUInt16LE(22), 12_345);
+  assert.deepEqual(classic.payload.subarray(24, 28), Buffer.from([1, 2, 0, 192]));
+  assert.deepEqual(classic.payload.subarray(36, 40), Buffer.from([2, 5, 1, 5]));
+  assert.deepEqual(classic.payload.subarray(40), fallback.payload.subarray(20));
+});
+
+test("accepts direct and relay PPCS discovery responses", () => {
+  for (const header of [[0xf1, 0x40], [0xf1, 0x82]]) {
+    const response = Buffer.alloc(12);
+    response.set(header, 0);
+    response.writeUInt16LE(32_108, 6);
+    response.set([9, 2, 0, 192], 8);
+    assert.deepEqual(ppcsLookupCandidate(response), { host: "192.0.2.9", port: 32_108 });
+  }
+  assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x42])), true);
+  assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x84])), true);
+  assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x40])), false);
+  assert.deepEqual(ppcsCandidatePorts(32_108), [32_105, 32_106, 32_107, 32_108, 32_109, 32_110, 32_111]);
+});
 
 test("labels a standalone live start as level-one frame type 11", () => {
   const key = Buffer.from("0123456789abcdef", "utf8");

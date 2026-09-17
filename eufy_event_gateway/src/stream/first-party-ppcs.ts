@@ -18,6 +18,7 @@ import { PassThrough } from "node:stream";
 const MAGIC = Buffer.from("XZYH", "ascii");
 const REQ = {
   lookup: Buffer.from([0xf1, 0x26]),
+  lookup2: Buffer.from([0xf1, 0x6a]),
   localLookup: Buffer.from([0xf1, 0x30]),
   check: Buffer.from([0xf1, 0x41]),
   ping: Buffer.from([0xf1, 0xe0]),
@@ -27,14 +28,17 @@ const REQ = {
 } as const;
 const RESP = {
   lookupAddr: Buffer.from([0xf1, 0x40]),
+  lookupAddr2: Buffer.from([0xf1, 0x82]),
   localLookup: Buffer.from([0xf1, 0x41]),
   camId: Buffer.from([0xf1, 0x42]),
+  turnServerCamId: Buffer.from([0xf1, 0x84]),
   pong: Buffer.from([0xf1, 0xe1]),
   data: Buffer.from([0xf1, 0xd0]),
 } as const;
 const DATA = { data: Buffer.from([0xd1, 0]), video: Buffer.from([0xd1, 1]) } as const;
 const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
 const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
+const LOOKUP_RETRY_MILLISECONDS = 1_000;
 const PPCS_SEQUENCE_LOOKBACK = 0x8000;
 const PPCS_STALE_RETRANSMIT_DEPTH = 1024;
 const ANNEX_B_START_CODE = Buffer.from([0, 0, 0, 1]);
@@ -131,6 +135,64 @@ export function buildStandaloneLiveStartPayload(value: string, channel: number, 
   cipher.setAutoPadding(false);
   const encrypted = Buffer.concat([cipher.update(plain), cipher.final()]);
   return rawPayload(encrypted, channel, 1, [1, 0], 11);
+}
+
+/**
+ * Build one authenticated cloud lookup request for a PPCS peer.
+ *
+ * The lightweight variant is valid while the host address is still unknown.
+ * Once available, the classic request includes the caller's routed address and
+ * the app-compatible client version needed to obtain a direct peer candidate.
+ */
+export function buildPpcsCloudLookup(
+  p2pDid: string,
+  dskKey: string,
+  selfAddress?: { readonly host: string; readonly port: number },
+): { readonly type: Buffer; readonly payload: Buffer } {
+  if (!selfAddress) {
+    return {
+      type: REQ.lookup2,
+      payload: Buffer.concat([encodeDid(p2pDid), Buffer.from(dskKey), Buffer.alloc(4)]),
+    };
+  }
+  const address = Buffer.alloc(16);
+  address.writeUInt16BE(2, 0);
+  address.writeUInt16LE(selfAddress.port, 2);
+  const octets = selfAddress.host.split(".").map(Number);
+  address.set([octets[3] ?? 0, octets[2] ?? 0, octets[1] ?? 0, octets[0] ?? 0], 4);
+  return {
+    type: REQ.lookup,
+    payload: Buffer.concat([
+      encodeDid(p2pDid),
+      address,
+      Buffer.from([2, 5, 1, 5]),
+      Buffer.from(dskKey),
+      Buffer.alloc(4),
+    ]),
+  };
+}
+
+/** Read a peer candidate from either PPCS cloud lookup response form. */
+export function ppcsLookupCandidate(message: Buffer): { readonly host: string; readonly port: number } | null {
+  if ((!has(message, RESP.lookupAddr) && !has(message, RESP.lookupAddr2)) || message.length < 12) return null;
+  return {
+    port: message.readUInt16LE(6),
+    host: `${message[11]}.${message[10]}.${message[9]}.${message[8]}`,
+  };
+}
+
+/** Return whether a PPCS response completes either a direct or relay peer handshake. */
+export function isPpcsCameraIdentity(message: Buffer): boolean {
+  return has(message, RESP.camId) || has(message, RESP.turnServerCamId);
+}
+
+/** Enumerate the advertised UDP port and the bounded NAT-remap neighbourhood used by PPCS. */
+export function ppcsCandidatePorts(port: number): number[] {
+  const ports: number[] = [];
+  for (let candidate = port - 3; candidate <= port + 3; candidate++) {
+    if (candidate > 0 && candidate <= 65_535) ports.push(candidate);
+  }
+  return ports;
 }
 
 /**
@@ -295,6 +357,8 @@ export class FirstPartyPpcsSession {
   readonly #videoNormalizer = new PpcsVideoStreamNormalizer();
   #lastAttachedMediaFrameAt: number | null = null;
   #heartbeat: ReturnType<typeof setInterval> | null = null;
+  #lookupTimer: ReturnType<typeof setInterval> | null = null;
+  #selfAddress: { host: string; port: number } | null = null;
 
   /** Create a session; no socket is bound until {@link start} runs. */
   constructor(options: PpcsCameraOptions) { this.#options = options; }
@@ -306,8 +370,15 @@ export class FirstPartyPpcsSession {
     // successful CAM_ID response means the peer is reachable, not that video
     // has started yet.
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("PPCS camera lookup timed out")), 20_000);
-      this.#socket.once("error", (error) => { clearTimeout(timeout); reject(error); });
+      const timeout = setTimeout(() => {
+        this.close("start_failed");
+        reject(new Error("PPCS camera lookup timed out"));
+      }, 20_000);
+      this.#socket.once("error", (error) => {
+        clearTimeout(timeout);
+        this.close("start_failed");
+        reject(error);
+      });
       this.#socket.on("message", (message, info) => {
         try {
           if (this.#handle(message, info)) { clearTimeout(timeout); resolve(); }
@@ -315,7 +386,13 @@ export class FirstPartyPpcsSession {
       });
       this.#socket.bind(0, () => {
         this.#socket.setBroadcast(true);
+        const port = this.#socket.address().port;
+        void detectLocalIpv4().then((host) => {
+          if (host && !this.#closed) this.#selfAddress = { host, port };
+        });
         this.#lookup();
+        this.#lookupTimer = setInterval(() => this.#lookup(), LOOKUP_RETRY_MILLISECONDS);
+        this.#lookupTimer.unref?.();
       });
     });
     this.#maximumDurationTimer = setTimeout(
@@ -345,33 +422,44 @@ export class FirstPartyPpcsSession {
     if (this.#maximumDurationTimer) clearTimeout(this.#maximumDurationTimer);
     if (this.#firstFrameTimer) clearTimeout(this.#firstFrameTimer);
     if (this.#heartbeat) clearInterval(this.#heartbeat);
+    if (this.#lookupTimer) clearInterval(this.#lookupTimer);
     if (this.#remote) this.#send(REQ.end, Buffer.alloc(0), this.#remote);
     this.#socket.close();
     this.output.end();
   }
 
   #lookup(): void {
+    if (this.#remote) return;
     const local = Buffer.from([0, 0]);
     this.#send(REQ.localLookup, local, { host: "255.255.255.255", port: 32108 });
+    const lookup = buildPpcsCloudLookup(
+      this.#options.p2pDid,
+      this.#options.dskKey,
+      this.#selfAddress ?? undefined,
+    );
     for (const address of decodeCloudAddresses(this.#options.appConnection)) {
-      const payload = Buffer.concat([encodeDid(this.#options.p2pDid), Buffer.from([0, 2]), u16(this.#socket.address().port), Buffer.from([0, 0, 0, 0]), Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 0, 0]), Buffer.from(this.#options.dskKey), Buffer.alloc(4)]);
-      this.#send(REQ.lookup, payload, address);
+      this.#send(lookup.type, lookup.payload, address);
     }
+  }
+
+  #checkCandidate(address: { host: string; port: number }): void {
+    for (const port of ppcsCandidatePorts(address.port)) this.#check({ host: address.host, port });
   }
 
   #handle(message: Buffer, info: RemoteInfo): boolean {
     if (has(message, RESP.localLookup)) {
       const did = decodeDid(message.subarray(4, 24));
-      if (did === this.#options.p2pDid) this.#check({ host: info.address, port: info.port });
+      if (did === this.#options.p2pDid) this.#checkCandidate({ host: info.address, port: info.port });
       return false;
     }
-    if (has(message, RESP.lookupAddr) && message.length >= 12) {
-      const port = message.readUInt16LE(6); const host = `${message[11]}.${message[10]}.${message[9]}.${message[8]}`;
-      if (host !== "0.0.0.0") this.#check({ host, port });
+    const candidate = ppcsLookupCandidate(message);
+    if (candidate) {
+      if (candidate.host !== "0.0.0.0") this.#checkCandidate(candidate);
       return false;
     }
-    if (has(message, RESP.camId)) {
+    if (isPpcsCameraIdentity(message)) {
       if (this.#remote) return false;
+      if (this.#lookupTimer) clearInterval(this.#lookupTimer);
       this.stats.camId++;
       this.#remote = { host: info.address, port: info.port };
       this.#send(REQ.ping, Buffer.alloc(0), this.#remote);
@@ -702,4 +790,24 @@ function decodeCloudAddresses(value: string): { host: string; port: number }[] {
   const encoded = value.split(":", 1)[0] ?? ""; const out = Buffer.alloc(Math.floor(encoded.length / 2));
   for (let i = 0; i < out.length; i++) { let z = 57; for (let j = 0; j < i; j++) z ^= out[j]!; out[i] = z ^ table[i % table.length]! ^ ((encoded.charCodeAt(i * 2) - 65) * 16 + encoded.charCodeAt(i * 2 + 1) - 65); }
   return out.toString().split(",").filter(Boolean).map((host) => ({ host, port: 32100 }));
+}
+
+function detectLocalIpv4(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const probe = createSocket("udp4");
+    let settled = false;
+    const finish = (host: string | null): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      try { probe.close(); } catch { /* The probe may already have closed after an error. */ }
+      resolve(host);
+    };
+    const timeout = setTimeout(() => finish(null), 2_000);
+    timeout.unref?.();
+    probe.once("error", () => finish(null));
+    probe.connect(53, "8.8.8.8", () => {
+      try { finish(probe.address().address); } catch { finish(null); }
+    });
+  });
 }

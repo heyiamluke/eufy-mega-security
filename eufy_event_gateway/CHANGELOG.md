@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.51
+
+- Retry PPCS peer discovery throughout the connection window and send the app-compatible cloud lookup forms once the gateway's routed address is known.
+- Accept direct and relay lookup responses and probe the bounded UDP port neighbourhood used when NAT remaps a HomeBase connection. This targets the T9000 lookup timeout reported in issue 27 without changing either media path.
+
 ## 0.1.50
 
 - Label standalone-camera live-start commands with the level-one signature and frame type expected by direct PPCS cameras. This addresses the T84A1 path that connected and accepted commands but never returned a video frame.
