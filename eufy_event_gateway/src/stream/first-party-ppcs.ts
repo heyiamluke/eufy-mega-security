@@ -33,6 +33,21 @@ const RESP = {
   data: Buffer.from([0xf1, 0xd0]),
 } as const;
 const DATA = { data: Buffer.from([0xd1, 0]), video: Buffer.from([0xd1, 1]) } as const;
+const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
+
+/**
+ * Decide whether a HomeBase-attached camera needs its full media start sent again.
+ *
+ * A HomeBase has no lightweight media keepalive for a child channel. Repeating
+ * its start while frames are flowing resets that channel, so a reassert is
+ * limited to startup and a genuine media stall.
+ */
+export function needsAttachedMediaReassert(
+  lastDeliveredFrameAt: number | null,
+  now: number,
+): boolean {
+  return lastDeliveredFrameAt === null || now - lastDeliveredFrameAt >= ATTACHED_MEDIA_STALL_MILLISECONDS;
+}
 
 /** Peer and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
@@ -103,6 +118,7 @@ export class FirstPartyPpcsSession {
   #level2Seq = 0;
   #gatewayPromise: Promise<void> | null = null;
   #lastSequenceByType = new Map<number, number>();
+  #lastAttachedMediaFrameAt: number | null = null;
   #heartbeat: ReturnType<typeof setInterval> | null = null;
 
   /** Create a session; no socket is bound until {@link start} runs. */
@@ -131,7 +147,9 @@ export class FirstPartyPpcsSession {
     this.#heartbeat = setInterval(() => {
       if (!this.#remote) return;
       this.#send(REQ.ping, Buffer.alloc(0), this.#remote);
-      if (this.#options.homeBaseAttached && this.#level2Key) this.#startAttachedMedia();
+      if (this.#options.homeBaseAttached && this.#level2Key && needsAttachedMediaReassert(this.#lastAttachedMediaFrameAt, Date.now())) {
+        this.#startAttachedMedia();
+      }
       else if (!this.#options.homeBaseAttached) this.#sendCommand(1139, voidPayload(this.#options.channel));
     }, 5_000);
     this.#heartbeat.unref?.();
@@ -226,31 +244,54 @@ export class FirstPartyPpcsSession {
       // media frames after the level-2 request has been accepted.
       if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
       else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
-      else if (command === 1300) { this.stats.videoFrames++; this.#writeVideo(payload, signCode); }
+      else if (command === 1300) {
+        this.stats.videoFrames++;
+        if (this.#writeVideo(payload, signCode) && this.#options.homeBaseAttached) {
+          this.#lastAttachedMediaFrameAt = Date.now();
+        }
+      }
     }
     this.stats.parserBlocked ||= pending.length >= 16 && !pending.subarray(0, 4).equals(MAGIC);
     this.#pendingByType.set(type, pending);
     this.#updatePendingBytes();
   }
 
-  #writeVideo(frame: Buffer, signCode: number): void {
-    if (frame.length < 22) return this.#recordVideoResult("short");
+  #writeVideo(frame: Buffer, signCode: number): boolean {
+    if (frame.length < 22) {
+      this.#recordVideoResult("short");
+      return false;
+    }
     const length = frame.readUInt32LE(0); const encryptedKey = frame.subarray(22, 150);
     let start = 22;
     if (signCode > 0 && encryptedKey.length === 128 && frame[4] === 1) {
-      try { this.#videoKey = privateDecrypt({ key: this.#rsa.privateKey, padding: 1 }, encryptedKey); start = 150 + 1; } catch { return this.#recordVideoResult("key-unwrapping-failed"); }
+      try {
+        this.#videoKey = privateDecrypt({ key: this.#rsa.privateKey, padding: 1 }, encryptedKey);
+        start = 150 + 1;
+      } catch {
+        this.#recordVideoResult("key-unwrapping-failed");
+        return false;
+      }
     }
     const encrypted = frame.subarray(start, Math.min(frame.length, start + Math.min(length, 128)));
     let clear = encrypted;
     if (this.#videoKey && encrypted.length === 128) {
-      try { clear = decryptEcb(encrypted, this.#videoKey); } catch { return this.#recordVideoResult("frame-decryption-failed"); }
+      try {
+        clear = decryptEcb(encrypted, this.#videoKey);
+      } catch {
+        this.#recordVideoResult("frame-decryption-failed");
+        return false;
+      }
     }
     const tail = frame.subarray(start + encrypted.length, Math.min(frame.length, start + length));
     const video = Buffer.concat([clear, tail]);
-    if (video.length === 0) return this.#recordVideoResult("empty");
+    if (video.length === 0) {
+      this.#recordVideoResult("empty");
+      return false;
+    }
     this.output.write(video);
     this.stats.videoOutputFrames++;
     this.#recordVideoResult(this.#videoKey ? "written-decrypted" : "written-clear");
+    return true;
   }
 
   #recordVideoResult(result: string): void {
