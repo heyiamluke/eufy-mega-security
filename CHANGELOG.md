@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.42
+
+- Keep HomeBase camera streams isolated to their requested camera channel. Sibling-camera media no longer reaches the wrong Home Assistant stream or suppresses its retry cycle.
+- Add a privacy-safe `foreign_video_frames` stream diagnostic for confirming HomeBase camera handovers.
+
 ## 0.1.41
 
 - Restore the missing Home Assistant integration domain import used by the T817L entity migration, so existing entries can start.

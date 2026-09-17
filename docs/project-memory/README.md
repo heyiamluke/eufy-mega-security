@@ -1,5 +1,7 @@
 # Project memory
 
+v0.1.42 accepts HomeBase video only for the requested camera channel. This stops a sibling camera's media from reaching the wrong Home Assistant stream or falsely settling the requested camera's retry cycle; hardware validation remains pending.
+
 v0.1.41 restores the `DOMAIN` import required by the T817L migration helper. Without it, any entry containing a T817L fails while setting up because Home Assistant evaluates the migration's entity-registry lookup.
 
 v0.1.40 stops re-sending the full HomeBase-attached media start once valid video reaches the gateway. It reasserts only before the first usable frame or after ten seconds of no delivered media, while retaining the ordinary PPCS heartbeat. This prevents a T8210 stream from resetting itself every five seconds; the unproven `charging_days` discrepancy remains outside this release.

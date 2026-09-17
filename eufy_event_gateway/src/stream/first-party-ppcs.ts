@@ -49,6 +49,17 @@ export function needsAttachedMediaReassert(
   return lastDeliveredFrameAt === null || now - lastDeliveredFrameAt >= ATTACHED_MEDIA_STALL_MILLISECONDS;
 }
 
+/**
+ * Decide whether a decoded HomeBase media command belongs to the camera this session requested.
+ *
+ * A HomeBase can multiplex children over one peer route. Foreign video must not be sent to this
+ * camera's consumer or settle its media-start retry: doing either leaves the requested channel
+ * starved while another camera's frames continue to arrive.
+ */
+export function acceptsAttachedCameraMedia(command: number, frameChannel: number, requestedChannel: number): boolean {
+  return command !== 1300 || frameChannel === requestedChannel;
+}
+
 /** Peer and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
   readonly stationSerial: string;
@@ -87,6 +98,7 @@ export class FirstPartyPpcsSession {
     level2: 0,
     videoFrames: 0,
     videoOutputFrames: 0,
+    foreignVideoFrames: 0,
     batteryHistory: "not-reported",
     firstDataHex: "",
     cipherId: 0,
@@ -244,11 +256,13 @@ export class FirstPartyPpcsSession {
       // media frames after the level-2 request has been accepted.
       if (command === 1100 && signCode === 1) { this.stats.gatewayInfo++; void this.#handleGatewayInfo(payload); }
       else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
-      else if (command === 1300) {
+      else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, pending[12] ?? -1, this.#options.channel))) {
         this.stats.videoFrames++;
         if (this.#writeVideo(payload, signCode) && this.#options.homeBaseAttached) {
           this.#lastAttachedMediaFrameAt = Date.now();
         }
+      } else if (command === 1300 && this.#options.homeBaseAttached) {
+        this.stats.foreignVideoFrames++;
       }
     }
     this.stats.parserBlocked ||= pending.length >= 16 && !pending.subarray(0, 4).equals(MAGIC);
