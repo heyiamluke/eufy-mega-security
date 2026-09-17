@@ -162,10 +162,37 @@ export class MegaClient {
     const result = await this.#call("house", "/app/house/get_devs_list", { house_id: "", device_sns: {} });
     const value = this.#decodeResult(result, this.#clusterHost("openapi"));
     if (!isRecord(value) || !Array.isArray(value.devices)) throw new Error("Mega returned an invalid device inventory");
+    const chargingDays = await this.#legacyChargingDays().catch(() => new Map<string, unknown>());
     return {
-      devices: value.devices.filter(isMegaDevice),
+      devices: value.devices.filter(isMegaDevice).map((device) => chargingDays.has(device.device_sn)
+        ? { ...device, charging_days: chargingDays.get(device.device_sn) }
+        : device),
       groups: Array.isArray(value.groups) ? value.groups : [],
     };
+  }
+
+  /** Read the established Security inventory field without retaining its other device data. */
+  async #legacyChargingDays(): Promise<ReadonlyMap<string, unknown>> {
+    const result = await this.#call("security", "/v2/house/device_list", {
+      device_sn: "",
+      num: 1_000,
+      orderby: "",
+      page: 0,
+      station_sn: "",
+      time_zone: new Date(this.#now()).getTimezoneOffset() * -60_000,
+      transaction: `${this.#now()}`,
+    });
+    const decoded = this.#decodeResult(result, this.#clusterHost("security"));
+    const rows = Array.isArray(decoded)
+      ? decoded
+      : isRecord(decoded) && Array.isArray(decoded.devices) ? decoded.devices : [];
+    const values = new Map<string, unknown>();
+    for (const row of rows) {
+      if (isRecord(row) && typeof row.device_sn === "string" && "charging_days" in row) {
+        values.set(row.device_sn, row.charging_days);
+      }
+    }
+    return values;
   }
 
   /** Identify errors that should trigger a fresh Mega login attempt. */

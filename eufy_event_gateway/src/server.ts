@@ -276,6 +276,7 @@ export class GatewayServer {
     if (!this.state.getCamera(serial).streamSupported) {
       return json(response, 409, { error: "This camera was discovered through push events only; livestream control is unavailable" });
     }
+    logger.info("camera_media_request", `model=${safeCameraModel(this.state.getCamera(serial).model)} operation=live_view`);
     await this.streams.addClient(serial, response);
   }
 
@@ -297,6 +298,7 @@ export class GatewayServer {
     if (!this.state.getCamera(serial).streamSupported) {
       return json(response, 409, { error: "Fresh snapshot capture is unavailable for this camera" });
     }
+    logger.info("camera_media_request", `model=${safeCameraModel(this.state.getCamera(serial).model)} operation=capture_snapshot`);
     try {
       const snapshot = await this.streams.captureSnapshot(serial);
       return json(response, 200, { snapshot });
@@ -414,6 +416,10 @@ function safeError(error: unknown): string {
 function requiredInteger(value: unknown): number {
   if (!Number.isSafeInteger(value)) throw new SyntaxError("Expected an integer value");
   return value as number;
+}
+
+function safeCameraModel(value: string): string {
+  return /^T[0-9A-Z-]{3,12}$/.test(value) ? value : "unknown";
 }
 
 /** Validate a bearer header without leaking token material in an error path. */
