@@ -24,7 +24,10 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 
 - ✅ HomeBase 3 S380 / T8030: a community tester confirmed it as the parent of a working camera setup. Its new alarm and settings controls are still awaiting hardware tests.
 - 🟠 HomeBase 3 S380 / T8030 controls: the integration adds an alarm panel, configured and effective guard modes, siren state, connection and storage diagnostics, volume controls, and alarm tone. The command path, storage units and status meanings, writable ranges, and siren stop codes still need real-device confirmation before release.
-- HomeBase 2: I do not have one to test against right now. Support matters, but I want to verify it myself before asking anyone else to test it.
+- 🟠 HomeBase 2 T8010: discovered as a read-only HomeBase with firmware,
+  inventory availability, and child-camera route readiness. HomeBase 3 alarm,
+  guard-mode, storage, volume, and tone controls remain hidden until the T8010
+  station protocol is verified on real hardware.
 
 ### Cameras
 

@@ -4,7 +4,8 @@
       "eufy_home_base_alarm": {"name": "Alarm"}
     },
     "binary_sensor": {
-      "eufy_station_connection": {"name": "Connection"}
+      "eufy_station_connection": {"name": "Connection"},
+      "eufy_station_camera_route": {"name": "Camera route"}
     },
     "number": {
       "eufy_station_alarm_volume": {"name": "Alarm volume"},

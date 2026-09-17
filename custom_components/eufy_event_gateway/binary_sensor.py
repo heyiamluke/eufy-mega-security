@@ -64,10 +64,14 @@ async def async_setup_entry(
         station_serials = set(coordinator.stations) - known_stations
         if station_serials:
             known_stations.update(station_serials)
-            async_add_entities(
-                EufyStationConnectionSensor(coordinator, serial)
-                for serial in sorted(station_serials)
-            )
+            entities = []
+            for serial in sorted(station_serials):
+                station = coordinator.stations[serial]
+                if station.get("controlsSupported") is True:
+                    entities.append(EufyStationConnectionSensor(coordinator, serial))
+                else:
+                    entities.append(EufyStationCameraRouteSensor(coordinator, serial))
+            async_add_entities(entities)
 
         sensor_serials = set(coordinator.sensors) - known_sensors
         if sensor_serials:
@@ -215,3 +219,27 @@ class EufyStationConnectionSensor(EufyStationEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         """Return whether the gateway reports the station command channel connected."""
         return bool(self.station.get("connected"))
+
+
+class EufyStationCameraRouteSensor(EufyStationEntity, BinarySensorEntity):
+    """Expose whether an unverified HomeBase can route child-camera media.
+
+    This diagnostic is intentionally narrower than station connectivity. It
+    reports inventory, PPCS, and DSK prerequisites only and does not imply that
+    HomeBase state reads or commands are supported.
+    """
+
+    _attr_translation_key = "eufy_station_camera_route"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
+        """Create a child-camera route diagnostic for one discovered HomeBase."""
+        EufyStationEntity.__init__(self, coordinator, serial)
+        BinarySensorEntity.__init__(self)
+        self._attr_unique_id = f"{serial}_camera_route"
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether child-camera transport prerequisites are ready."""
+        return bool(self.station.get("cameraRouteReady"))

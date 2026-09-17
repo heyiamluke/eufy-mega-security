@@ -90,7 +90,7 @@ export function describeDeviceCapabilities(device: CapabilityInventoryRow, optio
     manifests.push(describeSensorFamily(device));
   }
   if (HOMEBASE_DEVICE_TYPES.has(device.deviceType ?? -1)) {
-    manifests.push(describeCoreFamily("homebase", device, HOMEBASE_CAPABILITY_CORE, options.homeBaseSupported, options.homeBaseRouteReady));
+    manifests.push(describeHomeBaseFamily(device, options));
   }
   if (options.doorbellSupported) {
     const camera = describeCameraCapabilities(device, {
@@ -110,6 +110,30 @@ export function describeDeviceCapabilities(device: CapabilityInventoryRow, optio
     });
   }
   return manifests;
+}
+
+function describeHomeBaseFamily(
+  device: CapabilityInventoryRow,
+  options: DeviceCapabilityOptions,
+): DeviceCapabilityManifest {
+  const discovered = device.deviceType === 0 && device.model.startsWith("T8010");
+  const supported = options.homeBaseSupported || discovered;
+  const manifest = describeCoreFamily(
+    "homebase",
+    device,
+    HOMEBASE_CAPABILITY_CORE,
+    supported,
+    options.homeBaseRouteReady,
+  );
+  if (options.homeBaseSupported) return manifest;
+  return {
+    ...manifest,
+    matrix: manifest.matrix.map((row) => ({
+      ...row,
+      offerable: discovered && ["homebase.available", "homebase.camera_route"].includes(row.id)
+        && row.offerable,
+    })),
+  };
 }
 
 function describeSensorFamily(device: CapabilityInventoryRow): DeviceCapabilityManifest {

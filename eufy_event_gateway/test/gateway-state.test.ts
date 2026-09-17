@@ -145,6 +145,8 @@ test("retains immutable HomeBase snapshots and emits station updates", () => {
     model: "T8030",
     firmware: "3.6.0.1",
     available: true,
+    cameraRouteReady: true,
+    controlsSupported: true,
     connected: true,
     guardMode: 0,
     effectiveMode: 0,

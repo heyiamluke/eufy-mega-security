@@ -333,8 +333,11 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       logger.info("device_capability_group", `count=${count} ${message}`);
     }
     this.#stations.clear();
-    for (const device of devices.filter(isHomeBase3)) {
-      const station = initialHomeBaseState(device);
+    for (const device of devices.filter(isDiscoveredHomeBase)) {
+      const station = initialHomeBaseState(
+        device,
+        this.#dskKeys.has(device.serial),
+      );
       this.#stations.set(device.serial, station);
       events.station(station);
     }
@@ -375,14 +378,20 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     );
     await this.#push.start();
     events.connection("connected", "Gateway events and snapshots are ready; live viewing requires a validated PPCS camera path");
-    await Promise.allSettled([...this.#stations.keys()].map((serial) => this.refreshStation(serial)));
+    await Promise.allSettled(
+      [...this.#stations.values()]
+        .filter(({ controlsSupported }) => controlsSupported)
+        .map(({ serial }) => this.refreshStation(serial)),
+    );
     if (this.#stationRefreshTimer) clearInterval(this.#stationRefreshTimer);
     this.#stationRefreshTimer = setInterval(() => {
-      for (const serial of this.#stations.keys()) {
-        if (this.#stationOperations.has(serial) || this.#stationHasActiveMedia(serial)) continue;
-        void this.refreshStation(serial).then(
-          () => this.#recordStationRefreshSuccess(serial),
-          (error: unknown) => this.#recordStationRefreshFailure(serial, error),
+      for (const station of this.#stations.values()) {
+        if (!station.controlsSupported
+          || this.#stationOperations.has(station.serial)
+          || this.#stationHasActiveMedia(station.serial)) continue;
+        void this.refreshStation(station.serial).then(
+          () => this.#recordStationRefreshSuccess(station.serial),
+          (error: unknown) => this.#recordStationRefreshFailure(station.serial, error),
         );
       }
     }, 60_000);
@@ -437,7 +446,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
     const station = this.#stations.get(event.stationSerial);
     const stationIdentity = this.#devices.get(event.stationSerial);
-    if (station && event.eventType === 9) {
+    if (station?.controlsSupported && event.eventType === 9) {
       const updated = {
         ...station,
         guardMode: validGuardMode(event.guardMode) ? event.guardMode : station.guardMode,
@@ -445,7 +454,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       };
       this.#stations.set(station.serial, updated);
       events.station(updated);
-    } else if (station && event.eventType === 10 && event.alarmType !== null) {
+    } else if (station?.controlsSupported && event.eventType === 10 && event.alarmType !== null) {
       const updated = { ...station, alarmActive: ![0, 1, 15, 16, 17].includes(event.alarmType) };
       this.#stations.set(station.serial, updated);
       events.station(updated);
@@ -781,13 +790,25 @@ export function isHomeBase3(device: Pick<MegaInventoryDevice, "category" | "devi
   return device.category === "eufy_security" && device.deviceType === 18 && device.model.startsWith("T8030");
 }
 
-function initialHomeBaseState(device: MegaInventoryDevice): HomeBaseState {
+/** Return whether inventory identifies a HomeBase model safe for read-only discovery. */
+export function isDiscoveredHomeBase(
+  device: Pick<MegaInventoryDevice, "category" | "deviceType" | "model">,
+): boolean {
+  return device.category === "eufy_security"
+    && (isHomeBase3(device) || (device.deviceType === 0 && device.model.startsWith("T8010")));
+}
+
+/** Build inventory-owned station state without inferring an unverified command protocol. */
+export function initialHomeBaseState(device: MegaInventoryDevice, dskReady: boolean): HomeBaseState {
+  const controlsSupported = isHomeBase3(device);
   return {
     serial: device.serial,
     name: device.name,
     model: device.model,
     firmware: device.firmware,
     available: true,
+    cameraRouteReady: Boolean(device.p2pDid && device.p2pConnection && dskReady),
+    controlsSupported,
     connected: false,
     guardMode: null,
     effectiveMode: null,
