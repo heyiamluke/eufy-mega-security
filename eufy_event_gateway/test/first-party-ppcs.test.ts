@@ -12,6 +12,7 @@ import {
   acceptsAttachedCameraMedia,
   decodePpcsVideoFrame,
   needsAttachedMediaReassert,
+  normalizePpcsVideoPayload,
   ppcsFrameChannel,
   ppcsSequenceDisposition,
 } from "../src/stream/first-party-ppcs.js";
@@ -71,4 +72,27 @@ test("unwraps and uses the key carried by an encrypted video frame", () => {
   tail.copy(frame, 151 + encrypted.length);
 
   assert.deepEqual(decodePpcsVideoFrame(frame, 1, () => key), Buffer.concat([clear, tail]));
+});
+
+test("converts complete length-prefixed H.264 NAL units to Annex-B", () => {
+  const sei = Buffer.from([0x06, 0x05, 0x3a, 0xfe]);
+  const idr = Buffer.from([0x65, 0x88, 0x84]);
+  const lengthPrefixed = Buffer.alloc(8 + sei.length + idr.length);
+  lengthPrefixed.writeUInt32BE(sei.length, 0);
+  sei.copy(lengthPrefixed, 4);
+  lengthPrefixed.writeUInt32BE(idr.length, 4 + sei.length);
+  idr.copy(lengthPrefixed, 8 + sei.length);
+
+  assert.deepEqual(
+    normalizePpcsVideoPayload(lengthPrefixed),
+    Buffer.concat([Buffer.from([0, 0, 0, 1]), sei, Buffer.from([0, 0, 0, 1]), idr]),
+  );
+});
+
+test("leaves Annex-B and incomplete length-prefixed payloads unchanged", () => {
+  const annexB = Buffer.from([0, 0, 0, 1, 0x65, 0x88]);
+  const incomplete = Buffer.from([0, 0, 0, 0x3f, 0x06, 0x05, 0x3a, 0xfe]);
+
+  assert.equal(normalizePpcsVideoPayload(annexB), annexB);
+  assert.equal(normalizePpcsVideoPayload(incomplete), incomplete);
 });

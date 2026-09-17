@@ -37,6 +37,7 @@ const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
 const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
 const PPCS_SEQUENCE_LOOKBACK = 0x8000;
 const PPCS_STALE_RETRANSMIT_DEPTH = 1024;
+const ANNEX_B_START_CODE = Buffer.from([0, 0, 0, 1]);
 
 type PpcsStreamCloseReason = "client_stop" | "first_frame_timeout" | "max_duration" | "replaced" | "start_failed";
 
@@ -112,6 +113,32 @@ export function decodePpcsVideoFrame(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Convert a complete sequence of four-byte length-prefixed NAL units to Annex-B.
+ *
+ * Some cameras emit the H.264 form used inside MP4 samples rather than start
+ * codes. Payloads that are already Annex-B, or that are not a complete and
+ * internally consistent length-prefixed sequence, are returned unchanged.
+ */
+export function normalizePpcsVideoPayload(payload: Buffer): Buffer {
+  if (
+    payload.length >= 4
+    && payload[0] === 0
+    && payload[1] === 0
+    && (payload[2] === 1 || (payload[2] === 0 && payload[3] === 1))
+  ) return payload;
+  const units: Buffer[] = [];
+  let offset = 0;
+  while (offset + 4 <= payload.length) {
+    const length = payload.readUInt32BE(offset);
+    offset += 4;
+    if (length === 0 || length > payload.length - offset) return payload;
+    units.push(ANNEX_B_START_CODE, payload.subarray(offset, offset + length));
+    offset += length;
+  }
+  return offset === payload.length && units.length > 0 ? Buffer.concat(units) : payload;
 }
 
 interface PendingPpcsFrame {
@@ -392,9 +419,11 @@ export class FirstPartyPpcsSession {
       this.#recordVideoResult(signCode > 0 ? "encrypted-frame-rejected" : "plaintext-frame-rejected");
       return false;
     }
-    this.output.write(video);
+    const normalized = normalizePpcsVideoPayload(video);
+    this.output.write(normalized);
     this.stats.videoOutputFrames++;
-    this.#recordVideoResult(signCode > 0 ? "written-decrypted" : "written-clear");
+    const framing = normalized === video ? "annexb" : "length-prefixed";
+    this.#recordVideoResult(`${signCode > 0 ? "written-decrypted" : "written-clear"}-${framing}`);
     return true;
   }
 
