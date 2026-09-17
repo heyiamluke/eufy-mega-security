@@ -38,6 +38,7 @@ const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
 const PPCS_SEQUENCE_LOOKBACK = 0x8000;
 const PPCS_STALE_RETRANSMIT_DEPTH = 1024;
 const ANNEX_B_START_CODE = Buffer.from([0, 0, 0, 1]);
+const MAX_NAL_UNIT_BYTES = 16 * 1024 * 1024;
 
 type PpcsStreamCloseReason = "client_stop" | "first_frame_timeout" | "max_duration" | "replaced" | "start_failed";
 
@@ -116,29 +117,82 @@ export function decodePpcsVideoFrame(
 }
 
 /**
- * Convert a complete sequence of four-byte length-prefixed NAL units to Annex-B.
+ * Normalizes one camera's continuous H.264 byte stream to Annex-B framing.
  *
- * Some cameras emit the H.264 form used inside MP4 samples rather than start
- * codes. Payloads that are already Annex-B, or that are not a complete and
- * internally consistent length-prefixed sequence, are returned unchanged.
+ * Length prefixes and NAL bodies may cross PPCS frame boundaries, so one
+ * instance owns the unfinished prefix and body length for the entire session.
+ * Annex-B streams pass through without buffering or rewriting.
  */
-export function normalizePpcsVideoPayload(payload: Buffer): Buffer {
-  if (
-    payload.length >= 4
+export class PpcsVideoStreamNormalizer {
+  #mode: "unknown" | "annexb" | "length-prefixed" = "unknown";
+  #prefix = Buffer.alloc(0);
+  #nalBytesRemaining = 0;
+
+  /** The framing selected from the first usable bytes in this session. */
+  get framing(): "unknown" | "annexb" | "length-prefixed" {
+    return this.#mode;
+  }
+
+  /** Convert the next ordered media bytes, retaining incomplete prefixes between calls. */
+  push(payload: Buffer): Buffer {
+    let data = this.#prefix.length > 0 ? Buffer.concat([this.#prefix, payload]) : payload;
+    this.#prefix = Buffer.alloc(0);
+    if (this.#mode === "unknown") {
+      if (data.length < 4) {
+        this.#prefix = Buffer.from(data);
+        return Buffer.alloc(0);
+      }
+      if (beginsWithAnnexB(data)) {
+        this.#mode = "annexb";
+        return data;
+      }
+      const length = data.readUInt32BE(0);
+      const nalHeader = data[4];
+      if (
+        length === 0
+        || length > MAX_NAL_UNIT_BYTES
+        || nalHeader === undefined
+        || (nalHeader & 0x80) !== 0
+        || (nalHeader & 0x1f) === 0
+      ) {
+        this.#mode = "annexb";
+        return data;
+      }
+      this.#mode = "length-prefixed";
+    }
+    if (this.#mode === "annexb") return data;
+
+    const output: Buffer[] = [];
+    while (data.length > 0) {
+      if (this.#nalBytesRemaining > 0) {
+        const carried = Math.min(this.#nalBytesRemaining, data.length);
+        output.push(data.subarray(0, carried));
+        data = data.subarray(carried);
+        this.#nalBytesRemaining -= carried;
+        continue;
+      }
+      if (data.length < 4) {
+        this.#prefix = Buffer.from(data);
+        break;
+      }
+      const length = data.readUInt32BE(0);
+      if (length === 0 || length > MAX_NAL_UNIT_BYTES) {
+        output.push(data);
+        break;
+      }
+      output.push(ANNEX_B_START_CODE);
+      this.#nalBytesRemaining = length;
+      data = data.subarray(4);
+    }
+    return output.length > 0 ? Buffer.concat(output) : Buffer.alloc(0);
+  }
+}
+
+function beginsWithAnnexB(payload: Buffer): boolean {
+  return payload.length >= 4
     && payload[0] === 0
     && payload[1] === 0
-    && (payload[2] === 1 || (payload[2] === 0 && payload[3] === 1))
-  ) return payload;
-  const units: Buffer[] = [];
-  let offset = 0;
-  while (offset + 4 <= payload.length) {
-    const length = payload.readUInt32BE(offset);
-    offset += 4;
-    if (length === 0 || length > payload.length - offset) return payload;
-    units.push(ANNEX_B_START_CODE, payload.subarray(offset, offset + length));
-    offset += length;
-  }
-  return offset === payload.length && units.length > 0 ? Buffer.concat(units) : payload;
+    && (payload[2] === 1 || (payload[2] === 0 && payload[3] === 1));
 }
 
 interface PendingPpcsFrame {
@@ -221,6 +275,7 @@ export class FirstPartyPpcsSession {
   #level2Seq = 0;
   #gatewayPromise: Promise<void> | null = null;
   #lastSequenceByType = new Map<number, number>();
+  readonly #videoNormalizer = new PpcsVideoStreamNormalizer();
   #lastAttachedMediaFrameAt: number | null = null;
   #heartbeat: ReturnType<typeof setInterval> | null = null;
 
@@ -419,10 +474,14 @@ export class FirstPartyPpcsSession {
       this.#recordVideoResult(signCode > 0 ? "encrypted-frame-rejected" : "plaintext-frame-rejected");
       return false;
     }
-    const normalized = normalizePpcsVideoPayload(video);
+    const normalized = this.#videoNormalizer.push(video);
+    if (normalized.length === 0) {
+      this.#recordVideoResult("framing-prefix-buffered");
+      return false;
+    }
     this.output.write(normalized);
     this.stats.videoOutputFrames++;
-    const framing = normalized === video ? "annexb" : "length-prefixed";
+    const framing = this.#videoNormalizer.framing;
     this.#recordVideoResult(`${signCode > 0 ? "written-decrypted" : "written-clear"}-${framing}`);
     return true;
   }

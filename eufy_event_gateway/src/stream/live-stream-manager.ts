@@ -26,7 +26,9 @@ export interface StreamController {
 
 interface Session {
   readonly clients: Set<ServerResponse>;
+  readonly pendingClients: Set<ServerResponse>;
   readonly recordings: Set<Recording>;
+  parameterSets: H264ParameterSetCache;
   state: "idle" | "starting" | "streaming" | "stopping" | "error";
   source: Readable | null;
   ffmpeg: ChildProcessWithoutNullStreams | null;
@@ -49,6 +51,64 @@ interface Recording {
 type ClipRemuxer = (h264: Buffer) => Promise<Buffer>;
 
 const MAX_RECORDING_BYTES = 256 * 1024 * 1024;
+const MAX_PARAMETER_SET_SCAN_BYTES = 1024 * 1024;
+
+/**
+ * Retains the latest complete H.264 SPS and PPS from an Annex-B byte stream.
+ *
+ * Input chunks may divide NAL units arbitrarily. The cache keeps only the
+ * unfinished final NAL plus the two codec parameter sets needed to bootstrap a
+ * reader; it never retains video pictures or exposes camera content in logs.
+ */
+export class H264ParameterSetCache {
+  #pending = Buffer.alloc(0);
+  #sps: Buffer | null = null;
+  #pps: Buffer | null = null;
+
+  /** Return codec headers in decoder order once both parameter sets are known. */
+  get bootstrap(): Buffer | null {
+    return this.#sps && this.#pps ? Buffer.concat([this.#sps, this.#pps]) : null;
+  }
+
+  /** Inspect the next ordered stream bytes and retain complete parameter-set NAL units. */
+  push(chunk: Buffer): void {
+    const data = this.#pending.length > 0 ? Buffer.concat([this.#pending, chunk]) : chunk;
+    const starts = annexBStarts(data);
+    if (starts.length < 2) {
+      this.#pending = data.length <= MAX_PARAMETER_SET_SCAN_BYTES
+        ? Buffer.from(data)
+        : Buffer.from(data.subarray(data.length - 3));
+      return;
+    }
+    for (let index = 0; index < starts.length - 1; index++) {
+      const current = starts[index]!;
+      const next = starts[index + 1]!;
+      const nalType = data[current.payloadOffset]! & 0x1f;
+      const nal = Buffer.from(data.subarray(current.offset, next.offset));
+      if (nalType === 7) this.#sps = nal;
+      else if (nalType === 8) this.#pps = nal;
+    }
+    this.#pending = Buffer.from(data.subarray(starts.at(-1)!.offset));
+  }
+}
+
+function annexBStarts(data: Buffer): Array<{ offset: number; payloadOffset: number }> {
+  const starts: Array<{ offset: number; payloadOffset: number }> = [];
+  for (let offset = 0; offset + 3 < data.length;) {
+    if (data[offset] !== 0 || data[offset + 1] !== 0) {
+      offset++;
+      continue;
+    }
+    const length = data[offset + 2] === 1 ? 3 : data[offset + 2] === 0 && data[offset + 3] === 1 ? 4 : 0;
+    if (length === 0) {
+      offset++;
+      continue;
+    }
+    starts.push({ offset, payloadOffset: offset + length });
+    offset += length;
+  }
+  return starts;
+}
 
 /**
  * Coordinates one shared source per camera.
@@ -78,6 +138,9 @@ export class LiveStreamManager extends EventEmitter {
     const session = this.#session(serial);
     this.#cancelStop(session);
     session.clients.add(response);
+    const bootstrap = session.parameterSets.bootstrap;
+    if (bootstrap) response.write(bootstrap);
+    else session.pendingClients.add(response);
     this.#updateState(serial, session);
 
     response.on("close", () => this.#removeClient(serial, response));
@@ -168,10 +231,21 @@ export class LiveStreamManager extends EventEmitter {
     session.ffmpeg?.kill("SIGTERM");
     session.source = source;
     session.state = "streaming";
+    session.parameterSets = new H264ParameterSetCache();
+    for (const client of session.clients) session.pendingClients.add(client);
     session.ffmpeg = this.#startSnapshotExtractor(serial);
 
     source.on("data", (chunk: Buffer) => {
+      session.parameterSets.push(chunk);
+      const bootstrap = session.parameterSets.bootstrap;
+      if (bootstrap) {
+        for (const client of session.pendingClients) {
+          if (session.clients.has(client)) client.write(bootstrap);
+        }
+        session.pendingClients.clear();
+      }
       for (const client of session.clients) {
+        if (session.pendingClients.has(client)) continue;
         client.write(chunk);
         if (client.writableLength > 4 * 1024 * 1024) {
           client.destroy(new Error("Live stream client exceeded the four-megabyte backpressure limit"));
@@ -195,6 +269,7 @@ export class LiveStreamManager extends EventEmitter {
     session.owned = false;
     for (const client of session.clients) client.end();
     session.clients.clear();
+    session.pendingClients.clear();
     this.#updateState(serial, session);
   }
 
@@ -209,6 +284,7 @@ export class LiveStreamManager extends EventEmitter {
         this.#cleanupSource(session);
         this.#failRecordings(session, new Error("Gateway closed while recording a clip"));
         for (const client of session.clients) client.end();
+        session.pendingClients.clear();
         if (session.owned) await this.controller.stopStream(serial).catch(() => undefined);
       }),
     );
@@ -217,6 +293,7 @@ export class LiveStreamManager extends EventEmitter {
   #removeClient(serial: string, response: ServerResponse): void {
     const session = this.#session(serial);
     session.clients.delete(response);
+    session.pendingClients.delete(response);
     this.#updateState(serial, session);
     this.#scheduleStopIfUnused(serial, session);
   }
@@ -383,6 +460,7 @@ export class LiveStreamManager extends EventEmitter {
     session.owned = false;
     for (const client of session.clients) client.end();
     session.clients.clear();
+    session.pendingClients.clear();
     this.#updateState(serial, session, error?.message ?? null);
   }
 
@@ -433,7 +511,9 @@ export class LiveStreamManager extends EventEmitter {
     if (!session) {
       session = {
         clients: new Set(),
+        pendingClients: new Set(),
         recordings: new Set(),
+        parameterSets: new H264ParameterSetCache(),
         state: "idle",
         source: null,
         ffmpeg: null,

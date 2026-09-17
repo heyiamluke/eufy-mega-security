@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.47
+
+- Preserve length-prefixed H.264 NAL units across PPCS video-frame boundaries before converting them to Annex-B. This covers the T8210 stream whose declared 252-byte NAL arrived over more than one gateway frame.
+- Hold each Home Assistant live-view response until the stream has supplied SPS and PPS codec headers, then prepend those headers for both initial and repeat viewers. This prevents go2rtc from probing a stream at an SEI or slice NAL and rejecting an otherwise valid camera stream.
+
 ## 0.1.46
 
 - Convert complete four-byte length-prefixed camera video payloads to Annex-B before handing them to Home Assistant. This addresses the T817L `unsupported header: 0000003f...` playback failure while leaving existing Annex-B streams unchanged.

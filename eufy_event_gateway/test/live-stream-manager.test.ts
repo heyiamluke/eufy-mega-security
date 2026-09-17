@@ -6,11 +6,12 @@
  * opening a real PPCS socket.
  */
 import assert from "node:assert/strict";
+import type { ServerResponse } from "node:http";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { GatewayState } from "../src/domain/gateway-state.js";
-import { LiveStreamManager } from "../src/stream/live-stream-manager.js";
+import { H264ParameterSetCache, LiveStreamManager } from "../src/stream/live-stream-manager.js";
 
 const camera = {
   serial: "camera-1",
@@ -20,6 +21,67 @@ const camera = {
   streamSupported: true,
   doorbellSupported: true,
 };
+
+function annexBNal(type: number, ...body: number[]): Buffer {
+  return Buffer.from([0, 0, 0, 1, type, ...body]);
+}
+
+test("retains SPS and PPS split across arbitrary source chunks", () => {
+  const cache = new H264ParameterSetCache();
+  const sps = annexBNal(0x67, 0x42, 0x00, 0x1f);
+  const pps = annexBNal(0x68, 0xce, 0x06);
+  const idr = annexBNal(0x65, 0x88);
+  const stream = Buffer.concat([sps, pps, idr]);
+
+  cache.push(stream.subarray(0, sps.length + 2));
+  assert.equal(cache.bootstrap, null);
+  cache.push(stream.subarray(sps.length + 2));
+
+  assert.deepEqual(cache.bootstrap, Buffer.concat([sps, pps]));
+});
+
+test("bootstraps first and repeat HTTP viewers with SPS and PPS", async () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  let manager: LiveStreamManager;
+  let source: PassThrough;
+  manager = new LiveStreamManager(
+    state,
+    {} as never,
+    {
+      async startStream() {
+        source = new PassThrough();
+        manager.attachSource(camera.serial, source);
+      },
+      async stopStream() {
+        source.end();
+      },
+    },
+    5,
+  );
+
+  const response = new PassThrough() as unknown as ServerResponse;
+  response.writeHead = (() => response) as ServerResponse["writeHead"];
+  const firstBytes: Buffer[] = [];
+  response.on("data", (chunk: Buffer) => firstBytes.push(Buffer.from(chunk)));
+  await manager.addClient(camera.serial, response);
+
+  source!.write(annexBNal(0x41, 1, 2, 3));
+  assert.equal(firstBytes.length, 0);
+  const sps = annexBNal(0x67, 0x42, 0x00, 0x1f);
+  const pps = annexBNal(0x68, 0xce, 0x06);
+  source!.write(Buffer.concat([sps, pps, annexBNal(0x65, 4, 5)]));
+  assert.deepEqual(Buffer.concat(firstBytes).subarray(0, sps.length + pps.length), Buffer.concat([sps, pps]));
+
+  const repeatResponse = new PassThrough() as unknown as ServerResponse;
+  repeatResponse.writeHead = (() => repeatResponse) as ServerResponse["writeHead"];
+  const repeatBytes: Buffer[] = [];
+  repeatResponse.on("data", (chunk: Buffer) => repeatBytes.push(Buffer.from(chunk)));
+  await manager.addClient(camera.serial, repeatResponse);
+
+  assert.deepEqual(Buffer.concat(repeatBytes), Buffer.concat([sps, pps]));
+  await manager.close();
+});
 
 test("holds an on-demand stream until a fresh snapshot arrives", async () => {
   const state = new GatewayState();
