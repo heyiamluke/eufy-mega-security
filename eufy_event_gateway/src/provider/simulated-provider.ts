@@ -23,6 +23,8 @@ function simulatedStation(overrides: Partial<HomeBaseState> = {}): HomeBaseState
     model: "T8030",
     firmware: "3.8.6.0",
     available: true,
+    cameraRouteReady: true,
+    controlsSupported: true,
     connected: true,
     guardMode: 63,
     effectiveMode: 63,

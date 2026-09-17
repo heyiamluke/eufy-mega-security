@@ -57,7 +57,11 @@ async def async_setup_entry(
                         )
             async_add_entities(entities)
 
-        station_serials = set(coordinator.stations) - known_stations
+        station_serials = {
+            serial
+            for serial, station in coordinator.stations.items()
+            if station.get("controlsSupported") is True
+        } - known_stations
         if station_serials:
             known_stations.update(station_serials)
             entities = []

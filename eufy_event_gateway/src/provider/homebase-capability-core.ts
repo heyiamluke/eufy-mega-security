@@ -1,9 +1,9 @@
 /**
  * HomeBase baseline features already normalized by the gateway.
  *
- * This list describes the T8030/type-18 station path only. The provider owns
- * PPCS reads, commands, and readback; this file does not implement a station
- * control or infer other HomeBase protocols from a shared product name.
+ * Inventory presence and child-camera route readiness apply to discovered
+ * HomeBases. Station reads, commands, and readback remain T8030-only and this
+ * file does not infer those protocols from a shared product name.
  */
 
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
@@ -13,7 +13,8 @@ export const HOMEBASE_DEVICE_TYPES: ReadonlySet<number> = new Set([0, 18, 27]);
 
 /** Existing station state and controls needed for the HA baseline. */
 export const HOMEBASE_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [
-  { id: "homebase.available", family: "connection", kind: "read", evidenceParamIds: [], gatewaySupport: "implemented", note: "Inventory availability is separate from PPCS connection." },
+  { id: "homebase.available", family: "connection", kind: "read", evidenceParamIds: [], gatewaySupport: "implemented", baselineWithoutParam: true, note: "Inventory availability is separate from PPCS connection." },
+  { id: "homebase.camera_route", family: "connection", kind: "read", evidenceParamIds: [], gatewaySupport: "implemented", requiresRoute: true, note: "Readiness covers child-camera PPCS prerequisites, not the station command protocol." },
   { id: "homebase.connected", family: "connection", kind: "read", evidenceParamIds: [], gatewaySupport: "implemented", note: "Disconnected remains an informative state when the PPCS route is unavailable." },
   { id: "homebase.firmware", family: "diagnostic", kind: "read", evidenceParamIds: [], gatewaySupport: "implemented" },
   { id: "homebase.guard_mode", family: "security", kind: "read", evidenceParamIds: [], gatewaySupport: "implemented", requiresRoute: true },

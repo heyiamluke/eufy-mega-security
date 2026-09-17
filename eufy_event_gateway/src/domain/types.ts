@@ -108,13 +108,19 @@ export interface HomeBaseStorageState {
   readonly freeBytes: number | null;
 }
 
-/** Complete normalized state for one HomeBase 3. */
+/** Complete normalized state for one discovered HomeBase. */
 export interface HomeBaseState {
   readonly serial: string;
   readonly name: string;
   readonly model: string;
   readonly firmware: string | null;
   readonly available: boolean;
+
+  /** Whether a child-camera PPCS route has all inventoried prerequisites. */
+  readonly cameraRouteReady: boolean;
+
+  /** Whether station reads and confirmed writes are verified for this model. */
+  readonly controlsSupported: boolean;
   readonly connected: boolean;
   readonly guardMode: number | null;
   readonly effectiveMode: number | null;
@@ -200,7 +206,7 @@ export interface DeviceCapabilityManifest {
   readonly unmappedParamCount: number;
 }
 
-/** Stable metadata for a HomeBase 3 discovered through Mega inventory. */
+/** Stable metadata for a HomeBase discovered through Mega inventory. */
 export interface HomeBaseIdentity {
   readonly serial: string;
   readonly name: string;

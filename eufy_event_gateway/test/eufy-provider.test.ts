@@ -13,6 +13,8 @@ import {
   confirmStationWrite,
   inventoryDiagnostics,
   inventoryLogSummaries,
+  initialHomeBaseState,
+  isDiscoveredHomeBase,
   isDoorbellDevice,
   isPpcsStreamSupported,
   parseMegaInventory,
@@ -142,6 +144,33 @@ test("inherits the HomeBase live-view account identity for child cameras", () =>
     { device_sn: "homebase", device_type: 18, category: "eufy_security", member: { admin_user_id: "owner" } },
   ] });
   assert.equal(devices.find(({ serial }) => serial === "camera")?.adminUserId, "owner");
+});
+
+test("discovers T8010 without enabling unverified station controls", () => {
+  const [station] = parseMegaInventory({ devices: [{
+    device_sn: "homebase", device_name: "HomeBase 2", device_model: "T8010",
+    device_type: 0, category: "eufy_security", p2p_did: "did", p2p_conn: "connection",
+    main_sw_version: "3.4.2.6h",
+  }] });
+  assert.ok(station);
+  assert.equal(isDiscoveredHomeBase(station), true);
+  assert.deepEqual(initialHomeBaseState(station, true), {
+    serial: "homebase",
+    name: "HomeBase 2",
+    model: "T8010",
+    firmware: "3.4.2.6h",
+    available: true,
+    cameraRouteReady: true,
+    controlsSupported: false,
+    connected: false,
+    guardMode: null,
+    effectiveMode: null,
+    alarmActive: null,
+    alarmVolume: null,
+    promptVolume: null,
+    alarmTone: null,
+    storage: { emmc: null, hdd: null },
+  });
 });
 
 test("classifies recognized Mega camera types without admitting stations or unknown devices", () => {

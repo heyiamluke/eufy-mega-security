@@ -18,7 +18,7 @@ const noSupport = { homeBaseSupported: false, homeBaseRouteReady: false, doorbel
 
 test("keeps published non-camera catalogues small and unique", () => {
   const entries = [...SENSOR_CAPABILITY_CORE, ...HOMEBASE_CAPABILITY_CORE, ...DOORBELL_CAPABILITY_CORE];
-  assert.equal(entries.length, 21);
+  assert.equal(entries.length, 22);
   assert.equal(new Set(entries.map(({ id }) => id)).size, entries.length);
   assert.equal(entries.every(({ evidenceParamIds }) => evidenceParamIds.every((id) => Number.isSafeInteger(id) && id >= 0 && id <= 65_535)), true);
   assert.equal(SENSOR_CAPABILITY_CORE.every(({ gatewaySupport }) => gatewaySupport === "implemented"), true);
@@ -50,7 +50,7 @@ test("does not infer contact state for a PIR sensor or camera", () => {
   }, noSupport), []);
 });
 
-test("supports only managed HomeBase 3 through its existing station route", () => {
+test("offers read-only discovery for HomeBase 2 and controls only for HomeBase 3", () => {
   const [managed] = describeDeviceCapabilities({
     serial: "HB3", model: "T8030", category: "eufy_security", deviceType: 18, paramTypes: [],
   }, { ...noSupport, homeBaseSupported: true, homeBaseRouteReady: true });
@@ -64,6 +64,17 @@ test("supports only managed HomeBase 3 through its existing station route", () =
   assert.equal(unready?.matrix.find(({ id }) => id === "homebase.available")?.offerable, true);
   assert.equal(unready?.matrix.find(({ id }) => id === "homebase.connected")?.offerable, true);
   assert.equal(unready?.matrix.find(({ id }) => id === "homebase.guard_mode_write")?.offerable, false);
+
+  const [homeBase2] = describeDeviceCapabilities({
+    serial: "HB2", model: "T8010", category: "eufy_security", deviceType: 0, paramTypes: [],
+  }, { ...noSupport, homeBaseRouteReady: true });
+  assert.equal(homeBase2?.recognized, true);
+  assert.equal(homeBase2?.supported, true);
+  assert.deepEqual(
+    homeBase2?.matrix.filter(({ offerable }) => offerable).map(({ id }) => id),
+    ["homebase.available", "homebase.camera_route"],
+  );
+  assert.equal(homeBase2?.matrix.find(({ id }) => id === "homebase.guard_mode_write")?.offerable, false);
 
   const [t9000] = describeDeviceCapabilities({
     serial: "T9000", model: "T9000", category: "eufy_security", deviceType: 27, paramTypes: [],
