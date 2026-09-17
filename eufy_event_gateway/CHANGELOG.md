@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.41
+
+- Restore the missing Home Assistant integration domain import used by the T817L entity migration, so existing entries can start.
+
 ## 0.1.40
 
 - Stop re-sending a HomeBase camera's full media-start command while its frames are flowing. The command is reasserted only during startup or after a genuine stall, preventing T8210 live-view resets and jumps.
