@@ -64,7 +64,28 @@ export interface PpcsCameraOptions {
  */
 export class FirstPartyPpcsSession {
   readonly output = new PassThrough();
-  readonly stats = { camId: 0, dataDatagrams: 0, frameHeaders: 0, gatewayInfo: 0, level2: 0, videoFrames: 0, batteryHistory: "not-reported", firstDataHex: "", cipherId: 0, level2Error: "", commands: [] as number[], responseLengths: [] as number[], startHex: "", types: [] as number[] };
+  readonly stats = {
+    camId: 0,
+    dataDatagrams: 0,
+    frameHeaders: 0,
+    gatewayInfo: 0,
+    level2: 0,
+    videoFrames: 0,
+    videoOutputFrames: 0,
+    batteryHistory: "not-reported",
+    firstDataHex: "",
+    cipherId: 0,
+    level2Error: "",
+    commands: [] as number[],
+    frameShapes: [] as string[],
+    responseLengths: [] as number[],
+    sequenceGaps: 0,
+    parserBlocked: false,
+    pendingBytes: 0,
+    startHex: "",
+    types: [] as number[],
+    videoResults: [] as string[],
+  };
   readonly #options: PpcsCameraOptions;
   readonly #socket: Socket = createSocket("udp4");
 
@@ -171,7 +192,10 @@ export class FirstPartyPpcsSession {
 
   #consumeData(data: Buffer, sequence: number, type: number): void {
     const previous = this.#lastSequenceByType.get(type);
-    if (previous !== undefined && ((sequence - previous) & 0xffff) > 1) this.#pendingByType.delete(type);
+    if (previous !== undefined && ((sequence - previous) & 0xffff) > 1) {
+      this.stats.sequenceGaps++;
+      this.#pendingByType.delete(type);
+    }
     this.#lastSequenceByType.set(type, sequence);
     let pending = Buffer.concat([this.#pendingByType.get(type) ?? Buffer.alloc(0), data]);
     while (pending.length >= 16 && pending.subarray(0, 4).equals(MAGIC)) {
@@ -180,10 +204,22 @@ export class FirstPartyPpcsSession {
       const size = pending.readUInt32LE(6);
       if (command === 1350 && this.stats.responseLengths.length < 5) this.stats.responseLengths.push(size);
       const signCode = pending[13] ?? 0;
-      if (size > 16 * 1024 * 1024) { this.#pendingByType.delete(type); return; }
-      if (pending.length < 16 + size) { this.#pendingByType.set(type, pending); return; }
+      if (size > 16 * 1024 * 1024) {
+        this.#pendingByType.delete(type);
+        this.#updatePendingBytes();
+        return;
+      }
+      if (pending.length < 16 + size) {
+        this.#pendingByType.set(type, pending);
+        this.#updatePendingBytes();
+        return;
+      }
       const payload = pending.subarray(16, 16 + size);
       this.stats.frameHeaders++;
+      const shape = `${command}:${signCode}:${size}:${type}`;
+      if (!this.stats.frameShapes.includes(shape) && this.stats.frameShapes.length < 20) {
+        this.stats.frameShapes.push(shape);
+      }
       pending = pending.subarray(16 + size);
 
       // 1100 carries the encrypted HomeBase gateway details. 1300 carries
@@ -192,21 +228,40 @@ export class FirstPartyPpcsSession {
       else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
       else if (command === 1300) { this.stats.videoFrames++; this.#writeVideo(payload, signCode); }
     }
+    this.stats.parserBlocked ||= pending.length >= 16 && !pending.subarray(0, 4).equals(MAGIC);
     this.#pendingByType.set(type, pending);
+    this.#updatePendingBytes();
   }
 
   #writeVideo(frame: Buffer, signCode: number): void {
-    if (frame.length < 22) return;
+    if (frame.length < 22) return this.#recordVideoResult("short");
     const length = frame.readUInt32LE(0); const encryptedKey = frame.subarray(22, 150);
     let start = 22;
     if (signCode > 0 && encryptedKey.length === 128 && frame[4] === 1) {
-      try { this.#videoKey = privateDecrypt({ key: this.#rsa.privateKey, padding: 1 }, encryptedKey); start = 150 + 1; } catch { return; }
+      try { this.#videoKey = privateDecrypt({ key: this.#rsa.privateKey, padding: 1 }, encryptedKey); start = 150 + 1; } catch { return this.#recordVideoResult("key-unwrapping-failed"); }
     }
     const encrypted = frame.subarray(start, Math.min(frame.length, start + Math.min(length, 128)));
-    const clear = this.#videoKey && encrypted.length === 128 ? decryptEcb(encrypted, this.#videoKey) : encrypted;
+    let clear = encrypted;
+    if (this.#videoKey && encrypted.length === 128) {
+      try { clear = decryptEcb(encrypted, this.#videoKey); } catch { return this.#recordVideoResult("frame-decryption-failed"); }
+    }
     const tail = frame.subarray(start + encrypted.length, Math.min(frame.length, start + length));
     const video = Buffer.concat([clear, tail]);
-    if (video.length > 0) this.output.write(video);
+    if (video.length === 0) return this.#recordVideoResult("empty");
+    this.output.write(video);
+    this.stats.videoOutputFrames++;
+    this.#recordVideoResult(this.#videoKey ? "written-decrypted" : "written-clear");
+  }
+
+  #recordVideoResult(result: string): void {
+    if (!this.stats.videoResults.includes(result) && this.stats.videoResults.length < 8) {
+      this.stats.videoResults.push(result);
+    }
+  }
+
+  #updatePendingBytes(): void {
+    this.stats.pendingBytes = [...this.#pendingByType.values()]
+      .reduce((total, value) => total + value.length, 0);
   }
 
   #inspectCameraInfo(payload: Buffer, signCode: number): void {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.39
+
+- Add privacy-safe PPCS frame-shape diagnostics for data channels, command IDs, signature modes, bounded payload lengths, sequence gaps, parser state, and video-output outcomes.
+- Log explicit live-view and fresh-snapshot request markers before Home Assistant media requests enter the camera transport.
+
 ## 0.1.38
 
 - Admit the standalone T8200 / Mega type 5 as a doorbell camera through its self-parented direct PPCS route, including the existing doorbell press entity.
