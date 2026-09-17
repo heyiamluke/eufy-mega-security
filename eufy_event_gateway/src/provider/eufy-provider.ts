@@ -999,7 +999,7 @@ export function isPpcsRouteReady(
 export function ppcsStreamLogSummary(
   model: string,
   route: PpcsStreamRoute | null,
-  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "closeReason" | "commands" | "foreignVideoFrames" | "frameShapes" | "parserBlocked" | "pendingBytes" | "sequenceGaps" | "types" | "videoOutputFrames" | "videoResults">>,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "closeReason" | "commands" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "types" | "videoOutputFrames" | "videoResults">>,
   error?: unknown,
 ): string {
   const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
@@ -1017,6 +1017,10 @@ export function ppcsStreamLogSummary(
     `commands=${stats.commands?.join(",") || "none"}`,
     `frame_shapes=${stats.frameShapes?.join(",") || "none"}`,
     `sequence_gaps=${stats.sequenceGaps ?? 0}`,
+    `sequence_restarts=${stats.sequenceRestarts ?? 0}`,
+    `duplicate_datagrams=${stats.duplicateDatagrams ?? 0}`,
+    `stale_datagrams=${stats.staleDatagrams ?? 0}`,
+    `parser_resyncs=${stats.parserResyncs ?? 0}`,
     `parser_blocked=${stats.parserBlocked ?? false}`,
     `pending_bytes=${stats.pendingBytes ?? 0}`,
     `video_results=${stats.videoResults?.join(",") || "none"}`,

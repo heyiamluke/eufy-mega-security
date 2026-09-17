@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.45
+
+- Ignore duplicate and stale PPCS datagrams instead of feeding retransmitted bytes into the media parser.
+- Discard incomplete command payloads after a true datagram loss and resume only from a complete PPCS command header.
+- Decode each encrypted media frame with its own wrapped key and leave later plaintext frames untouched. This prevents a mixed T817L stream being corrupted by a cached key from an earlier frame.
+
 ## 0.1.44
 
 - Read the HomeBase camera channel from the current PPCS frame before advancing the parser buffer. This prevents valid requested-camera video from being rejected as sibling media.
