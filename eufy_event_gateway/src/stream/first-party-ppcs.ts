@@ -34,6 +34,9 @@ const RESP = {
 } as const;
 const DATA = { data: Buffer.from([0xd1, 0]), video: Buffer.from([0xd1, 1]) } as const;
 const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
+const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
+
+type PpcsStreamCloseReason = "client_stop" | "first_frame_timeout" | "max_duration" | "replaced" | "start_failed";
 
 /**
  * Decide whether a HomeBase-attached camera needs its full media start sent again.
@@ -112,6 +115,7 @@ export class FirstPartyPpcsSession {
     startHex: "",
     types: [] as number[],
     videoResults: [] as string[],
+    closeReason: "open" as PpcsStreamCloseReason | "open",
   };
   readonly #options: PpcsCameraOptions;
   readonly #socket: Socket = createSocket("udp4");
@@ -123,7 +127,8 @@ export class FirstPartyPpcsSession {
   #remote: { host: string; port: number } | null = null;
   #seq = 0;
   #closed = false;
-  #timer: ReturnType<typeof setTimeout> | null = null;
+  #maximumDurationTimer: ReturnType<typeof setTimeout> | null = null;
+  #firstFrameTimer: ReturnType<typeof setTimeout> | null = null;
   #pendingByType = new Map<number, Buffer>();
   #videoKey: Buffer | null = null;
   #level2Key: Buffer | null = null;
@@ -155,7 +160,14 @@ export class FirstPartyPpcsSession {
         this.#lookup();
       });
     });
-    this.#timer = setTimeout(() => this.close(), (this.#options.maxSeconds ?? 30) * 1_000);
+    this.#maximumDurationTimer = setTimeout(
+      () => this.close("max_duration"),
+      (this.#options.maxSeconds ?? 30) * 1_000,
+    );
+    this.#firstFrameTimer = setTimeout(
+      () => this.close("first_frame_timeout"),
+      FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS,
+    );
     this.#heartbeat = setInterval(() => {
       if (!this.#remote) return;
       this.#send(REQ.ping, Buffer.alloc(0), this.#remote);
@@ -167,11 +179,13 @@ export class FirstPartyPpcsSession {
     this.#heartbeat.unref?.();
   }
 
-  /** End the peer session, timers, socket, and output stream idempotently. */
-  close(): void {
+  /** End the peer session and retain its terminal reason for privacy-safe diagnostics. */
+  close(reason: PpcsStreamCloseReason = "client_stop"): void {
     if (this.#closed) return;
     this.#closed = true;
-    if (this.#timer) clearTimeout(this.#timer);
+    this.stats.closeReason = reason;
+    if (this.#maximumDurationTimer) clearTimeout(this.#maximumDurationTimer);
+    if (this.#firstFrameTimer) clearTimeout(this.#firstFrameTimer);
     if (this.#heartbeat) clearInterval(this.#heartbeat);
     if (this.#remote) this.#send(REQ.end, Buffer.alloc(0), this.#remote);
     this.#socket.close();
@@ -258,8 +272,12 @@ export class FirstPartyPpcsSession {
       else if (command === 1103) this.#inspectCameraInfo(payload, signCode);
       else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, pending[12] ?? -1, this.#options.channel))) {
         this.stats.videoFrames++;
-        if (this.#writeVideo(payload, signCode) && this.#options.homeBaseAttached) {
-          this.#lastAttachedMediaFrameAt = Date.now();
+        if (this.#writeVideo(payload, signCode)) {
+          if (this.#firstFrameTimer) {
+            clearTimeout(this.#firstFrameTimer);
+            this.#firstFrameTimer = null;
+          }
+          if (this.#options.homeBaseAttached) this.#lastAttachedMediaFrameAt = Date.now();
         }
       } else if (command === 1300 && this.#options.homeBaseAttached) {
         this.stats.foreignVideoFrames++;
