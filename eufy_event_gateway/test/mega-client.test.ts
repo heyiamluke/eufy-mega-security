@@ -6,13 +6,75 @@
  * bounded media download without contacting Eufy.
  */
 import assert from "node:assert/strict";
+import { createECDH } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { MegaClient } from "../src/mega/client.js";
-import { decryptEnvelope, encryptEnvelope, credentialVerifier, sharedAesKey } from "../src/mega/crypto.js";
+import { decryptEnvelope, encryptEnvelope, credentialVerifier, presetKey, sharedAesKey } from "../src/mega/crypto.js";
+
+test("replaces and persists a stale Mega identity after error 4404", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mega-identity-recovery-"));
+  const sessionPath = join(directory, "mega-session.json");
+  const host = "app-openapi-eu-pr.eufy.com";
+  const staleSharedKey = "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100";
+  let refreshedSharedKey = "";
+  const requests: Array<{ readonly path: string; readonly keyIdent: string | null }> = [];
+  try {
+    await writeFile(sessionPath, JSON.stringify({
+      version: 2, country: "au", openUdid: "device",
+      credentialVerifier: credentialVerifier("device", "user@example.invalid", "password"),
+      authToken: "token", tokenExpiresAt: 2_000_000_000, userId: "user",
+      megaDomain: "mega-eu-pr.eufy.com", domains: {},
+      identities: { [host]: { keyIdent: "stale-identity", sharedKey: staleSharedKey, clientPublicKey: "public" } },
+    }));
+    const fakeFetch: typeof fetch = async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      const headers = new Headers(init?.headers);
+      requests.push({ path, keyIdent: headers.get("x-key-ident") });
+      if (path === "/app/house/get_devs_list" && requests.length === 1) {
+        return new Response(JSON.stringify({ code: 4404, msg: "get identity error", data: {} }));
+      }
+      if (path === "/openapi/oauth/key/exchange") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { client_public_key?: string };
+        const clientPublicKey = decryptEnvelope(body.client_public_key ?? "", presetKey());
+        const server = createECDH("prime256v1");
+        server.generateKeys();
+        refreshedSharedKey = server.computeSecret(Buffer.from(clientPublicKey, "hex")).toString("hex");
+        return new Response(JSON.stringify({
+          code: 0,
+          data: { server_public_key: encryptEnvelope(server.getPublicKey("hex"), presetKey(), Buffer.alloc(16, 2)) },
+        }));
+      }
+      const responseValue = path === "/app/house/get_devs_list" ? { devices: [], groups: [] } : [];
+      const data = encryptEnvelope(JSON.stringify(responseValue), sharedAesKey(refreshedSharedKey), Buffer.alloc(16, 3));
+      return new Response(JSON.stringify({ code: 0, data }));
+    };
+    const client = new MegaClient({
+      email: "user@example.invalid", password: "password", country: "AU", persistentDirectory: directory,
+      minimumRequestIntervalMs: 0, now: () => 1_700_000_000_000, fetch: fakeFetch,
+    });
+
+    assert.equal(client.isSessionInvalidError(new Error("Mega request failed (4404: get identity error)")), true);
+    assert.deepEqual(await client.connect(), { state: "authenticated" });
+    assert.deepEqual(await client.inventory(), { devices: [], groups: [] });
+    assert.deepEqual(requests.map((request) => request.path), [
+      "/app/house/get_devs_list",
+      "/openapi/oauth/key/exchange",
+      "/app/house/get_devs_list",
+      "/v2/house/device_list",
+    ]);
+    const saved = JSON.parse(await readFile(sessionPath, "utf8")) as {
+      identities: Record<string, { keyIdent: string }>;
+    };
+    assert.notEqual(saved.identities[host]?.keyIdent, "stale-identity");
+    assert.equal(saved.identities[host]?.keyIdent, requests[1]?.keyIdent);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("authenticates only the Eufy leg of an allowlisted media redirect", async () => {
   const directory = await mkdtemp(join(tmpdir(), "mega-media-"));

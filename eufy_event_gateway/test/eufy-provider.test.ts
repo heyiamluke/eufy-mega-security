@@ -302,7 +302,39 @@ test("admits issue 27 Mega cameras through a ready T9000 HomeBase", () => {
 test("identifies the T8214 doorbell without classifying the T8416 indoor camera as one", () => {
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 5 }), true);
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 94 }), true);
+  assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 203 }), true);
   assert.equal(isDoorbellDevice({ category: "eufy_security", deviceType: 104 }), false);
+});
+
+test("admits newly reported camera families through a ready HomeBase 3", () => {
+  const devices = parseMegaInventory({ devices: [
+    {
+      device_sn: "floodlight", device_model: "T8423", parent_sn: "station", device_type: 38,
+      device_channel: 1, category: "eufy_security",
+    },
+    {
+      device_sn: "indoor", device_model: "T8417", parent_sn: "station", device_type: 105,
+      device_channel: 2, category: "eufy_security",
+    },
+    {
+      device_sn: "video-lock", device_model: "T85V0", parent_sn: "station", device_type: 203,
+      device_channel: 3, category: "eufy_security",
+    },
+    {
+      device_sn: "station", device_model: "T8030", device_type: 18,
+      category: "eufy_security", p2p_did: "did", p2p_conn: "connection",
+    },
+  ] });
+  const summaries = inventoryLogSummaries(devices, new Set(["station"]));
+
+  assert.deepEqual(summaries.slice(0, 3).map(({ deviceType, acceptedAsCamera, streamSupported }) => ({
+    deviceType, acceptedAsCamera, streamSupported,
+  })), [
+    { deviceType: 38, acceptedAsCamera: true, streamSupported: true },
+    { deviceType: 105, acceptedAsCamera: true, streamSupported: true },
+    { deviceType: 203, acceptedAsCamera: true, streamSupported: true },
+  ]);
+  assert.equal(isDoorbellDevice(devices[2]!), true);
 });
 
 test("admits a self-parented T8200 through its own PPCS route", () => {
@@ -482,10 +514,12 @@ test("summarizes PPCS failure stages without private transport data", () => {
     parserBlocked: true,
     pendingBytes: 17,
     videoResults: [],
+    videoCodec: "h264",
+    videoNalTypes: [7, 8, 5],
     closeReason: "first_frame_timeout",
   }, new Error("Timed out waiting for a fresh camera frame"));
   assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 data_datagrams=3 frame_headers=2 video_frames=0/);
-  assert.match(summary, /video_output_frames=0 foreign_video_frames=0 data_types=0,2 commands=1700,1103 frame_shapes=1700:1:64:0,1103:0:32:2 sequence_gaps=1 sequence_restarts=0 duplicate_datagrams=0 stale_datagrams=0 parser_resyncs=0 parser_blocked=true pending_bytes=17 video_results=none/);
+  assert.match(summary, /video_output_frames=0 foreign_video_frames=0 data_types=0,2 commands=1700,1103 frame_shapes=1700:1:64:0,1103:0:32:2 sequence_gaps=1 sequence_restarts=0 duplicate_datagrams=0 stale_datagrams=0 parser_resyncs=0 parser_blocked=true pending_bytes=17 video_results=none video_codec=h264 video_nal_types=7,8,5 codec_bootstrap=ready/);
   assert.match(summary, /battery_history=not-reported/);
   assert.match(summary, /close_reason=first_frame_timeout/);
   assert.equal(summary.includes("PRIVATE"), false);

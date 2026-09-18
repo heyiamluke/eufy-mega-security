@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.53
+
+- Recover from Mega error 4404 by replacing and persisting the rejected request identity once, then use the existing login recovery if the fresh identity is also rejected.
+- Accept Home Assistant's positional code argument for HomeBase Away, Home, and Disarm commands.
+- Admit Floodlight Cam T8423, Indoor Cam T8417, and Familock T85V0 inventory through their reported HomeBase camera routes. These paths still need reporter confirmation on real hardware, and the T85V0 does not expose lock controls.
+- Add privacy-safe video codec, NAL type, and codec bootstrap diagnostics to camera stream close summaries.
+
 ## 0.1.52
 
 - Clear completed provider stop timers so a failed snapshot cannot leave later Home Assistant live-view requests stuck before stream startup.
