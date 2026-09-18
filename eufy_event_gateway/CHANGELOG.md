@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.52
+
+- Clear completed provider stop timers so a failed snapshot cannot leave later Home Assistant live-view requests stuck before stream startup.
+- Keep the existing PPCS command, frame parsing, and HomeBase media paths unchanged.
+
 ## 0.1.51
 
 - Retry PPCS peer discovery throughout the connection window and send the app-compatible cloud lookup forms once the gateway's routed address is known.

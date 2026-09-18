@@ -141,6 +141,39 @@ test("releases its state listener after a capture timeout", async () => {
   await manager.close();
 });
 
+test("starts a live viewer after the provider closes a timed-out snapshot", async () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  let starts = 0;
+  let stops = 0;
+  const manager = new LiveStreamManager(
+    state,
+    {} as never,
+    {
+      async startStream() {
+        starts += 1;
+      },
+      async stopStream() {
+        stops += 1;
+      },
+    },
+    20,
+  );
+
+  await assert.rejects(manager.captureSnapshot(camera.serial, 5), /Timed out/);
+  manager.markStopped(camera.serial);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  const response = new PassThrough() as unknown as ServerResponse;
+  response.writeHead = (() => response) as ServerResponse["writeHead"];
+  await manager.addClient(camera.serial, response);
+
+  assert.equal(starts, 2);
+  assert.equal(stops, 0);
+  assert.equal(state.getCamera(camera.serial).stream.state, "starting");
+  await manager.close();
+});
+
 test("reports a frame timeout without an unhandled rejection during slow stream startup", async () => {
   const state = new GatewayState();
   state.registerCamera(camera);

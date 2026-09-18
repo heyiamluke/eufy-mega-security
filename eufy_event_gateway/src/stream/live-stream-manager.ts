@@ -262,6 +262,7 @@ export class LiveStreamManager extends EventEmitter {
   /** Mark a provider source as stopped and fail pending consumers cleanly. */
   markStopped(serial: string): void {
     const session = this.#session(serial);
+    this.#cancelStop(session);
     this.#failRecordings(session, new Error("Camera video stopped before the recording completed"));
     this.#cleanupSource(session);
     session.state = "idle";
@@ -302,12 +303,7 @@ export class LiveStreamManager extends EventEmitter {
     if (session.clients.size === 0 && session.leases === 0 && session.owned && !session.stopTimer) {
       session.stopTimer = setTimeout(() => {
         session.stopTimer = null;
-        session.state = "stopping";
-        this.#updateState(serial, session);
-        void this.controller.stopStream(serial).catch((error) => {
-          session.state = "error";
-          this.#updateState(serial, session, errorMessage(error));
-        });
+        void this.#stopOwnedSource(serial, session);
       }, this.stopGraceMilliseconds);
     }
   }
@@ -315,6 +311,10 @@ export class LiveStreamManager extends EventEmitter {
   async #stopNowIfUnused(serial: string, session: Session): Promise<void> {
     if (session.clients.size > 0 || session.leases > 0 || !session.owned) return;
     this.#cancelStop(session);
+    await this.#stopOwnedSource(serial, session);
+  }
+
+  async #stopOwnedSource(serial: string, session: Session): Promise<void> {
     session.state = "stopping";
     this.#updateState(serial, session);
     try {
@@ -453,6 +453,7 @@ export class LiveStreamManager extends EventEmitter {
   #sourceEnded(serial: string, error?: Error): void {
     const session = this.#session(serial);
     if (session.state === "idle") return;
+    this.#cancelStop(session);
     this.#failRecordings(session, error ?? new Error("Camera video ended before the recording completed"));
     this.#cleanupSource(session);
     session.state = error ? "error" : "idle";
