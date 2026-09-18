@@ -149,6 +149,28 @@ test("leaves an Annex-B stream unchanged", () => {
   assert.equal(normalizer.framing, "annexb");
 });
 
+test("records privacy-safe H.264 NAL types across output chunks", () => {
+  const normalizer = new PpcsVideoStreamNormalizer();
+
+  normalizer.push(Buffer.from([0, 0]));
+  normalizer.push(Buffer.from([0, 1, 0x67, 0x42, 0, 0, 0, 1, 0x68, 0xce]));
+  normalizer.push(Buffer.from([0, 0, 1, 0x65, 0x88]));
+
+  assert.equal(normalizer.codec, "h264");
+  assert.deepEqual(normalizer.nalTypes, [7, 8, 5]);
+});
+
+test("records privacy-safe H.265 NAL types across output chunks", () => {
+  const normalizer = new PpcsVideoStreamNormalizer();
+
+  normalizer.push(Buffer.from([0, 0, 0, 1, 0x40, 0x01]));
+  normalizer.push(Buffer.from([0, 0, 1, 0x42, 0x01, 0, 0, 1, 0x44, 0x01]));
+  normalizer.push(Buffer.from([0, 0, 1, 0x26, 0x01]));
+
+  assert.equal(normalizer.codec, "h265");
+  assert.deepEqual(normalizer.nalTypes, [32, 33, 34, 19]);
+});
+
 test("converts a length-prefixed NAL split across PPCS video frames", () => {
   const normalizer = new PpcsVideoStreamNormalizer();
   const first = Buffer.from([0, 0, 0, 0xfc, 0x21, 0xe6, 0x03, 0x04]);

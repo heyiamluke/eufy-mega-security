@@ -999,10 +999,21 @@ export function isPpcsRouteReady(
 export function ppcsStreamLogSummary(
   model: string,
   route: PpcsStreamRoute | null,
-  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "closeReason" | "commands" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "types" | "videoOutputFrames" | "videoResults">>,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "closeReason" | "commands" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "types" | "videoCodec" | "videoNalTypes" | "videoOutputFrames" | "videoResults">>,
   error?: unknown,
 ): string {
   const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
+  const nalTypes = stats.videoNalTypes ?? [];
+  const codec = stats.videoCodec ?? "unknown";
+  const codecBootstrap = codec === "h265"
+    ? nalTypes.includes(32) && nalTypes.includes(33) && nalTypes.includes(34)
+      ? "ready"
+      : "incomplete"
+    : codec === "h264"
+      ? nalTypes.includes(7) && nalTypes.includes(8)
+        ? "ready"
+        : nalTypes.includes(7) ? "missing-pps" : "missing-sps"
+      : "unknown";
   return [
     `model=${safeLogModel(model)}`,
     `route=${route ? route.homeBaseAttached ? "homebase" : "direct" : "unavailable"}`,
@@ -1024,6 +1035,9 @@ export function ppcsStreamLogSummary(
     `parser_blocked=${stats.parserBlocked ?? false}`,
     `pending_bytes=${stats.pendingBytes ?? 0}`,
     `video_results=${stats.videoResults?.join(",") || "none"}`,
+    `video_codec=${codec}`,
+    `video_nal_types=${nalTypes.join(",") || "none"}`,
+    `codec_bootstrap=${codecBootstrap}`,
     `close_reason=${stats.closeReason ?? "unknown"}`,
     `battery_history=${stats.batteryHistory ?? "not-reported"}`,
     ...(error === undefined ? [] : [`error=${safeError(error)}`]),

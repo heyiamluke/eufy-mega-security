@@ -206,10 +206,33 @@ export class PpcsVideoStreamNormalizer {
   #mode: "unknown" | "annexb" | "length-prefixed" = "unknown";
   #prefix = Buffer.alloc(0);
   #nalBytesRemaining = 0;
+  #nalScanTail = Buffer.alloc(0);
+  readonly #nalHeaderBytes: number[] = [];
 
   /** The framing selected from the first usable bytes in this session. */
   get framing(): "unknown" | "annexb" | "length-prefixed" {
     return this.#mode;
+  }
+
+  /** Return the codec announced by parameter-set NAL units, when observed. */
+  get codec(): "h264" | "h265" | "unknown" {
+    if (this.#nalHeaderBytes.some((byte) => {
+      const type = (byte >> 1) & 0x3f;
+      return type === 32 || type === 33 || type === 34;
+    })) return "h265";
+    if (this.#nalHeaderBytes.some((byte) => {
+      const type = byte & 0x1f;
+      return type === 7 || type === 8;
+    })) return "h264";
+    return "unknown";
+  }
+
+  /** Return distinct codec-specific NAL types without retaining their payloads. */
+  get nalTypes(): readonly number[] {
+    const codec = this.codec;
+    return [...new Set(this.#nalHeaderBytes.map((byte) => (
+      codec === "h265" ? (byte >> 1) & 0x3f : byte & 0x1f
+    )))];
   }
 
   /** Convert the next ordered media bytes, retaining incomplete prefixes between calls. */
@@ -223,7 +246,7 @@ export class PpcsVideoStreamNormalizer {
       }
       if (beginsWithAnnexB(data)) {
         this.#mode = "annexb";
-        return data;
+        return this.#recordNalTypes(data);
       }
       const length = data.readUInt32BE(0);
       const nalHeader = data[4];
@@ -235,11 +258,11 @@ export class PpcsVideoStreamNormalizer {
         || (nalHeader & 0x1f) === 0
       ) {
         this.#mode = "annexb";
-        return data;
+        return this.#recordNalTypes(data);
       }
       this.#mode = "length-prefixed";
     }
-    if (this.#mode === "annexb") return data;
+    if (this.#mode === "annexb") return this.#recordNalTypes(data);
 
     const output: Buffer[] = [];
     while (data.length > 0) {
@@ -263,7 +286,35 @@ export class PpcsVideoStreamNormalizer {
       this.#nalBytesRemaining = length;
       data = data.subarray(4);
     }
-    return output.length > 0 ? Buffer.concat(output) : Buffer.alloc(0);
+    return output.length > 0 ? this.#recordNalTypes(Buffer.concat(output)) : Buffer.alloc(0);
+  }
+
+  #recordNalTypes(output: Buffer): Buffer {
+    const data = this.#nalScanTail.length > 0
+      ? Buffer.concat([this.#nalScanTail, output])
+      : output;
+    for (let offset = 0; offset + 3 < data.length;) {
+      if (data[offset] !== 0 || data[offset + 1] !== 0) {
+        offset++;
+        continue;
+      }
+      const startLength = data[offset + 2] === 1
+        ? 3
+        : data[offset + 2] === 0 && data[offset + 3] === 1 ? 4 : 0;
+      if (startLength === 0) {
+        offset++;
+        continue;
+      }
+      const payloadOffset = offset + startLength;
+      if (payloadOffset >= data.length) break;
+      const headerByte = data[payloadOffset]!;
+      if (!this.#nalHeaderBytes.includes(headerByte) && this.#nalHeaderBytes.length < 16) {
+        this.#nalHeaderBytes.push(headerByte);
+      }
+      offset = payloadOffset + 1;
+    }
+    this.#nalScanTail = Buffer.from(data.subarray(Math.max(0, data.length - 4)));
+    return output;
   }
 }
 
@@ -335,6 +386,8 @@ export class FirstPartyPpcsSession {
     startHex: "",
     types: [] as number[],
     videoResults: [] as string[],
+    videoCodec: "unknown" as "h264" | "h265" | "unknown",
+    videoNalTypes: [] as number[],
     closeReason: "open" as PpcsStreamCloseReason | "open",
   };
   readonly #options: PpcsCameraOptions;
@@ -580,6 +633,8 @@ export class FirstPartyPpcsSession {
       return false;
     }
     const normalized = this.#videoNormalizer.push(video);
+    this.stats.videoCodec = this.#videoNormalizer.codec;
+    this.stats.videoNalTypes = [...this.#videoNormalizer.nalTypes];
     if (normalized.length === 0) {
       this.#recordVideoResult("framing-prefix-buffered");
       return false;
