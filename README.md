@@ -44,10 +44,12 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 - 🟠 SoloCam S340 T8170: discovery, person events, and retained snapshots are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
 - 🟠 Solar Wall Light Cam S120 T81A0: discovery, sensors, and motion events are confirmed. Snapshot and clip requests currently fail before receiving video.
 - 🟠 Floodlight Cam E340 T8425: discovery, person and vehicle events, and retained snapshots are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
+- 🟠 Floodlight Cam S330 / 2 Pro T8423: camera admission and its HomeBase media route are implemented from the reported Mega type 38 inventory. Discovery, events, snapshots, and live video need reporter confirmation.
 - 🟠 Wired Wall Light Cam S100 T84A1: discovery and its direct PPCS session are confirmed. Snapshot and live requests currently reach the camera but do not receive a video frame.
 - ✅ Indoor Cam Pan & Tilt T8410: discovered with sensors, a retained image, and a live stream through HomeBase 3.
 - ✅ Indoor Cam Pan & Tilt T8410C: discovered with sensors, a retained image, and a live stream through HomeBase 3.
 - 🟠 Indoor Cam S350 T8416: discovery and Home Assistant entities are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
+- 🟠 Indoor Cam E30 4K T8417: camera admission and its HomeBase media route are implemented from the reported Mega type 105 inventory. Discovery while powered on, events, snapshots, and live video need reporter confirmation.
 
 ### Doorbells
 
@@ -55,6 +57,7 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
 - ✅ Video Doorbell T8210: live streams and snapshots produced on real hardware.
 - ✅ Video Doorbell T8213: discovered with sensors, retained images, and a live stream through HomeBase 3.
 - 🟠 Video Doorbell E340 T8214: discovery and Home Assistant entities are confirmed through a T9000. Press notifications and live video still need targeted results.
+- 🟠 Familock S3 Max T85V0: its Mega type 203 video-doorbell path is admitted for camera entities, HomeBase media, and doorbell press events. Lock controls are not exposed. All of these behaviours still need reporter confirmation.
 
 ### Standalone sensors
 
