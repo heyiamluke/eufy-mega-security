@@ -28,30 +28,43 @@ Green ticks mark behaviour tested on real hardware. Amber marks features we have
   inventory availability, and child-camera route readiness. HomeBase 3 alarm,
   guard-mode, storage, volume, and tone controls remain hidden until the T8010
   station protocol is verified on real hardware.
+- 🟠 HomeBase Professional S1 T9000: confirmed as the inventory parent for
+  discovered cameras. The updated PPCS lookup through this station is awaiting
+  a reporter retest, and it does not receive the T8030 station controls.
 
 ### Cameras
 
-- ✅ EufyCam 2C: camera support tested by the project maintainer.
-- 🟠 EufyCam 2C Pro T8142-Z: Mega type 15 is admitted through its reported HomeBase 2 route. Discovery, events, snapshots, and live video still need confirmation on this model.
+- ✅ EufyCam 2C T8113-Z: discovery, motion and person events, snapshots, and live video have been confirmed on real hardware.
+- 🟠 EufyCam 2C Pro T8142-Z: discovery is confirmed through HomeBase 2, and its inventory reports battery fields. Events, snapshots, and live video still need confirmation on this model.
 - ✅ USB-C-powered camera T817L: live streams and snapshots produced on real hardware.
 - ✅ eufyCam S330 (Mega model T8160): discovered with sensors, retained images, and live streaming through HomeBase 3.
-- 🟠 eufyCam S300 / 3C (Mega model T8161): type 23 is now admitted by the gateway camera filter through HomeBase 3. Device discovery, events, snapshots, and live video still need a real-device result.
+- 🟠 eufyCam S300 / 3C T8161: discovery, events, and retained snapshots are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
+- 🟠 eufyCam S3 Pro T8162: discovery, person, pet, and vehicle events, and retained snapshots are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
 - 🟠 SoloCam C20 (Mega model T8134): device type 63 now passes camera discovery. Its events, snapshots, and live stream still need confirmation on real hardware.
-- 🟠 Wired Wall Light Cam S100 (Mega model T84A1): type 151 and a direct PPCS route are in the code. Discovery, live video, snapshots, and events still need confirmation on real hardware.
+- 🟠 SoloCam S340 T8170: discovery, person events, and retained snapshots are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
+- 🟠 Solar Wall Light Cam S120 T81A0: discovery, sensors, and motion events are confirmed. Snapshot and clip requests currently fail before receiving video.
+- 🟠 Floodlight Cam E340 T8425: discovery, person and vehicle events, and retained snapshots are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
+- 🟠 Wired Wall Light Cam S100 T84A1: discovery and its direct PPCS session are confirmed. Snapshot and live requests currently reach the camera but do not receive a video frame.
 - ✅ Indoor Cam Pan & Tilt T8410: discovered with sensors, a retained image, and a live stream through HomeBase 3.
 - ✅ Indoor Cam Pan & Tilt T8410C: discovered with sensors, a retained image, and a live stream through HomeBase 3.
-- 🟠 Indoor Cam S350 T8416: the gateway now admits its Mega inventory type. Discovery, events, snapshots, and live video still need a test on this device.
+- 🟠 Indoor Cam S350 T8416: discovery and Home Assistant entities are confirmed through a T9000. Live video is waiting on that station's PPCS lookup result.
 
 ### Doorbells
 
-- 🟠 Video Doorbell T8200: Mega type 5 is admitted as a self-parented doorbell through its own PPCS route. Discovery, press notifications, snapshots, and live video need confirmation on real hardware.
+- 🟠 Video Doorbell T8200: discovery and its self-parented PPCS session are confirmed. Press notifications and video frames remain unresolved on the reported hardware.
 - ✅ Video Doorbell T8210: live streams and snapshots produced on real hardware.
 - ✅ Video Doorbell T8213: discovered with sensors, retained images, and a live stream through HomeBase 3.
-- 🟠 Video Doorbell E340 T8214: the gateway now admits its Mega inventory type and creates a doorbell press sensor. Discovery, press notifications, snapshots, and live video still need a test on this device.
+- 🟠 Video Doorbell E340 T8214: discovery and Home Assistant entities are confirmed through a T9000. Press notifications and live video still need targeted results.
+
+### Standalone sensors
+
+- ✅ Entry Sensor T8900: discovery and open or closed state are confirmed on real hardware.
+- 🟠 Motion Sensor T8910: discovery and the motion entity are implemented, but the first hardware test was inconclusive because the reported sensor may have had a low battery.
 
 ### Recognised but not supported
 
 - MiniBase Chime T8023: Eufy's inventory lists it as the E340 doorbell's parent connection. The gateway can use that connection metadata for the doorbell, but it does not create a Home Assistant entity for the chime or expose its settings.
+- eufyCam C37 T814X, Mega type 10037: reported behind a T8030. The gateway is waiting for privacy-safe route evidence before admitting this type as a camera.
 
 If a tested device behaves differently for you, [open an issue](https://github.com/mscodemonkey/eufy-mega-security/issues) with its model number and what happened. Do not post serial numbers, credentials, or verification codes.
 
@@ -74,9 +87,10 @@ Known mains-powered models with dummy battery values do not get battery entities
 
 Standalone sensors get entities only for capabilities they report. The first
 supported set covers entry-sensor open/closed state, PIR motion, battery percentage,
-and last-seen time. Contact and motion pushes update Home Assistant immediately;
-the gateway refreshes the inventory-backed readings every 60 seconds. These paths
-still need confirmation on installed standalone-sensor hardware.
+and last-seen time. Contact and motion pushes update Home Assistant immediately,
+and the gateway refreshes the inventory-backed readings every 60 seconds. The
+T8900 contact path is confirmed on installed hardware. The T8910 motion path still
+needs a conclusive test.
 
 The integration also defines two Home Assistant actions for on-demand streaming:
 
