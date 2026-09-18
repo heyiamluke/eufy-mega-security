@@ -321,18 +321,23 @@ test("admits newly reported camera families through a ready HomeBase 3", () => {
       device_channel: 3, category: "eufy_security",
     },
     {
+      device_sn: "solar", device_model: "T8124", parent_sn: "station", device_type: 62,
+      device_channel: 4, category: "eufy_security",
+    },
+    {
       device_sn: "station", device_model: "T8030", device_type: 18,
       category: "eufy_security", p2p_did: "did", p2p_conn: "connection",
     },
   ] });
   const summaries = inventoryLogSummaries(devices, new Set(["station"]));
 
-  assert.deepEqual(summaries.slice(0, 3).map(({ deviceType, acceptedAsCamera, streamSupported }) => ({
+  assert.deepEqual(summaries.slice(0, 4).map(({ deviceType, acceptedAsCamera, streamSupported }) => ({
     deviceType, acceptedAsCamera, streamSupported,
   })), [
     { deviceType: 38, acceptedAsCamera: true, streamSupported: true },
     { deviceType: 105, acceptedAsCamera: true, streamSupported: true },
     { deviceType: 203, acceptedAsCamera: true, streamSupported: true },
+    { deviceType: 62, acceptedAsCamera: true, streamSupported: true },
   ]);
   assert.equal(isDoorbellDevice(devices[2]!), true);
 });

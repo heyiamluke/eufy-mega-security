@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.54
+
+- Admit SoloCam S230 / S40 T8124 as Mega camera type 62 through its reported HomeBase route. Discovery, events, snapshots, and live video still need reporter confirmation on real hardware.
+
 ## 0.1.53
 
 - Recover from Mega error 4404 by replacing and persisting the rejected request identity once, then use the existing login recovery if the fresh identity is also rejected.
