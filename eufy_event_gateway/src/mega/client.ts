@@ -29,12 +29,12 @@ import {
 import { MegaSessionStore } from "./session-store.js";
 import type { MegaAuthResult, MegaCaptcha, MegaIdentity, MegaInventory, MegaResult, MegaSession } from "./types.js";
 
-// These codes are returned by the Mega passport endpoint. They are kept here
-// instead of in the UI so every caller gets the same challenge behaviour.
+// These codes are handled at the transport boundary so every caller gets the
+// same challenge and session-recovery behaviour.
 const CAPTCHA_REQUIRED = new Set([100032, 100033]);
 const VERIFICATION_REQUIRED = 26052;
-const TRANSIENT_IDENTITY_ERRORS = new Set([100028, 100030]);
-const AUTH_SESSION_INVALID_CODES = new Set([26084, 26884]);
+const TRANSIENT_IDENTITY_ERRORS = new Set([4404, 100028, 100030]);
+const AUTH_SESSION_INVALID_CODES = new Set([4404, 26084, 26884]);
 const MEDIA_HOST = /^security-app(?:-(?:eu|ie))?\.eufylife\.com$/;
 const MEDIA_OBJECT_HOST = /^zhixin-security-[a-z0-9]+(?:-[a-z0-9]+)*\.s3(?:\.[a-z]{2}(?:-[a-z0-9]+)+-\d)?\.amazonaws\.com$/;
 const MEDIA_NOT_READY_DELAYS_MS = [1_000, 2_000] as const;
@@ -382,7 +382,9 @@ export class MegaClient {
     const result = await this.#signedPost(host, path, payload, identity);
     if (retryIdentity && TRANSIENT_IDENTITY_ERRORS.has(result.code)) {
       if (this.#session) this.#session = { ...this.#session, identities: {} };
-      return this.#signedPost(host, path, payload, await this.#identity(identityHost));
+      const refreshedIdentity = await this.#identity(identityHost);
+      await this.#save();
+      return this.#signedPost(host, path, payload, refreshedIdentity);
     }
     return result;
   }

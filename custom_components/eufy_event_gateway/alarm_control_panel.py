@@ -97,16 +97,16 @@ class EufyHomeBaseAlarm(EufyStationEntity, AlarmControlPanelEntity):
             5: AlarmControlPanelState.ARMED_CUSTOM_BYPASS,
         }.get(mode)
 
-    async def async_alarm_arm_away(self, **kwargs: Any) -> None:
-        """Arm the HomeBase in Away mode and wait for confirmed state."""
+    async def async_alarm_arm_away(self, code: str | None = None) -> None:
+        """Arm in Away mode, accepting Home Assistant's code-free argument."""
         await self._async_set_mode(GUARD_MODE_AWAY, AlarmControlPanelState.ARMING)
 
-    async def async_alarm_arm_home(self, **kwargs: Any) -> None:
-        """Arm the HomeBase in Home mode and wait for confirmed state."""
+    async def async_alarm_arm_home(self, code: str | None = None) -> None:
+        """Arm in Home mode, accepting Home Assistant's code-free argument."""
         await self._async_set_mode(GUARD_MODE_HOME, AlarmControlPanelState.ARMING)
 
-    async def async_alarm_disarm(self, **kwargs: Any) -> None:
-        """Disarm the HomeBase and wait for confirmed state."""
+    async def async_alarm_disarm(self, code: str | None = None) -> None:
+        """Disarm the HomeBase, accepting Home Assistant's code argument."""
         await self._async_set_mode(
             GUARD_MODE_DISARMED, AlarmControlPanelState.DISARMING
         )
