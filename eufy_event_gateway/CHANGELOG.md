@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.66
+
+- Add a guarded camera siren entity for the proven T8113-Z family, using the camera's own duration timer and explicit stop command.
+- Record the real-device Garden and Pool siren test in the compatibility evidence.
+
 ## 0.1.65
 
 - Resynchronise PPCS command streams after short dropped-byte tails so supported cameras can continue assembling live video and snapshots.
