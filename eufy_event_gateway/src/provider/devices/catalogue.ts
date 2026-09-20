@@ -6,7 +6,7 @@
 
 import type { DeviceCompatibility, HomeBaseCompatibility } from "./types.js";
 
-const developerRelease = "0.1.63";
+const developerRelease = "0.1.65";
 
 /** Current camera, doorbell, lock, and sensor compatibility evidence. */
 export const DEVICE_COMPATIBILITY: readonly DeviceCompatibility[] = [

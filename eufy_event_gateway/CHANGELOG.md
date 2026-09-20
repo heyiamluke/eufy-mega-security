@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.65
+
+- Resynchronise PPCS command streams after short dropped-byte tails so supported cameras can continue assembling live video and snapshots.
+
 ## 0.1.64
 
 - Admit eufyCam E40 inventory type 49 through the existing HomeBase 2 camera route. Discovery and media still need reporter confirmation.
