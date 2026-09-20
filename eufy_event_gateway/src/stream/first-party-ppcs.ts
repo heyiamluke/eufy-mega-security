@@ -635,6 +635,30 @@ export class FirstPartyPpcsSession {
     await acknowledgement;
   }
 
+  /** Send the verified 1011 direct-binary motion switch and await its result. */
+  async writeMotionDetection(enabled: boolean): Promise<void> {
+    if (this.#options.purpose !== "control") throw new Error("Motion control requires a control session");
+    if (!this.#remote) throw new Error("Motion control session is not connected");
+    if (!this.#options.homeBaseAttached) throw new Error("Motion control requires a HomeBase-attached camera");
+    const accountId = this.#options.accountId;
+    if (!accountId) throw new Error("Motion control account identity is unavailable");
+    await this.#waitForLevel2Key();
+    const body = buildCameraEnableBody(this.#options.channel, enabled ? 1 : 0, accountId);
+    const acknowledgement = this.#waitForControlResult(1011);
+    for (let index = 0; index < 3; index += 1) {
+      const sequence = this.#level2Seq++;
+      const encrypted = encryptLevel2(body, this.#level2Key!, sequence);
+      const header = commandHeader(this.#seq++, 1011);
+      this.#send(
+        REQ.data,
+        Buffer.concat([header, rawPayload(encrypted, this.#options.channel, 8, [8, 0], 0)]),
+        this.#remote,
+      );
+      if (index < 2) await delay(200);
+    }
+    await acknowledgement;
+  }
+
   /** End the peer session and retain its terminal reason for privacy-safe diagnostics. */
   close(reason: PpcsStreamCloseReason = "client_stop"): void {
     if (this.#closed) return;
@@ -1102,4 +1126,8 @@ function detectLocalIpv4(): Promise<string | null> {
       try { finish(probe.address().address); } catch { finish(null); }
     });
   });
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
