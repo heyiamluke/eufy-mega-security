@@ -15,6 +15,8 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `docs/MEGA_PLATFORM.md` | Detailed Mega API, authentication, inventory, push, event-image, PPCS, and Home Assistant transformation reference. |
 | `docs/CAMERA_CAPABILITY_MATRIX.md` | Camera core discovery boundary and implemented battery reads. |
 | `docs/DEVICE_CAPABILITY_BASELINES.md` | Separate sensor, HomeBase, and doorbell core discovery boundaries. |
+| `docs/DEVICE_COMPATIBILITY_MATRIX.md` | Device, HomeBase topology, capability, and versioned hardware evidence ledger. |
+| `docs/TODO.md` | Implementation backlog and hardware-evidence follow-up list. |
 | `hacs.json` | HACS metadata for the custom integration. |
 | `examples/node-red-gate-and-motion.json` | Importable Node-RED flow showing motion events and gateway actions. |
 | `.github/workflows/validate.yml` | CI for gateway tests/build, HACS validation, and Home Assistant metadata. |
@@ -38,6 +40,7 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `eufy_event_gateway/src/provider/{sensor,homebase,doorbell}-capability-core.ts` | Small core family lookups. |
 | `eufy_event_gateway/src/provider/device-capability-core.ts` | Shared row shape used by each family definition file. |
 | `eufy_event_gateway/src/provider/device-capabilities-core.ts` | Shared evaluator for all camera, sensor, HomeBase, and doorbell core lookups; separates evidence from support without admitting unsupported devices. |
+| `eufy_event_gateway/src/provider/devices/` | Typed compatibility catalogue for device models, HomeBase topologies, capabilities, quirks, and versioned evidence. |
 | `eufy_event_gateway/src/provider/simulated-provider.ts` | Deterministic provider for local UI, API, SSE, and lifecycle testing without an Eufy account. |
 
 ### Mega protocol
