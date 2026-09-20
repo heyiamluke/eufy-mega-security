@@ -20,8 +20,10 @@ import {
   PpcsVideoFrameDecoder,
   PpcsVideoStreamNormalizer,
   ppcsCandidatePorts,
+  ppcsCommandMagicOffset,
   ppcsFrameChannel,
   ppcsLookupCandidate,
+  ppcsPartialCommandPrefix,
   ppcsSequenceDisposition,
 } from "../src/stream/first-party-ppcs.js";
 
@@ -107,6 +109,19 @@ test("reads the media channel from the current frame before the parser advances"
 
   assert.equal(ppcsFrameChannel(Buffer.concat([currentFrame, followingFrame])), 4);
   assert.equal(ppcsFrameChannel(followingFrame), null);
+});
+
+test("retains a split PPCS command magic prefix", () => {
+  assert.deepEqual(ppcsPartialCommandPrefix(Buffer.from("X")), Buffer.from("X"));
+  assert.deepEqual(ppcsPartialCommandPrefix(Buffer.from("XZ")), Buffer.from("XZ"));
+  assert.deepEqual(ppcsPartialCommandPrefix(Buffer.from("XZYH\0")), Buffer.from("XZYH\0"));
+  assert.equal(ppcsPartialCommandPrefix(Buffer.from("garbage")), undefined);
+  assert.equal(ppcsPartialCommandPrefix(Buffer.alloc(16, 0)), undefined);
+});
+
+test("finds a command header after a short parser resync tail", () => {
+  assert.equal(ppcsCommandMagicOffset(Buffer.from("discardXZYH")), 7);
+  assert.equal(ppcsCommandMagicOffset(Buffer.from("no command")), -1);
 });
 
 test("distinguishes forward loss from duplicate and stale PPCS datagrams", () => {
