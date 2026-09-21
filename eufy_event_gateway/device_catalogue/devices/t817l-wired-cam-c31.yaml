@@ -15,6 +15,18 @@ connections:
 
 capabilities:
   controls:
+    motion_detection:
+      status: tested
+      tested_on: 2026-09-21
+      requires: homebase3
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        0: "Off"
+        1: "On"
+
     night_vision:
       status: tested
       tested_on: 2026-09-21
@@ -27,6 +39,14 @@ capabilities:
         0: PureColor
         1: Infrared
         2: Spotlight
+
+    siren:
+      status: tested
+      tested_on: 2026-09-21
+      requires: homebase3
+      write:
+        command: 1202
+      notes: Available when capability parameter 1015 is reported. Write a duration from 1 to 900 seconds, or 0 to stop.
 
   media:
     live_view:

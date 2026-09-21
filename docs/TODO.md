@@ -32,7 +32,7 @@ provider path and a real-device result both exist.
   capability remains exposed only when the camera reports the required value
   and route.
 - [ ] Add a repeatable harness assertion for motion detection on the tested
-  doorbell, the tested wired camera, and the T8113-Z cameras.
+  doorbell, the T817L Wired Cam C31, and the T8113-Z cameras.
 - [ ] Add the current device compatibility catalogue to generated support
   documentation and validate that every admitted device has a catalogue row.
 

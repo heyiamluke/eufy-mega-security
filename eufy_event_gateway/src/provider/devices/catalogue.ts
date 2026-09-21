@@ -27,9 +27,9 @@ export const DEVICE_COMPATIBILITY: readonly DeviceCompatibility[] = [
     evidence: [{ status: "developer-tested", date: "2026-09-20", appVersion: developerRelease, integrationVersion: developerRelease, capabilities: ["discovery", "snapshots", "liveVideo"] }],
   },
   {
-    family: "camera", marketingName: "USB-C-powered camera", eufyModel: "T817L", deviceTypes: [10031],
-    topologies: { homebase3: { status: "confirmed", capabilities: { discovery: "confirmed", snapshots: "confirmed", liveVideo: "confirmed", nightVisionControl: "confirmed" }, quirks: ["Battery-shaped fields are suppressed."] } },
-    evidence: [{ status: "developer-tested", date: "2026-09-21", appVersion: developerRelease, integrationVersion: developerRelease, capabilities: ["discovery", "snapshots", "liveVideo", "nightVisionControl"], note: "Night vision readback and app labels confirmed for raw 0 PureColor, 1 Infrared, and 2 Spotlight." }],
+    family: "camera", marketingName: "Wired Cam C31", eufyModel: "T817L", deviceTypes: [10031],
+    topologies: { homebase3: { status: "confirmed", capabilities: { discovery: "confirmed", snapshots: "confirmed", liveVideo: "confirmed", motionDetectionControl: "confirmed", nightVisionControl: "confirmed", sirenControl: "confirmed" }, quirks: ["Battery-shaped fields are suppressed."] } },
+    evidence: [{ status: "developer-tested", date: "2026-09-21", appVersion: developerRelease, integrationVersion: developerRelease, capabilities: ["discovery", "snapshots", "liveVideo", "motionDetectionControl", "nightVisionControl", "sirenControl"], note: "Motion detection, camera siren, and night vision were verified on local hardware. Night vision raw 0 is PureColor, 1 is Infrared, and 2 is Spotlight." }],
   },
   {
     family: "camera", marketingName: "eufyCam S330", eufyModel: "T8160", deviceTypes: [19],
