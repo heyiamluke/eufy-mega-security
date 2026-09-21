@@ -31,6 +31,7 @@ import type {
 /** Mutable internal representation; callers receive immutable snapshots. */
 interface MutableCameraState {
   identity: CameraIdentity;
+  rawMotionDetected: boolean;
   motionDetected: boolean;
   personDetected: boolean;
   strangerDetected: boolean;
@@ -86,6 +87,7 @@ export class GatewayState extends EventEmitter {
     } else {
       this.#cameras.set(identity.serial, {
         identity,
+        rawMotionDetected: false,
         motionDetected: false,
         personDetected: false,
         strangerDetected: false,
@@ -189,7 +191,8 @@ export class GatewayState extends EventEmitter {
   /** Record motion and hold the visible flag long enough for HA to observe it. */
   recordMotion(serial: string, detected: boolean, occurredAt = new Date()): void {
     const camera = this.#requireCamera(serial);
-    camera.motionDetected = detected;
+    camera.rawMotionDetected = detected;
+    this.#refreshAggregateMotion(camera);
     this.#scheduleDetectionClear(this.#motionClearTimers, serial, detected, () => this.recordMotion(serial, false));
     if (detected) {
       const detection: Detection = {
@@ -209,6 +212,7 @@ export class GatewayState extends EventEmitter {
   recordPerson(serial: string, detected: boolean, personName: string | null, occurredAt = new Date()): void {
     const camera = this.#requireCamera(serial);
     camera.personDetected = detected;
+    this.#refreshAggregateMotion(camera);
     this.#scheduleDetectionClear(this.#personClearTimers, serial, detected, () => this.recordPerson(serial, false, null));
     if (detected) {
       const normalizedName = normalizePersonName(personName);
@@ -235,6 +239,7 @@ export class GatewayState extends EventEmitter {
     const camera = this.#requireCamera(serial);
     const field = `${kind}Detected` as keyof Pick<MutableCameraState, "strangerDetected" | "petDetected" | "vehicleDetected" | "dogDetected" | "cryingDetected" | "soundDetected" | "packageStrandedDetected">;
     camera[field] = detected;
+    if (kind !== "crying" && kind !== "sound") this.#refreshAggregateMotion(camera);
     const timerKey = `${serial}:${kind}`;
     const previous = this.#detectionClearTimers.get(timerKey);
     if (previous) clearTimeout(previous);
@@ -414,6 +419,18 @@ export class GatewayState extends EventEmitter {
     this.#doorbellClearTimers.clear();
     this.#detectionClearTimers.clear();
     this.#sensorMotionClearTimers.clear();
+  }
+
+  /** Keep the general motion flag active while any visual detection is active. */
+  #refreshAggregateMotion(camera: MutableCameraState): void {
+    camera.motionDetected =
+      camera.rawMotionDetected ||
+      camera.personDetected ||
+      camera.strangerDetected ||
+      camera.petDetected ||
+      camera.vehicleDetected ||
+      camera.dogDetected ||
+      camera.packageStrandedDetected;
   }
 
   #scheduleDetectionClear(
