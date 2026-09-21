@@ -661,7 +661,7 @@ test("summarizes PPCS failure stages without private transport data", () => {
     videoNalTypes: [7, 8, 5],
     closeReason: "first_frame_timeout",
   }, new Error("Timed out waiting for a fresh camera frame"));
-  assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 data_datagrams=3 frame_headers=2 video_frames=0/);
+  assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 direct_lookup_candidates=0 relay_lookup_candidates=0 turn_tokens=0 data_datagrams=3 frame_headers=2 video_frames=0/);
   assert.match(summary, /video_output_frames=0 incomplete_access_units=0 incomplete_access_unit_bytes=0 foreign_video_frames=0 data_types=0,2 commands=1700,1103 frame_shapes=1700:1:64:0,1103:0:32:2 sequence_gaps=1 sequence_restarts=0 duplicate_datagrams=0 stale_datagrams=0 parser_resyncs=0 parser_blocked=true pending_bytes=17 video_results=none video_codec=h264 video_nal_types=7,8,5 codec_bootstrap=ready/);
   assert.match(summary, /battery_history=not-reported/);
   assert.match(summary, /close_reason=first_frame_timeout/);
