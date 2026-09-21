@@ -10,6 +10,7 @@ import test from "node:test";
 
 import {
   buildCameraEnableBody,
+  buildLegacyAttachedLiveStartPayload,
   buildNightVisionBody,
   acceptsAttachedCameraMedia,
   buildPpcsCloudLookup,
@@ -26,6 +27,7 @@ import {
   ppcsLookupCandidate,
   ppcsPartialCommandPrefix,
   ppcsSequenceDisposition,
+  usesLegacyAttachedMediaStart,
 } from "../src/stream/first-party-ppcs.js";
 
 test("builds the two PPCS cloud lookup variants", () => {
@@ -71,6 +73,26 @@ test("reissues a standalone start only while codec headers are missing", () => {
   assert.equal(needsStandaloneMediaReassert(false, "h264"), false);
   assert.equal(needsStandaloneMediaReassert(false, "h265"), false);
   assert.equal(needsStandaloneMediaReassert(true, "unknown"), false);
+});
+
+test("selects the direct attached-media command only for known older firmware", () => {
+  assert.equal(usesLegacyAttachedMediaStart("2.0.9.6"), true);
+  assert.equal(usesLegacyAttachedMediaStart("1.9.9.99h"), true);
+  assert.equal(usesLegacyAttachedMediaStart("2.0.9.7"), false);
+  assert.equal(usesLegacyAttachedMediaStart("3.4.2.6h"), false);
+  assert.equal(usesLegacyAttachedMediaStart("unknown"), false);
+  assert.equal(usesLegacyAttachedMediaStart(null), false);
+});
+
+test("builds the older HomeBase direct live-start body", () => {
+  const publicKey = "ab".repeat(128);
+  const payload = buildLegacyAttachedLiveStartPayload(4, publicKey);
+
+  assert.equal(payload.readUInt16LE(0), payload.length - 10);
+  assert.deepEqual(payload.subarray(4, 10), Buffer.from([1, 0, 4, 0, 0, 0]));
+  assert.equal(payload.readUInt32LE(10), 4);
+  assert.equal(payload.subarray(14, 14 + publicKey.length).toString("ascii"), publicKey);
+  assert.ok(payload.subarray(14 + publicKey.length).every((value) => value === 0));
 });
 
 test("accepts direct and relay PPCS discovery responses", () => {
