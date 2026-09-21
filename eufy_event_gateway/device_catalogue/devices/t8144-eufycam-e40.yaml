@@ -1,0 +1,146 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8144
+name: eufyCam E40
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
+models:
+  - T8144
+device_type: 49
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+    last_charging_days:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: charging_days
+  controls:
+    enabled:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    siren:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+  media:
+    live_view:
+      connections:
+        T8010:
+          status: failing
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+          notes: All tested cameras stream data but do not produce a usable live picture.
+        T8030:
+          status: declared
+    snapshot:
+      connections:
+        T8010:
+          status: mixed
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+          notes: Fresh images appeared on two of four tested cameras.
+        T8030:
+          status: declared
+  events:
+    motion:
+      connections:
+        T8010:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+        T8030:
+          status: declared
+    person:
+      connections:
+        T8010:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8010:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8010:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+        T8030:
+          status: declared

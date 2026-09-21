@@ -1,0 +1,1021 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8790
+name: "SmartDrop S300"
+category: smart_drop
+integration:
+  status: recognised
+aliases:
+  - "Smart Drop S300"
+  - "SmartDrop S300 Security Delivery Box"
+  - "eufy Secure Delivery Box"
+models:
+  - T8790
+device_type: 90
+notes: "HomeBase 3 compatibility is disputed, so that connection remains mixed."
+capabilities:
+  readable:
+    battery_fully_charged_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "battery_fully_charged_alert"
+    battery_level:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1101
+    crying_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "crying_detected"
+    deliveries:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 2107
+    detection_statistics_detected_events:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1192
+    detection_statistics_recorded_events:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1193
+    detection_statistics_working_days:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1191
+    dog_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "dog_detected"
+    dog_lick_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "dog_lick_detected"
+    dog_poop_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "dog_poop_detected"
+    has_master_pin:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 2109
+    high_temperature_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "high_temperature_alert"
+    identity_person_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "identity_person_detected"
+    is_delivery_denied:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 2106
+    lid_stuck_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "lid_stuck_alert"
+    long_time_not_close_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "long_time_not_close_alert"
+    low_battery_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "low_battery_alert"
+    low_temperature_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "low_temperature_alert"
+    open:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 2105
+    opened_by_name:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "opened_by_name"
+    opened_by_type:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "opened_by_type"
+      values:
+        "0": "None"
+        "1": "App"
+        "2": "Master PIN"
+        "3": "Delivery PIN"
+        "4": "Without Key"
+        "5": "Emergency Release Button"
+        "6": "Key"
+    package_delivered:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "package_delivered"
+    person_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "person_detected"
+    person_name:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "person_name"
+    pet_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "pet_detected"
+    picture:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "picture"
+    pin_incorrect_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "pin_incorrect_alert"
+    sound_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "sound_detected"
+    stranger_person_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "stranger_person_detected"
+    tampering_alert:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "tampering_alert"
+    vehicle_detected:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "vehicle_detected"
+    wifi_rssi:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1142
+    wifi_signal_level:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        field: "wifi_signal_level"
+      values:
+        "0": "No signal"
+        "1": "Weak"
+        "2": "Normal"
+        "3": "Strong"
+        "4": "Full"
+  controls:
+    audio_recording:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1288
+      write:
+        command: 1288
+    auto_nightvision:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1013
+      write:
+        command: 1013
+    cancel_download:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: cancel_download
+    microphone:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1240
+      write:
+        command: 1240
+    motion_activated_prompt:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 2123
+      write:
+        command: 2123
+    motion_detection:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+    motion_detection_sensitivity:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1210
+      write:
+        command: 1210
+        input:
+          name: motion_detection_sensitivity
+          type: integer
+          minimum: 1
+          maximum: 7
+    motion_detection_type:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1252
+      write:
+        command: 1252
+      values:
+        "0": "Humans only"
+        "2": "All motions"
+    motion_detection_type_all_other_motions:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1298
+      write:
+        command: 1298
+    motion_detection_type_human:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1298
+      write:
+        command: 1298
+    motion_detection_type_human_recognition:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1298
+      write:
+        command: 1298
+    motion_detection_type_pet:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1298
+      write:
+        command: 1298
+    motion_detection_type_vehicle:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1298
+      write:
+        command: 1298
+    open:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: open
+    open_method:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 2103
+      write:
+        command: 2103
+      values:
+        "0": "Auto Switch (Recommended)"
+        "1": "Open via PIN"
+        "2": "Press to Open"
+    power_working_mode:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1246
+      write:
+        command: 1246
+      values:
+        "0": "Optimal Battery Life"
+        "1": "Optimal Surveillance"
+        "2": "Custom Recording"
+        "4": "Delivery Mode"
+    recording_clip_length:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1249
+      write:
+        command: 1249
+        input:
+          name: recording_clip_length
+          type: integer
+          minimum: 30
+          maximum: 120
+    recording_end_clip_motion_stops:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1251
+      write:
+        command: 1251
+    speaker:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1241
+      write:
+        command: 1241
+    speaker_volume:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1230
+      write:
+        command: 1230
+      values:
+        "75": "Low"
+        "85": "Medium"
+        "100": "High"
+    start_download:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: start_download
+    start_livestream:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: start_livestream
+    start_talkback:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: start_talkback
+    stop_livestream:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: stop_livestream
+    stop_talkback:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      write:
+        action: stop_talkback
+    video_streaming_quality:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1705
+      write:
+        command: 1705
+      values:
+        "0": "Auto"
+        "1": "Low"
+        "2": "Medium"
+        "3": "High"
+    watermark:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."
+      read:
+        parameter: 1214
+      write:
+        command: 1214
+      values:
+        "0": "Off"
+        "1": "On"
+  events:
+    motion:
+      connections:
+        T8001:
+          status: declared
+        T8002:
+          status: declared
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: mixed
+          notes: "Published compatibility information conflicts with a real-world review."

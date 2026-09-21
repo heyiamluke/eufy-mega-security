@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8p10
+name: PoE Cam E41 (turret)
+category: camera
+integration:
+  status: recognised
+models:
+  - T8P10
+  - T8P10121
+device_type: 303
+notes: Community inventory identifies this model as type 303 alongside an NVR system. Integration behaviour remains unconfirmed.
+capabilities: {}

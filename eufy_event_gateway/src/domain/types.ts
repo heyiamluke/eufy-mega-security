@@ -216,7 +216,7 @@ export interface CameraCapabilityManifest {
   readonly reviewCandidate: boolean;
   /** Peer transport prerequisites, independent of camera-type admission. */
   readonly peerRouteReady: boolean;
-  readonly reason: "supported-camera-type" | "non-security-category" | "unrecognized-camera-type";
+  readonly reason: "supported-camera-type" | "catalogued-camera-type" | "non-security-category" | "unrecognized-camera-type";
   readonly capabilities: readonly CameraCapability[];
   readonly matrix: readonly CapabilityMatrixRow[];
   readonly unmappedParamIds: readonly number[];

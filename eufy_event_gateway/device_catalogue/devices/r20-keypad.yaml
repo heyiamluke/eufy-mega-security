@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: r20-keypad
+name: "R20 Keypad"
+category: keypad
+integration:
+  status: recognised
+aliases:
+  - "Lock 8592"
+models: []
+device_type: null
+notes: "The retail model code is not confirmed. The numeric device type mapping is unconfirmed, so device_type remains null. No integration-usable properties or controls are confirmed yet."
+capabilities: {}

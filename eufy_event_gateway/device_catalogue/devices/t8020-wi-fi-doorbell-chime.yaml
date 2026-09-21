@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8020
+name: "Wi-Fi Doorbell Chime"
+category: chime
+integration:
+  status: recognised
+aliases:
+  - "Wi-Fi Doorbell Chime for Battery Video Doorbell"
+models:
+  - T8020
+  - T8020121
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

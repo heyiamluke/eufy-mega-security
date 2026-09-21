@@ -8,9 +8,10 @@
  */
 
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
+import { GENERATED_HOMEBASE_DEVICE_TYPES } from "./devices/generated-catalogue.js";
 
-/** Locally recognized station endpoints; only type 18/T8030 is managed. */
-export const HOMEBASE_DEVICE_TYPES: ReadonlySet<number> = new Set([0, 18, 27]);
+/** Catalogue-recognized station endpoints; only supported models expose controls. */
+export const HOMEBASE_DEVICE_TYPES: ReadonlySet<number> = GENERATED_HOMEBASE_DEVICE_TYPES;
 
 /** Existing station state and controls needed for the HA baseline. */
 export const HOMEBASE_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [

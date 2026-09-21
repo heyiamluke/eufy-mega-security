@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t90f0
+name: "Flood and Freeze Sensor E20"
+category: security_sensor
+integration:
+  status: recognised
+models:
+  - T90F0
+  - T90F0121
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

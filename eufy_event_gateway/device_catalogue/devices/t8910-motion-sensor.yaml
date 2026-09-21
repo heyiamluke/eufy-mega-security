@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8910
+name: "Motion Sensor"
+category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
+models:
+  - T8910
+  - T8910021
+device_type: 10
+capabilities:
+  readable:
+    battery_low:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1601
+  controls:
+    motion_sensitivity:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1609
+      write:
+        action: motion_sensitivity
+      notes: "Raw device values vary; the app slider mapping and safe range are not confirmed."
+    test_mode:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1612
+      write:
+        action: test_mode
+      notes: "Enter and exit use different operations; state is available only on the local control path."
+  events:
+    motion:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1605

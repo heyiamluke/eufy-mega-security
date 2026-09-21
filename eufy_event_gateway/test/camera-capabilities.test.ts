@@ -9,7 +9,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { cameraCapabilityLogSummaries, describeCameraCapabilities } from "../src/provider/device-capabilities-core.js";
-import { CAMERA_CAPABILITY_CORE } from "../src/provider/camera-capability-core.js";
+import {
+  CAMERA_CAPABILITY_CORE,
+  CAMERA_DEVICE_TYPES,
+  KNOWN_CAMERA_DEVICE_TYPES,
+} from "../src/provider/camera-capability-core.js";
 import { parseMegaInventory, safeParamTypes } from "../src/provider/eufy-provider.js";
 import { GatewayState } from "../src/domain/gateway-state.js";
 
@@ -177,6 +181,26 @@ test("marks an unknown camera-like row for review without admitting it", () => {
     paramTypes: [1004, 1056],
   }, { doorbellSupported: false, streamSupported: false, routeReady: true });
   assert.equal(station.reviewCandidate, false);
+});
+
+test("recognizes catalogued cameras without admitting unsupported types", () => {
+  const catalogued = describeCameraCapabilities({
+    serial: "known", model: "T8110", category: "eufy_security", deviceType: 10035,
+    paramTypes: [],
+  }, { doorbellSupported: false, streamSupported: false, routeReady: false });
+
+  assert.equal(catalogued.acceptedAsCamera, false);
+  assert.equal(catalogued.reviewCandidate, false);
+  assert.equal(catalogued.reason, "catalogued-camera-type");
+  assert.match(
+    cameraCapabilityLogSummaries([catalogued])[0]?.message ?? "",
+    /admission=catalogued-camera ha_adapter=none accepted=false/,
+  );
+});
+
+test("keeps a declared alternate camera type diagnostic-only", () => {
+  assert.equal(KNOWN_CAMERA_DEVICE_TYPES.has(95), true);
+  assert.equal(CAMERA_DEVICE_TYPES.has(95), false);
 });
 
 test("groups camera capability logs without device identifiers or parameter values", () => {

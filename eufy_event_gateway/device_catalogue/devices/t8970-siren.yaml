@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8970
+name: "Siren"
+category: siren
+integration:
+  status: recognised
+aliases:
+  - "Outdoor/Indoor Siren"
+  - "eufy Security Siren"
+models:
+  - T8970
+  - T89700D1
+  - T89703D1
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

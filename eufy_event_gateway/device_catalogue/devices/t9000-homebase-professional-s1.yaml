@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t9000
+name: HomeBase Professional S1
+category: homebase
+integration:
+  status: recognised
+aliases:
+  - HomeBase Professional
+  - HomeBase Pro
+  - S1
+models:
+  - T9000
+  - T9000121
+device_type: 27
+notes: The integration has observed this as type 27, but no station controls are confirmed and child-camera peer lookup remains unresolved.
+capabilities: {}

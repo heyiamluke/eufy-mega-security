@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8114
+name: eufyCam 2
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
+models:
+  - T8114
+device_type: 9
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+    last_charging_days:
+      connections:
+        T8030:
+          status: declared
+      read:
+        field: charging_days
+  controls:
+    enabled:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    siren:
+      connections:
+        T8030:
+          status: declared
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+  media:
+    live_view:
+      connections:
+        T8030:
+          status: declared
+    snapshot:
+      connections:
+        T8030:
+          status: declared
+  events:
+    motion:
+      connections:
+        T8030:
+          status: declared
+    person:
+      connections:
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8030:
+          status: declared

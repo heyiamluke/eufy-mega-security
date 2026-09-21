@@ -1,0 +1,156 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t817l
+name: Wired Cam C31
+category: camera
+integration:
+  status: supported
+  handler: camera
+models:
+  - T817L
+  - T817L121
+device_type: 10031
+capabilities:
+  readable:
+    last_recognized_person:
+      connections:
+        T8030:
+          status: unknown
+          notes: The integration exposes the sensor, but model-specific recognition has not been confirmed.
+      read:
+        field: last_recognized_person
+  controls:
+    enabled:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    privacy_mode:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+      requires_parameter: 6250
+      write:
+        command: 6250
+      values:
+        "0": "Off"
+        "1": "On"
+      notes: Write-only control with no reliable state readback.
+    motion_detection:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "PureColor"
+        "1": "Infrared"
+        "2": "Spotlight"
+    siren:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+  media:
+    live_view:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+        direct:
+          status: declared
+    snapshot:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        T8030:
+          status: declared
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+    person:
+      connections:
+        T8030:
+          status: declared
+    stranger:
+      connections:
+        T8030:
+          status: unknown
+    pet:
+      connections:
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8030:
+          status: declared
+    dog:
+      connections:
+        T8030:
+          status: unknown
+    crying:
+      connections:
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8030:
+          status: declared
+    package_stranded:
+      connections:
+        T8030:
+          status: unknown
+          notes: The integration exposes this generic sensor, but the device record does not declare it.
+ignored:
+  battery:
+    fields:
+      - battery.level
+      - battery.charging
+      - battery.health
+      - battery.temperature
+    reason: Mains-powered device reports compatibility placeholder values.

@@ -1,0 +1,1148 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8530
+name: Video Smart Lock S330
+category: smart_lock
+integration:
+  status: recognised
+models:
+  - T8530
+  - E85301Y1
+  - E8530JY1
+  - E8530TY1
+device_type: 55
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+    last_charging_days:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: charging_days
+    wifi_rssi:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1142
+    wifi_signal_level:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: wifi_signal_level
+      values:
+        "0": No signal
+        "1": Weak
+        "2": Normal
+        "3": Strong
+        "4": Full
+    state:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1131
+      values:
+        "0": Offline
+        "1": Online
+        "2": Manually disabled
+        "3": Offline low battery
+        "4": Remove and readd
+        "5": Reset and readd
+    last_charging_false_events:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: last_charging_false_events
+    last_charging_recorded_events:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: last_charging_recorded_events
+    last_charging_total_events:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: last_charging_total_events
+    battery_usage_last_week:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: battery_usage_last_week
+    person_detected:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: person_detected
+    ringing:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: ringing
+    picture:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: picture
+    charging_status:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+      values:
+        "0": Not Charging
+        "1": Charging
+    someone_loitering:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: someone_loitering
+    snooze:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    snooze_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    snooze_start_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    snooze_homebase:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    snooze_start_chime:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    snooze_motion:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    person_name:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: person_name
+    locked:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: locked
+    lock_status:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1912
+      values:
+        "1": "1"
+        "2": "2"
+        "3": Unlocked
+        "4": Locked
+        "5": Mechanical anomaly
+        "6": "6"
+        "7": "7"
+    someone_going:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: someone_going
+    lock_event_origin:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: lock_event_origin
+      values:
+        "0": None
+        "1": Automatic
+        "2": Manual
+        "3": App
+        "4": Password
+        "5": Fingerprint
+        "6": Temporary Password
+        "7": Keypad
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": Off
+        "1": On
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": Off
+        "1": On
+    auto_nightvision:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1013
+      write:
+        command: 1013
+    watermark:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1214
+      write:
+        command: 1214
+      values:
+        "1": Off
+        "2": On
+    speaker_volume:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1230
+      write:
+        command: 1230
+        input:
+          name: speaker_volume
+          type: integer
+          minimum: 0
+          maximum: 100
+    ringtone_volume:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1708
+      write:
+        command: 1708
+        input:
+          name: ringtone_volume
+          type: integer
+          minimum: 0
+          maximum: 100
+    audio_recording:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1288
+      write:
+        command: 1288
+    motion_detection_type:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1252
+      write:
+        command: 1252
+      values:
+        "0": Humans only
+        "2": All motions
+    power_working_mode:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1246
+      write:
+        command: 1246
+      values:
+        "0": Balance Surveillance
+        "1": Optimal Surveillance
+        "2": Custom Recording
+        "3": Optimal Battery Life
+    recording_clip_length:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1249
+      write:
+        command: 1249
+        input:
+          name: recording_clip_length
+          type: integer
+          minimum: 5
+          maximum: 120
+    recording_retrigger_interval:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1250
+      write:
+        command: 1250
+        input:
+          name: recording_retrigger_interval
+          type: integer
+          minimum: 2
+          maximum: 60
+    recording_end_clip_motion_stops:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1251
+      write:
+        command: 1251
+    video_streaming_quality:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1705
+      write:
+        command: 1705
+      values:
+        "0": Auto / Low Encoding
+        "1": Low / Low Encoding
+        "2": Medium / Low Encoding
+        "3": High / Low Encoding
+        "5": Auto / High Encoding
+        "6": Low / High Encoding
+        "7": Medium / High Encoding
+        "8": High / High Encoding
+    video_recording_quality:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1286
+      write:
+        command: 1286
+      values:
+        "1": 2K HD
+        "2": Full HD
+        "3": Storage Saver
+    chime_indoor:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1703
+      write:
+        command: 1703
+    chime_homebase:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1702
+      write:
+        command: 1702
+    chime_homebase_ringtone_volume:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1717
+      write:
+        command: 1717
+        input:
+          name: chime_homebase_ringtone_volume
+          type: integer
+          minimum: 1
+          maximum: 26
+    chime_homebase_ringtone_type:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1718
+      write:
+        command: 1718
+      values:
+        "0": Default
+        "1": Silent
+        "2": Beacon
+        "3": Chord
+        "4": Christmas
+        "5": Circuit
+        "6": Clock
+        "7": Ding
+        "8": Hillside
+        "9": Presto
+    notification_type:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1710
+      write:
+        command: 1710
+      values:
+        "1": Most Efficient
+        "2": Include Thumbnail
+        "3": Full Effect
+    notification_ring:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1710
+      write:
+        command: 1710
+    notification_motion:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1710
+      write:
+        command: 1710
+    motion_detection_sensitivity_mode:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+      values:
+        "0": Standard
+        "1": Advanced
+    motion_detection_sensitivity_standard:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_standard
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_a:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_a
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_b:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_b
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_c:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_c
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_d:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_d
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_e:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_e
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_f:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_f
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_g:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_g
+          type: integer
+          minimum: 1
+          maximum: 5
+    motion_detection_sensitivity_advanced_h:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2705
+      write:
+        command: 2705
+        input:
+          name: motion_detection_sensitivity_advanced_h
+          type: integer
+          minimum: 1
+          maximum: 5
+    loitering_detection:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2706
+      write:
+        command: 2706
+    loitering_detection_length:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2708
+      write:
+        command: 2708
+      values:
+        "1": 15s
+        "2": 20s
+        "3": 25s
+        "4": 30s
+        "5": 45s
+        "6": 60s
+    loitering_detection_range:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2707
+      write:
+        command: 2707
+      values:
+        "1": within 2ft
+        "2": within 4ft
+        "3": within 6ft
+        "4": within 8ft
+        "5": within 10ft
+    loitering_custom_response_phone_notification:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2715
+      write:
+        command: 2715
+    loitering_custom_response_auto_voice_response:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2715
+      write:
+        command: 2715
+    loitering_custom_response_auto_voice_response_voice:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2715
+      write:
+        command: 2715
+    loitering_custom_response_home_base_notification:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2715
+      write:
+        command: 2715
+    loitering_custom_response_time_from:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2715
+      write:
+        command: 2715
+    loitering_custom_response_time_to:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2715
+      write:
+        command: 2715
+    leaving_detection:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2726
+      write:
+        command: 2726
+    leaving_reaction_notification:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2727
+      write:
+        command: 2727
+    leaving_reaction_start_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2727
+      write:
+        command: 2727
+    leaving_reaction_end_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2727
+      write:
+        command: 2727
+    auto_lock:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6500
+      write:
+        command: 6500
+    auto_lock_timer:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6600
+      write:
+        command: 6600
+      values:
+        "1": 1 sec.
+        "30": 30 sec.
+        "60": 1 min.
+        "90": 1,5 min.
+        "120": 2 min.
+        "150": 2,5 min.
+        "180": 3 min.
+    auto_lock_schedule:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6501
+      write:
+        command: 6501
+    auto_lock_schedule_start_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6601
+      write:
+        command: 6601
+    auto_lock_schedule_end_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6602
+      write:
+        command: 6602
+    one_touch_locking:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6502
+      write:
+        command: 6502
+    wrong_try_protection:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6503
+      write:
+        command: 6503
+    wrong_try_attempts:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6603
+      write:
+        command: 6603
+        input:
+          name: wrong_try_attempts
+          type: integer
+          minimum: 3
+          maximum: 10
+    wrong_try_lockdown_time:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6604
+      write:
+        command: 6604
+      values:
+        "60": 1 min.
+        "120": 2 min.
+        "180": 3 min.
+        "240": 4 min.
+        "300": 5 min.
+    scramble_passcode:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6504
+      write:
+        command: 6504
+    notification_unlocked:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6605
+      write:
+        command: 6605
+    notification_locked:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6606
+      write:
+        command: 6606
+    beep_volume:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6618
+      write:
+        command: 6618
+      values:
+        "0": Mute
+        "1": Soft
+        "2": Medium
+        "3": Loud
+    nightvision_optimization:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6614
+      write:
+        command: 6614
+    nightvision_optimization_side:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 6615
+      write:
+        command: 6615
+      values:
+        "1": Left
+        "2": Right
+    start_livestream:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: start_livestream
+    stop_livestream:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: stop_livestream
+    quick_response:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: quick_response
+    start_download:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: start_download
+    cancel_download:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: cancel_download
+    start_talkback:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: start_talkback
+    stop_talkback:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: stop_talkback
+    snooze:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: snooze
+    lock_calibration:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: lock_calibration
+    add_user:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: add_user
+    delete_user:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: delete_user
+    update_user_passcode:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: update_user_passcode
+    update_user_schedule:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: update_user_schedule
+    update_username:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+      write:
+        action: update_username
+  media:
+    live_view:
+      connections:
+        T8030:
+          status: declared
+    snapshot:
+      connections:
+        T8030:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: declared
+    person:
+      connections:
+        T8030:
+          status: declared
+    doorbell_press:
+      connections:
+        T8030:
+          status: declared

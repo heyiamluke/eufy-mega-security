@@ -1,0 +1,210 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8030
+name: HomeBase 3 (S380)
+category: homebase
+integration:
+  status: supported
+  handler: homebase
+aliases:
+  - HomeBase 3
+  - HomeBase S380
+  - S380
+  - HB3
+models:
+  - T8030
+  - T80301D1
+  - T8030TD1
+device_type: 18
+capabilities:
+  readable:
+    current_mode:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1151
+      values:
+        "0": "Away"
+        "1": "Home"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "63": "Disarmed"
+    alarm_active:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: alarm
+    emmc_storage:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        field: storage_info_emmc
+    hdd_storage:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        field: storage_info_hdd
+      notes: Reports nominal, usable, and used capacity separately.
+  controls:
+    guard_mode:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1224
+      write:
+        command: 1224
+      values:
+        "0": "Away"
+        "1": "Home"
+        "2": "Schedule"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "47": "Geofencing"
+        "63": "Disarmed"
+      notes: Home mode was written and confirmed by fresh readback without changing the household's armed state. Other modes remain untested.
+    time_format:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1253
+      write:
+        command: 1253
+      values:
+        "0": "12 hour"
+        "1": "24 hour"
+    alarm_volume:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-16
+          tested_by: mscodemonkey
+      read:
+        parameter: 1235
+      write:
+        command: 1235
+        input:
+          name: volume
+          type: integer
+          minimum: 1
+          maximum: 26
+      notes: A matching fresh read confirms a write when its acknowledgement is missing.
+    prompt_volume:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1292
+      write:
+        command: 1292
+        input:
+          name: volume
+          type: integer
+          minimum: 0
+          maximum: 26
+      notes: The supported scale needs local confirmation because reports disagree.
+    alarm_tone:
+      connections:
+        direct:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1281
+      write:
+        command: 1281
+      values:
+        "1": "Alarm sound 1"
+        "2": "Alarm sound 2"
+    siren:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-21
+      write:
+        command: 1201
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+    cross_camera_tracking:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1065
+      write:
+        command: 1065
+      values:
+        "0": "Off"
+        "1": "On"
+    continuous_tracking_time:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1070
+      write:
+        command: 1070
+      values:
+        "120": "2 minutes"
+        "180": "3 minutes"
+        "240": "4 minutes"
+        "300": "5 minutes"
+        "600": "10 minutes"
+        "900": "15 minutes"
+        "1800": "30 minutes"
+    tracking_assistance:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1069
+      write:
+        command: 1069
+      values:
+        "0": "Off"
+        "1": "On"
+    alarm_delay_configuration:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-21
+      write:
+        command: 1255
+      notes: This is a structured per-mode write. A reliable readback is not known yet.
+    nas_recording_mode:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-21
+      read:
+        parameter: 6050
+      write:
+        command: 6010
+      values:
+        "0": "Events only"
+        "1": "Continuous"
+      notes: The write uses a paired update and was reported working with readback.

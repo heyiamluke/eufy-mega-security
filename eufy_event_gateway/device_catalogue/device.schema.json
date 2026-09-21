@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mscodemonkey/eufy-mega-security/device-catalogue-v1.schema.json",
+  "title": "Eufy device capability record",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "name",
+    "category",
+    "models",
+    "device_type",
+    "integration",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "enum": [
+        "camera",
+        "doorbell",
+        "homebase",
+        "hub_adjacent",
+        "nvr",
+        "smart_lock",
+        "security_sensor",
+        "siren",
+        "keypad",
+        "remote",
+        "smart_drop",
+        "smart_safe",
+        "tracker",
+        "chime",
+        "passive_accessory"
+      ]
+    },
+    "integration": {
+      "$ref": "#/$defs/integration"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "device_type": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "alternate_device_types": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "value",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "tested",
+              "reported",
+              "mixed",
+              "declared",
+              "unknown"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readable": {
+          "$ref": "#/$defs/capabilityMap"
+        },
+        "controls": {
+          "$ref": "#/$defs/capabilityMap"
+        },
+        "media": {
+          "$ref": "#/$defs/capabilityMap"
+        },
+        "events": {
+          "$ref": "#/$defs/capabilityMap"
+        }
+      }
+    },
+    "ignored": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "integration": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "supported",
+            "ready_to_test",
+            "recognised"
+          ]
+        },
+        "handler": {
+          "enum": [
+            "camera",
+            "sensor",
+            "homebase"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "supported",
+                  "ready_to_test"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "handler"
+            ]
+          }
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "tested",
+        "reported",
+        "mixed",
+        "declared",
+        "failing",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "capabilityMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/capability"
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": [
+        "connections"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "connections": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(?:direct|T[A-Z0-9]+)$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/capabilityConnection"
+          }
+        },
+        "read": {
+          "type": "object",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "parameter"
+              ]
+            },
+            {
+              "required": [
+                "field"
+              ]
+            }
+          ],
+          "properties": {
+            "parameter": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "field": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+            }
+          }
+        },
+        "requires_parameter": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "write": {
+          "type": "object",
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "command"
+              ]
+            },
+            {
+              "required": [
+                "action"
+              ]
+            }
+          ],
+          "properties": {
+            "command": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "action": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+            },
+            "input": {
+              "$ref": "#/$defs/writeInput"
+            }
+          }
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "capabilityConnection": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "tested_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "tested_by": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "writeInput": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "minimum",
+        "maximum"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+        },
+        "type": {
+          "const": "integer"
+        },
+        "minimum": {
+          "type": "integer"
+        },
+        "maximum": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

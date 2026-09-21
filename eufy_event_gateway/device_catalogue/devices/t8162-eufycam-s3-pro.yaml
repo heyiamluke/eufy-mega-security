@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8162
+name: eufyCam S3 Pro
+category: camera
+integration:
+  status: supported
+  handler: camera
+models:
+  - T8162
+device_type: 26
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1138
+  controls:
+    enabled:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Colour"
+        "1": "Infrared"
+        "2": "Spotlight"
+    siren:
+      connections:
+        T9000:
+          status: declared
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+  media:
+    live_view:
+      connections:
+        T9000:
+          status: failing
+          tested_on: 2026-09-17
+          tested_by: geroh20-source
+          notes: The T9000 camera route cannot complete peer lookup.
+    snapshot:
+      connections:
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+  events:
+    motion:
+      connections:
+        T9000:
+          status: declared
+    person:
+      connections:
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+    pet:
+      connections:
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+    vehicle:
+      connections:
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+    sound:
+      connections:
+        T9000:
+          status: declared

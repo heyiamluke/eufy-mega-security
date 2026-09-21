@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8500
+name: "Smart Lock T8500"
+category: smart_lock
+integration:
+  status: recognised
+aliases:
+  - "Smart Lock with Wi-Fi Bridge"
+  - "Smart Lock Front Door"
+models:
+  - T8500
+device_type: null
+notes: "The numeric device type mapping is unconfirmed, so device_type remains null."
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6001
+    lock_status:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1912
+      values:
+        "1": "1"
+        "2": "2"
+        "3": "Unlocked"
+        "4": "Locked"
+        "5": "Mechanical anomaly"
+        "6": "6"
+        "7": "7"
+    locked:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "locked"
+    state:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1131
+      values:
+        "0": "Offline"
+        "1": "Online"
+        "2": "Manually disabled"
+        "3": "Offline low battery"
+        "4": "Remove and readd"
+        "5": "Reset and readd"
+    wifi_rssi:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1141

@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8110e
+name: eufyCam C34
+category: camera
+integration:
+  status: recognised
+models:
+  - T8110E
+device_type: 10034
+notes: Community inventory identifies this model as type 10034. Integration behaviour remains unconfirmed.
+capabilities: {}

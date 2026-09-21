@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8025
+name: HomeBase Mini
+category: homebase
+integration:
+  status: recognised
+aliases:
+  - HomeBase mini
+models:
+  - T8025
+device_type: 28
+capabilities:
+  readable:
+    current_mode:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1151
+      values:
+        "0": "Away"
+        "1": "Home"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "63": "Disarmed"
+    alarm_active:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: alarm
+    emmc_storage:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: storage_info_emmc
+  controls:
+    guard_mode:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1224
+      write:
+        command: 1224
+      values:
+        "0": "Away"
+        "1": "Home"
+        "2": "Schedule"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "47": "Geofencing"
+        "63": "Disarmed"
+      notes: The Off value is reported only when a keypad is attached.
+    time_format:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1253
+      write:
+        command: 1253
+      values:
+        "0": "12 hour"
+        "1": "24 hour"
+    alarm_tone:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1281
+      write:
+        command: 1281
+      values:
+        "1": "Alarm sound 1"
+        "2": "Alarm sound 2"
+    cross_camera_tracking:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1065
+      write:
+        command: 1065
+      values:
+        "0": "Off"
+        "1": "On"
+    continuous_tracking_time:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1070
+      write:
+        command: 1070
+      values:
+        "120": "2 minutes"
+        "180": "3 minutes"
+        "240": "4 minutes"
+        "300": "5 minutes"
+        "600": "10 minutes"
+        "900": "15 minutes"
+        "1800": "30 minutes"
+    tracking_assistance:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1069
+      write:
+        command: 1069
+      values:
+        "0": "Off"
+        "1": "On"

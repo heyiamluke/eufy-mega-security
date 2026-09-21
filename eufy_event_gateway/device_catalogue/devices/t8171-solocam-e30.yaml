@@ -1,0 +1,164 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8171
+name: SoloCam E30
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
+models:
+  - T8171
+device_type: 88
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: reported
+          tested_on: 2026-09-19
+          tested_by: unja4711
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+    streaming_quality:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1020
+      values:
+        "0": "Auto"
+        "1": "HD (720P)"
+        "2": "Full HD (1080P)"
+        "3": "Max"
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Off"
+        "1": "Infrared"
+        "2": "Spotlight"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: failing
+          tested_on: 2026-09-18
+          tested_by: unja4711
+        T8030:
+          status: declared
+    snapshot:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: failing
+          tested_on: 2026-09-18
+          tested_by: unja4711
+        T8030:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared

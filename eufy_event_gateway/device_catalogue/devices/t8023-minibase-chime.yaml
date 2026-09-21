@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8023
+name: MiniBase Chime
+category: hub_adjacent
+integration:
+  status: recognised
+aliases:
+  - Minibase Chime
+models:
+  - T8023
+device_type: 25
+notes: Station-style capability declarations exist, but they may not reflect the chime's real behaviour and need hardware testing.
+capabilities:
+  readable:
+    current_mode:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1151
+      values:
+        "0": "Away"
+        "1": "Home"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "63": "Disarmed"
+    alarm_active:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: alarm
+    storage_status:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1135
+  controls:
+    guard_mode:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1224
+      write:
+        command: 1224
+      values:
+        "0": "Away"
+        "1": "Home"
+        "2": "Schedule"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "47": "Geofencing"
+        "63": "Disarmed"
+      notes: The Off value is reported only when a keypad is attached.
+    time_format:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1253
+      write:
+        command: 1253
+      values:
+        "0": "12 hour"
+        "1": "24 hour"
+    alarm_tone:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1281
+      write:
+        command: 1281
+      values:
+        "1": "Alarm sound 1"
+        "2": "Alarm sound 2"

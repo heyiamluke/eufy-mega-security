@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8419n
+name: Indoor Cam C220 (T8419N, v3)
+category: camera
+integration:
+  status: recognised
+models:
+  - T8419N
+device_type: 10011
+capabilities:
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared

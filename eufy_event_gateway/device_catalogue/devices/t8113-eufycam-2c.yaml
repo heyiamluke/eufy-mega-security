@@ -1,0 +1,231 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8113
+name: eufyCam 2C
+category: camera
+integration:
+  status: supported
+  handler: camera
+models:
+  - T8113
+  - T8113-Z
+device_type: 8
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1138
+    battery_health:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1198
+    last_charging_days:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: unsupported
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+          notes: The current HomeBase 3 setup reports this value as unavailable.
+      read:
+        field: charging_days
+    last_recognized_person:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: last_recognized_person
+  controls:
+    enabled:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Off"
+        "1": "Infrared"
+        "2": "Spotlight"
+    siren:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+  media:
+    live_view:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+    snapshot:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+  events:
+    motion:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+    person:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+    stranger:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+    dog:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+    crying:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+    package_stranded:
+      connections:
+        T8010:
+          status: unknown
+        T8025:
+          status: unknown
+        T8030:
+          status: unknown
+      notes: The integration exposes this generic sensor, but the device record does not declare it.

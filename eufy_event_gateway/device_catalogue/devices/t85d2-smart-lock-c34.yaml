@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t85d2
+name: "Smart Lock C34"
+category: smart_lock
+integration:
+  status: recognised
+aliases:
+  - "C34"
+models:
+  - T85D2
+  - T85D2111
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

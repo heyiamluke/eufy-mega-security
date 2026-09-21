@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8e00
+name: PoE Bullet-PTZ Cam S4
+category: camera
+integration:
+  status: recognised
+models:
+  - T8E00
+  - T8E00121
+device_type: 301
+capabilities:
+  controls:
+    enabled:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Off"
+        "1": "Infrared"
+        "2": "Spotlight"
+    siren:
+      connections:
+        T9000:
+          status: declared
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+  media:
+    live_view:
+      connections:
+        T9000:
+          status: declared
+    snapshot:
+      connections:
+        T9000:
+          status: declared
+  events:
+    motion:
+      connections:
+        T9000:
+          status: declared
+    person:
+      connections:
+        T9000:
+          status: declared
+    pet:
+      connections:
+        T9000:
+          status: declared
+    vehicle:
+      connections:
+        T9000:
+          status: declared
+    sound:
+      connections:
+        T9000:
+          status: declared

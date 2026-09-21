@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t90s0
+name: "Smoke Alarm E10"
+category: security_sensor
+integration:
+  status: recognised
+models:
+  - T90S0
+  - T90S0121
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

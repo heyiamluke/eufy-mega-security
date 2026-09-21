@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8224
+name: Video Doorbell C30
+category: doorbell
+integration:
+  status: supported
+  handler: camera
+models:
+  - T8224
+device_type: 96
+alternate_device_types:
+  - value: 95
+    status: declared
+    notes: Other device data associates this model family with type 95, while community inventory reports type 96.
+notes: Community inventory reports type 96, while other device data associates this model family with type 95. The mapping may vary by hardware revision.
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+      read:
+        parameter: 1138
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: failing
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+          notes: The direct media route is not ready.
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared
+    doorbell_press:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman

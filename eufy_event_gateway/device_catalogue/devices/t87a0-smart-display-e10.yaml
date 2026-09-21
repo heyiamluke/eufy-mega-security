@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t87a0
+name: Smart Display E10
+category: hub_adjacent
+integration:
+  status: recognised
+aliases:
+  - eufy Smart Display
+models:
+  - T87A0
+  - T87A01W1
+  - T87A0120
+device_type: 1
+notes: Type 1 is shared and does not identify the display by itself. No integration-usable capabilities are confirmed yet.
+capabilities: {}

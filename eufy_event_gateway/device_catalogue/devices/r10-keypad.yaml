@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: r10-keypad
+name: "R10 Keypad"
+category: keypad
+integration:
+  status: recognised
+aliases:
+  - "Lock 85A3"
+models: []
+device_type: null
+notes: "The retail model code is not confirmed. The numeric device type mapping is unconfirmed, so device_type remains null."
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1101

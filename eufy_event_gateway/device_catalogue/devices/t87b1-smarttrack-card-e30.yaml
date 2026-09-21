@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t87b1
+name: "SmartTrack Card E30"
+category: tracker
+integration:
+  status: recognised
+models:
+  - T87B1
+  - T87B1011
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

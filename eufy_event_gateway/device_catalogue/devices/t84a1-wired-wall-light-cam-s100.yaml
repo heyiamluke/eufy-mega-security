@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t84a1
+name: Wired Wall Light Cam S100
+category: camera
+integration:
+  status: supported
+  handler: camera
+models:
+  - T84A1
+  - T84A1311
+device_type: 151
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: mixed
+          tested_on: 2026-09-20
+          notes: One setup produces live H.264 video, while another receives media without a usable picture.
+    snapshot:
+      connections:
+        direct:
+          status: mixed
+          tested_on: 2026-09-20
+          notes: Fresh capture results differ between reported setups.
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared

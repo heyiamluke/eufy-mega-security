@@ -18,12 +18,15 @@ The gateway deliberately does not use `eufy-security-client`, the SmartLife/Thin
 ## Device capability data
 
 The detailed device reference is in
-`eufy_event_gateway/device_catalogue/devices/`, with one JSON file per device or
+`eufy_event_gateway/device_catalogue/devices/`, with one YAML file per device or
 hardware variant. Update the matching file when you confirm a property, command,
 selectable value, or app label. Keep declarations, inferences, and hardware
 results separate in the evidence fields.
 
-Run `npm run catalogue:check` from `eufy_event_gateway` before submitting the
+Use `recognised` for diagnostic-only knowledge, `ready_to_test` only when an
+implemented family handler can safely admit the device, and `supported` after
+working integration behaviour is confirmed. Run `npm run catalogue:generate`
+after editing a record, then `npm run catalogue:check` before submitting the
 change. You can locate a device with `npm run catalogue:query -- T817L`.
 
 ## Local setup

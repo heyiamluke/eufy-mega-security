@@ -7,21 +7,17 @@
  */
 
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
+import {
+  GENERATED_CAMERA_DEVICE_TYPES,
+  GENERATED_KNOWN_CAMERA_DEVICE_TYPES,
+  GENERATED_NON_CAMERA_DEVICE_TYPES,
+} from "./devices/generated-catalogue.js";
 
 /** Camera types with an existing gateway protocol route and admission decision. */
-export const CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([
-  5, 7, 8, 9, 15, 19, 23, 26, 30, 31, 38, 47, 48, 49, 62, 63, 88, 91, 94, 96, 104, 105, 151, 203, 10005, 10009, 10031, 10037,
-]);
+export const CAMERA_DEVICE_TYPES: ReadonlySet<number> = GENERATED_CAMERA_DEVICE_TYPES;
 
-/**
- * Names the vendor device types that affect admission without making marketing names authoritative.
- * The reported numeric type remains the source of truth when a model string disagrees with it.
- */
-export const DEVICE_TYPE_NAMES: Readonly<Record<number, string>> = {
-  96: "BATTERY_DOORBELL_C31",
-  202: "LOCK_85D0",
-  203: "LOCK_85V0_VIDEO_DOORBELL",
-};
+/** Camera-like types known to the catalogue, whether admitted or not. */
+export const KNOWN_CAMERA_DEVICE_TYPES: ReadonlySet<number> = GENERATED_KNOWN_CAMERA_DEVICE_TYPES;
 
 /** The coarse role used before route and capability evidence are evaluated. */
 export type MegaDeviceRole = "camera" | "non-camera" | "unknown";
@@ -44,12 +40,7 @@ export function hasMainsBatterySentinel(model: string): boolean {
 }
 
 /** Known non-camera inventory types excluded from camera-review diagnostics. */
-export const NON_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set([
-  0, 18, 25, 27, 28, 300, 301,
-  2, 10, 20, 21, 22, 123, 126, 127,
-  11,
-  50, 51, 52, 53, 54, 55, 56, 57, 58, 140, 141, 142, 143, 180, 184, 189, 201, 202, 209,
-]);
+export const NON_CAMERA_DEVICE_TYPES: ReadonlySet<number> = GENERATED_NON_CAMERA_DEVICE_TYPES;
 
 /** Media, push, and battery-read paths handled by the gateway. */
 export const CAMERA_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [

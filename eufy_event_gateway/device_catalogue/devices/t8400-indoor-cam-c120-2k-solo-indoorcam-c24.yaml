@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8400
+name: Indoor Cam C120 / 2K (Solo IndoorCam C24)
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
+models:
+  - T8400
+device_type: 30
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 2001
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: failing
+          tested_on: 2026-09-20
+          tested_by: frcbn
+          notes: The route is reached but does not produce a usable live picture.
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared

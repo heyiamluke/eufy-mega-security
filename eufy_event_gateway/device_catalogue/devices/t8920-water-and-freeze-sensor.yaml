@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8920
+name: "Water and Freeze Sensor"
+category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
+aliases:
+  - "Water Sensor"
+  - "Water and Freeze Sensor with Remote Alerts"
+models:
+  - T8920
+  - T89200D1
+device_type: 20
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: mixed
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_low:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: mixed
+        T8030:
+          status: declared
+      read:
+        parameter: 1601
+    snooze:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: mixed
+        T8030:
+          status: declared
+      read:
+        parameter: 1271
+    state:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: mixed
+        T8030:
+          status: declared
+      read:
+        parameter: 1131
+      values:
+        "0": "Offline"
+        "1": "Online"
+        "2": "Manually disabled"
+        "3": "Offline low battery"
+        "4": "Remove and readd"
+        "5": "Reset and readd"
+    wifi_rssi:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: mixed
+        T8030:
+          status: declared
+      read:
+        parameter: 1141

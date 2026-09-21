@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8425
+name: Floodlight Cam E340
+category: camera
+integration:
+  status: supported
+  handler: camera
+models:
+  - T8425
+  - T8425121
+device_type: 47
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Off"
+        "1": "Infrared"
+        "2": "Spotlight"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: failing
+          tested_on: 2026-09-20
+          tested_by: jsole510
+          notes: Media arrives without a usable picture.
+        T9000:
+          status: failing
+          tested_on: 2026-09-17
+          tested_by: geroh20-source
+          notes: The T9000 camera route cannot complete peer lookup.
+    snapshot:
+      connections:
+        direct:
+          status: failing
+          tested_on: 2026-09-20
+          tested_by: jsole510
+          notes: Fresh capture does not produce a usable picture.
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+    pet:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: geroh20-source
+    sound:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+ignored:
+  battery_sentinel:
+    fields:
+      - battery_level
+      - battery_charging
+      - battery_temperature
+      - last_charging_days
+    reason: This mains-powered model reports battery-shaped sentinel values.

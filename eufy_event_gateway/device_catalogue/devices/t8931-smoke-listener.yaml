@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8931
+name: "Smoke Listener"
+category: security_sensor
+integration:
+  status: recognised
+aliases:
+  - "Smoke and Carbon Monoxide Alarm Listener"
+models:
+  - T8931
+  - T89310D1
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

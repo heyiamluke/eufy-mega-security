@@ -27,33 +27,6 @@
     "compiled_date": "2026-09-21"
   },
   {
-    "device_type_id": "10034",
-    "type_name": "(not in either external declaration)",
-    "evidence_source": "Community issue #917",
-    "retail_model": "T8110E",
-    "notes": "eufyCam C34 (Wi-Fi outdoor). Maintainer pattern: C-series device_type = 10000 + model number.",
-    "status": "observed_by_user",
-    "compiled_date": "2026-09-21"
-  },
-  {
-    "device_type_id": "10037",
-    "type_name": "(not in either external declaration)",
-    "evidence_source": "Community issue #963",
-    "retail_model": "T814X",
-    "notes": "eufyCam C37; same pattern. Snapshot/metadata worked, live video did not (issue text).",
-    "status": "observed_by_user",
-    "compiled_date": "2026-09-21"
-  },
-  {
-    "device_type_id": "303",
-    "type_name": "(not in either external declaration)",
-    "evidence_source": "Community issue #898",
-    "retail_model": "T8P10",
-    "notes": "PoE camera reported alongside NVR T8N00 (300) and T8E00 (301). T8P00 device_type not found.",
-    "status": "observed_by_user",
-    "compiled_date": "2026-09-21"
-  },
-  {
     "device_type_id": "(none)",
     "type_name": "T8P00",
     "evidence_source": "eufy.com product page",
@@ -63,12 +36,66 @@
     "compiled_date": "2026-09-21"
   },
   {
-    "device_type_id": "21 / 22 / 161 / 162",
-    "type_name": "SIREN_SENSOR / SMOKE_SENSOR / TRACKER_87B4 / TRACKER_87B5",
-    "evidence_source": "Imported device capability research",
+    "device_type_id": "21",
+    "type_name": "SIREN_SENSOR",
+    "evidence_source": "Imported accessory capability research",
+    "retail_model": "T8970?",
+    "notes": "The type name may describe the T8970 battery siren, but the retail mapping is not confirmed.",
+    "status": "unresolved",
+    "compiled_date": "2026-09-21"
+  },
+  {
+    "device_type_id": "22",
+    "type_name": "SMOKE_SENSOR",
+    "evidence_source": "Imported accessory capability research",
+    "retail_model": "T8931?",
+    "notes": "The type name may describe the T8931 Smoke Listener, but the retail mapping is not confirmed.",
+    "status": "unresolved",
+    "compiled_date": "2026-09-21"
+  },
+  {
+    "device_type_id": "50 / 52 / 53",
+    "type_name": "Early smart-lock families",
+    "evidence_source": "Imported accessory capability research",
+    "retail_model": "T8510 / T8500 / T8501?",
+    "notes": "The proposed retail mappings are plausible but remain unconfirmed.",
+    "status": "inferred_mapping",
+    "compiled_date": "2026-09-21"
+  },
+  {
+    "device_type_id": "51",
+    "type_name": "Wi-Fi smart-lock family",
+    "evidence_source": "Imported accessory capability research",
+    "retail_model": "T8520 / T8510P / T8520P",
+    "notes": "One numeric type is shared by three products that are distinguished by their serial variants.",
+    "status": "shared_type",
+    "compiled_date": "2026-09-21"
+  },
+  {
+    "device_type_id": "56 / 57",
+    "type_name": "R10 / R20 lock keypads",
+    "evidence_source": "Imported accessory capability research",
     "retail_model": "",
-    "notes": "Non-camera devices; listed for completeness (out of scope for this matrix).",
-    "status": "out_of_scope",
+    "notes": "The product relationship is known, but the retail model codes are not confirmed.",
+    "status": "inferred_mapping",
+    "compiled_date": "2026-09-21"
+  },
+  {
+    "device_type_id": "162",
+    "type_name": "TRACKER_87B5",
+    "evidence_source": "Imported accessory capability research",
+    "retail_model": "",
+    "notes": "No matching retail product has been confirmed.",
+    "status": "unresolved",
+    "compiled_date": "2026-09-21"
+  },
+  {
+    "device_type_id": "(none)",
+    "type_name": "Known accessories without a confirmed numeric type",
+    "evidence_source": "Imported accessory capability research",
+    "retail_model": "T85F0 / T85F1 / T85D2 / T85P1 / T85M0 / T85F2 / T8970 / T8931 / T90F0 / T90S0 / T90K0 / T90P0 / T8026 / T8020 / T8740 / T8741",
+    "notes": "The retail devices are known, but their numeric inventory types are not confirmed.",
+    "status": "unresolved",
     "compiled_date": "2026-09-21"
   }
 ]

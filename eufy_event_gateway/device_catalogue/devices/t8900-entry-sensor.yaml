@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8900
+name: "Entry Sensor"
+category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
+models:
+  - T8900
+  - T89000D1
+  - T89000D4
+device_type: 2
+capabilities:
+  readable:
+    battery_low:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1552
+    contact_open:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1550
+    last_seen:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1551
+    state:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1131
+      values:
+        "0": "Offline"
+        "1": "Online"
+        "2": "Manually disabled"
+        "3": "Offline low battery"
+        "4": "Remove and readd"
+        "5": "Reset and readd"
+    wifi_rssi:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1141
+  controls:
+    chirp_tone:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1507
+      write:
+        command: 1507
+      values:
+        "0": "None"
+        "1": "Water"
+        "2": "Classic"
+        "3": "Light"
+        "4": "Ding"
+    chirp_volume:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1508
+      write:
+        command: 1508
+        input:
+          name: chirp_volume
+          type: integer
+          minimum: 1
+          maximum: 26

@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8453-e120
+name: Garage-Control Cam E120
+category: camera
+integration:
+  status: recognised
+models:
+  - T8453
+device_type: 133
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared

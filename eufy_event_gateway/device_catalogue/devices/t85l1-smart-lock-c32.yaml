@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t85l1
+name: "Smart Lock C32"
+category: smart_lock
+integration:
+  status: recognised
+aliases:
+  - "C32"
+  - "FamiLock C32"
+models:
+  - T85L1
+  - T85L1111
+  - T85L1114
+device_type: 211
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}
