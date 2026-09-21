@@ -59,7 +59,11 @@ class EufyCameraSiren(EufyGatewayEntity, SirenEntity):
     """Expose bounded trigger and explicit stop controls for one camera."""
 
     _attr_translation_key = "camera_siren"
-    _attr_supported_features = SirenEntityFeature.TURN_ON | SirenEntityFeature.TURN_OFF
+    _attr_supported_features = (
+        SirenEntityFeature.TURN_ON
+        | SirenEntityFeature.TURN_OFF
+        | SirenEntityFeature.DURATION
+    )
 
     def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
         """Bind the entity to a camera with a proven siren command."""
@@ -94,7 +98,11 @@ class EufyHomeBaseSiren(EufyStationEntity, SirenEntity):
     """Expose bounded trigger and explicit stop controls for one HomeBase."""
 
     _attr_translation_key = "homebase_siren"
-    _attr_supported_features = SirenEntityFeature.TURN_ON | SirenEntityFeature.TURN_OFF
+    _attr_supported_features = (
+        SirenEntityFeature.TURN_ON
+        | SirenEntityFeature.TURN_OFF
+        | SirenEntityFeature.DURATION
+    )
 
     def __init__(self, coordinator: EufyGatewayCoordinator, serial: str) -> None:
         """Bind the entity to a HomeBase station serial."""
