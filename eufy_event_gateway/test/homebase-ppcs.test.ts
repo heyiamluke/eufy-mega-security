@@ -32,9 +32,15 @@ test("uses PPCS local-lookup and camera-check request headers", () => {
 test("reads the command-result flag from the inner frame type byte", () => {
   const frame = Buffer.alloc(16);
   frame[10] = 1;
-  assert.equal(isHomeBaseResultFrame(frame), false);
+  assert.equal(isHomeBaseResultFrame(frame, 16), false);
   frame[14] = 1;
-  assert.equal(isHomeBaseResultFrame(frame), true);
+  assert.equal(isHomeBaseResultFrame(frame, 16), true);
+});
+
+test("accepts an untyped four-byte HomeBase command result", () => {
+  const frame = Buffer.alloc(16);
+  assert.equal(isHomeBaseResultFrame(frame, 4), true);
+  assert.equal(isHomeBaseResultFrame(frame, 5), false);
 });
 
 test("normalizes HomeBase state and separate physical storage devices", () => {

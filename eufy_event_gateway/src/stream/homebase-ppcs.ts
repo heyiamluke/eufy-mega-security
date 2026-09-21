@@ -271,7 +271,7 @@ export class HomeBasePpcsSession {
       const size = pending.readUInt32LE(6);
       if (size > 16 * 1024 * 1024) throw new Error("HomeBase response exceeded the safety limit");
       if (pending.length < 16 + size) break;
-      const resultMessage = isHomeBaseResultFrame(pending);
+      const resultMessage = isHomeBaseResultFrame(pending, size);
       const channel = pending[12] ?? 0;
       const signCode = pending[13] ?? 0;
       const payload = pending.subarray(16, 16 + size);
@@ -444,9 +444,15 @@ export function parseHomeBaseState(cameraInfo: unknown, storage: unknown, storag
   };
 }
 
-/** Return whether an inner HomeBase PPCS frame is a command-result message. */
-export function isHomeBaseResultFrame(frame: Buffer): boolean {
-  return frame.length >= 15 && frame[14] === 1;
+/**
+ * Return whether an inner HomeBase PPCS frame carries a command result.
+ *
+ * HomeBases may set the result type byte or return an untyped four-byte
+ * status body. The pending outer command still has to match before the caller
+ * accepts either form as its acknowledgement.
+ */
+export function isHomeBaseResultFrame(frame: Buffer, payloadLength: number): boolean {
+  return frame.length >= 15 && (frame[14] === 1 || payloadLength === 4);
 }
 
 function parseStorage(value: unknown): HomeBasePpcsState["storage"] {
