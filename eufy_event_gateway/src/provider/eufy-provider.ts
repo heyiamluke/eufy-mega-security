@@ -212,8 +212,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         ? await this.#resolveCipherKey(device.cipherId, peer)
         : undefined;
       const stream = new FirstPartyPpcsSession({
-        stationSerial: peer.serial, stationFirmware: peer.firmware,
-        p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
+        stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model, accountId: device.adminUserId,
         homeBaseAttached: route.homeBaseAttached,
         cipherId: device.cipherId,
@@ -1359,7 +1358,7 @@ export function isPpcsRouteReady(
 export function ppcsStreamLogSummary(
   model: string,
   route: PpcsStreamRoute | null,
-  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "batteryHistory" | "closeReason" | "commands" | "directLookupCandidates" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "incompleteAccessUnitBytes" | "incompleteAccessUnits" | "mediaStartAttempts" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "relayLookupCandidates" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "turnTokens" | "types" | "videoCodec" | "videoNalTypes" | "videoOutputFrames" | "videoResults">>,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "alternateLookupCandidates" | "batteryHistory" | "closeReason" | "commands" | "directLookupCandidates" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "incompleteAccessUnitBytes" | "incompleteAccessUnits" | "mediaStartAttempts" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "types" | "videoCodec" | "videoNalTypes" | "videoOutputFrames" | "videoResults">>,
   error?: unknown,
 ): string {
   const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
@@ -1380,8 +1379,7 @@ export function ppcsStreamLogSummary(
     `stage=${stage}`,
     `cam_id=${stats.camId}`,
     `direct_lookup_candidates=${stats.directLookupCandidates ?? 0}`,
-    `relay_lookup_candidates=${stats.relayLookupCandidates ?? 0}`,
-    `turn_tokens=${stats.turnTokens ?? 0}`,
+    `alternate_lookup_candidates=${stats.alternateLookupCandidates ?? 0}`,
     `data_datagrams=${stats.dataDatagrams}`,
     `frame_headers=${stats.frameHeaders}`,
     `video_frames=${stats.videoFrames}`,
