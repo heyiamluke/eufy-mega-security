@@ -279,6 +279,15 @@ test("records privacy-safe H.264 NAL types across output chunks", () => {
   assert.deepEqual(normalizer.nalTypes, [7, 8, 5]);
 });
 
+test("uses PPCS frame metadata when NAL bytes resemble the wrong codec", () => {
+  const normalizer = new PpcsVideoStreamNormalizer();
+
+  normalizer.push(Buffer.from([0, 0, 0, 1, 0x40, 0x01]), "h264");
+
+  assert.equal(normalizer.codec, "h264");
+  assert.deepEqual(normalizer.nalTypes, [0]);
+});
+
 test("records privacy-safe H.265 NAL types across output chunks", () => {
   const normalizer = new PpcsVideoStreamNormalizer();
 

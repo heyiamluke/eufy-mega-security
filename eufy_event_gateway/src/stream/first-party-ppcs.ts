@@ -4,8 +4,8 @@
  * PPCS is Eufy's peer-to-peer camera transport, not RTSP and not a Home
  * Assistant protocol. This class performs LAN/cloud lookup, `CAM_CHECK`,
  * command-frame reassembly, HomeBase gateway-info decryption, level-two key
- * setup, heartbeat, video-key exchange, Annex-B media output, and bounded
- * camera control writes. It consumes
+ * setup, heartbeat, video-key exchange, H.264 or H.265 Annex-B media output,
+ * and bounded camera control writes. It consumes
  * DSK/cipher material prepared by `EufyProvider` and exposes a readable byte
  * stream plus safe counters, so the rest of the gateway never handles PPCS
  * packet layout or camera encryption directly.
@@ -13,6 +13,7 @@
 import { createCipheriv, createDecipheriv, createECDH, createHmac, generateKeyPairSync, privateDecrypt, randomBytes, timingSafeEqual } from "node:crypto";
 import { createSocket, type RemoteInfo, type Socket } from "node:dgram";
 import { PassThrough } from "node:stream";
+import type { VideoCodec } from "../domain/types.js";
 import { PpcsAccessUnitAssembler } from "./ppcs-access-unit-assembler.js";
 
 // PPCS wraps command payloads in an XZYH header. The outer D1 datagrams and
@@ -314,7 +315,7 @@ export function ppcsCandidatePorts(port: number): number[] {
 }
 
 /**
- * Normalizes one camera's continuous H.264 byte stream to Annex-B framing.
+ * Normalizes one camera's continuous video byte stream to Annex-B framing.
  *
  * Length prefixes and NAL bodies may cross PPCS frame boundaries, so one
  * instance owns the unfinished prefix and body length for the entire session.
@@ -326,6 +327,7 @@ export class PpcsVideoStreamNormalizer {
   #nalBytesRemaining = 0;
   #nalScanTail = Buffer.alloc(0);
   readonly #nalHeaderBytes: number[] = [];
+  #declaredCodec: VideoCodec | null = null;
 
   /** The framing selected from the first usable bytes in this session. */
   get framing(): "unknown" | "annexb" | "length-prefixed" {
@@ -334,6 +336,7 @@ export class PpcsVideoStreamNormalizer {
 
   /** Return the codec announced by parameter-set NAL units, when observed. */
   get codec(): "h264" | "h265" | "unknown" {
+    if (this.#declaredCodec) return this.#declaredCodec;
     if (this.#nalHeaderBytes.some((byte) => {
       const type = (byte >> 1) & 0x3f;
       return type === 32 || type === 33 || type === 34;
@@ -354,7 +357,8 @@ export class PpcsVideoStreamNormalizer {
   }
 
   /** Convert the next ordered media bytes, retaining incomplete prefixes between calls. */
-  push(payload: Buffer): Buffer {
+  push(payload: Buffer, declaredCodec?: VideoCodec): Buffer {
+    if (declaredCodec && this.#declaredCodec === null) this.#declaredCodec = declaredCodec;
     let data = this.#prefix.length > 0 ? Buffer.concat([this.#prefix, payload]) : payload;
     this.#prefix = Buffer.alloc(0);
     if (this.#mode === "unknown") {
@@ -564,6 +568,12 @@ export class FirstPartyPpcsSession {
   #lookupTimer: ReturnType<typeof setInterval> | null = null;
   #selfAddress: { host: string; port: number } | null = null;
   #pendingControl: PendingControl | null = null;
+
+  /** Return the codec declared by received PPCS frame metadata, when known. */
+  get videoCodec(): VideoCodec | null {
+    const codec = this.#videoNormalizer.codec;
+    return codec === "unknown" ? null : codec;
+  }
 
   /** Create a session; no socket is bound until {@link start} runs. */
   constructor(options: PpcsCameraOptions) {
@@ -922,7 +932,8 @@ export class FirstPartyPpcsSession {
     }
     let wrote = false;
     for (const unit of units) {
-      const normalized = this.#videoNormalizer.push(unit.data);
+      const declaredCodec = ppcsVideoCodec(unit.streamType);
+      const normalized = this.#videoNormalizer.push(unit.data, declaredCodec ?? undefined);
       this.stats.videoCodec = this.#videoNormalizer.codec;
       this.stats.videoNalTypes = [...this.#videoNormalizer.nalTypes];
       if (normalized.length === 0) {
@@ -1062,6 +1073,12 @@ export class FirstPartyPpcsSession {
   #send(type: Buffer, payload: Buffer, address: { host: string; port: number }): void {
     this.#socket.send(Buffer.concat([type, u16(payload.length), payload]), address.port, address.host);
   }
+}
+
+function ppcsVideoCodec(streamType: number): VideoCodec | null {
+  if (streamType === 1) return "h264";
+  if (streamType === 2) return "h265";
+  return null;
 }
 
 function voidPayload(channel: number): Buffer { const result = Buffer.alloc(10); result.writeUInt16LE(1, 4); result[6] = channel; return result; }

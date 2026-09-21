@@ -13,10 +13,11 @@ import {
 
 const START_CODE = Buffer.from([0, 0, 0, 1]);
 
-function frame(body: Buffer, options: { sequence?: number; timestamp?: number; keyframe?: boolean } = {}): Buffer {
+function frame(body: Buffer, options: { sequence?: number; timestamp?: number; keyframe?: boolean; streamType?: number } = {}): Buffer {
   const header = Buffer.alloc(22);
   header.writeUInt32LE(body.length, 0);
   header[4] = options.keyframe === false ? 0 : 1;
+  header[5] = options.streamType ?? 1;
   header.writeUInt16LE(options.sequence ?? 1, 6);
   header.writeInt16LE(1920, 10);
   header.writeInt16LE(1080, 12);
@@ -29,6 +30,7 @@ test("parses the repeated access-unit identity and per-chunk length", () => {
   assert.deepEqual(parsePpcsVideoFrameHeader(payload), {
     payloadLength: PPCS_STATION_CHUNK_BYTES,
     keyframe: true,
+    streamType: 1,
     sequence: 7,
     width: 1920,
     height: 1080,
@@ -58,6 +60,18 @@ test("joins a full chunk and a continuation into one access unit", () => {
   assert.equal(units.length, 1);
   assert.deepEqual(units[0]?.data, Buffer.concat([head, tail]));
   assert.equal(units[0]?.keyframe, true);
+  assert.equal(units[0]?.streamType, 1);
+});
+
+test("preserves the declared codec across split access-unit chunks", () => {
+  const head = Buffer.concat([START_CODE, Buffer.alloc(PPCS_STATION_CHUNK_BYTES - 4, 0x11)]);
+  const tail = Buffer.alloc(3, 0x22);
+  const assembler = new PpcsAccessUnitAssembler();
+
+  assembler.push(frame(head, { streamType: 2 }), (payload) => payload.subarray(22));
+  const units = assembler.push(frame(tail, { streamType: 2 }), (payload) => payload.subarray(22));
+
+  assert.equal(units[0]?.streamType, 2);
 });
 
 test("accepts a continuation without an Annex-B start code", () => {

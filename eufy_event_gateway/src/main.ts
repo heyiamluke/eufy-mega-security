@@ -131,8 +131,8 @@ const providerEvents: ProviderEvents = {
   deviceCapabilities(manifests) {
     state.updateDeviceCapabilities(manifests);
   },
-  streamStarted(serial, video) {
-    if (state.hasCamera(serial)) streams.attachSource(serial, video);
+  streamStarted(serial, video, codecHint) {
+    if (state.hasCamera(serial)) streams.attachSource(serial, video, codecHint);
   },
   streamStopped(serial) {
     if (state.hasCamera(serial)) streams.markStopped(serial);

@@ -79,6 +79,17 @@ test("uses bounded opening bytes when an H.265 camera announces only VPS", () =>
   assert.deepEqual(cache.bootstrap, vendorHeaders);
 });
 
+test("uses the provider codec marker instead of a conflicting NAL-byte guess", () => {
+  const cache = new VideoParameterSetCache();
+  const h264Sps = annexBNal(0x67, 0x42, 0x00, 0x1f);
+  const h264Pps = annexBNal(0x68, 0xce, 0x06);
+
+  cache.push(Buffer.concat([annexBNal(0x40, 0x01), h264Sps, h264Pps, annexBNal(0x65, 0x88)]), "h264");
+
+  assert.equal(cache.codec, "h264");
+  assert.deepEqual(cache.bootstrap, Buffer.concat([h264Sps, h264Pps]));
+});
+
 test("bootstraps first and repeat HTTP viewers with SPS and PPS", async () => {
   const state = new GatewayState();
   state.registerCamera(camera);

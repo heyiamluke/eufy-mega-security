@@ -2,8 +2,8 @@
  * Owns the gateway's camera-media lifecycle above a provider byte stream.
  *
  * A camera source opens only for the first viewer or capture request. This
- * manager shares that source, fans H.264 to HTTP viewers, feeds FFmpeg for a
- * JPEG frame or bounded MP4, retains the resulting snapshot, cancels idle
+ * manager shares that source, fans Annex-B video to HTTP viewers, feeds
+ * FFmpeg for a JPEG frame or bounded MP4, retains the resulting snapshot, cancels idle
  * sources after a grace period, and enforces the maximum stream lifetime. It
  * knows media lifecycle and process management, but not Mega login or PPCS
  * packet construction.
@@ -14,7 +14,7 @@ import type { ServerResponse } from "node:http";
 import type { Readable } from "node:stream";
 
 import { GatewayState } from "../domain/gateway-state.js";
-import type { GatewayEvent, SnapshotInfo } from "../domain/types.js";
+import type { GatewayEvent, SnapshotInfo, VideoCodec } from "../domain/types.js";
 import { SnapshotStore } from "../storage/snapshot-store.js";
 import { JpegParser } from "./jpeg-parser.js";
 
@@ -49,7 +49,6 @@ interface Recording {
   reject: (error: Error) => void;
 }
 
-type VideoCodec = "h264" | "h265";
 type ClipRemuxer = (video: Buffer, codec: VideoCodec) => Promise<Buffer>;
 
 const MAX_RECORDING_BYTES = 256 * 1024 * 1024;
@@ -96,9 +95,10 @@ export class VideoParameterSetCache {
       : null;
   }
 
-  /** Inspect the next ordered stream bytes and retain complete parameter-set NAL units. */
-  push(chunk: Buffer): void {
-    if (this.#codec === null) {
+  /** Inspect ordered bytes using provider metadata when it identifies the codec. */
+  push(chunk: Buffer, declaredCodec?: VideoCodec | null): void {
+    if (declaredCodec && this.#codec === null) this.#codec = declaredCodec;
+    if (this.bootstrap === null) {
       const opening = Buffer.concat([this.#opening, chunk]);
       this.#opening = opening.length <= MAX_PARAMETER_SET_SCAN_BYTES
         ? opening
@@ -280,8 +280,8 @@ export class LiveStreamManager extends EventEmitter {
     }
   }
 
-  /** Attach provider bytes to all current viewers and FFmpeg consumers. */
-  attachSource(serial: string, source: Readable): void {
+  /** Attach provider bytes and its live codec marker to all current consumers. */
+  attachSource(serial: string, source: Readable, codecHint: () => VideoCodec | null = () => null): void {
     const session = this.#session(serial);
     this.#cleanupSource(session);
     const generation = session.generation;
@@ -293,7 +293,7 @@ export class LiveStreamManager extends EventEmitter {
 
     source.on("data", (chunk: Buffer) => {
       if (session.generation !== generation) return;
-      session.parameterSets.push(chunk);
+      session.parameterSets.push(chunk, codecHint());
       const bootstrap = session.parameterSets.bootstrap;
       const startup = session.parameterSets.startup;
       const codec = session.parameterSets.codec;
