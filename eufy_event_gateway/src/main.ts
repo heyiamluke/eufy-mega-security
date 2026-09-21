@@ -65,6 +65,13 @@ if (config.provider === "simulated") {
 }
 
 const streams = new LiveStreamManager(state, snapshots, provider, config.streamGraceMilliseconds);
+streams.on("ffmpeg-error", (detail: string) => {
+  logger.warn("ffmpeg_error", `Camera media conversion reported an error: ${detail}`);
+});
+streams.on("warning", (error: unknown) => {
+  const detail = error instanceof Error ? error.message : "Unknown media pipeline warning";
+  logger.warn("media_pipeline_warning", `Camera media pipeline reported a recoverable warning: ${detail}`);
+});
 const startupSnapshots = new StartupSnapshotWarmup(
   (serial) => state.hasCamera(serial) && state.getCamera(serial).snapshot !== null,
   (serial) => streams.captureStartupSnapshot(serial),

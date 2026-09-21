@@ -588,7 +588,9 @@ export class LiveStreamManager extends EventEmitter {
       }
       this.#writeViewerChunk(session, chunk);
     });
-    process.stderr.on("data", (chunk: Buffer) => this.emit("ffmpeg-error", chunk.toString("utf8").trim()));
+    process.stderr.on("data", (chunk: Buffer) => {
+      this.emit("ffmpeg-error", `pipeline=viewer ${chunk.toString("utf8").trim()}`);
+    });
     process.stdin.on("error", (error) => {
       if (session.generation === generation) this.emit("warning", error);
     });
@@ -640,7 +642,9 @@ export class LiveStreamManager extends EventEmitter {
         }).catch((error: unknown) => this.emit("warning", error));
       }
     });
-    process.stderr.on("data", (chunk: Buffer) => this.emit("ffmpeg-error", chunk.toString("utf8").trim()));
+    process.stderr.on("data", (chunk: Buffer) => {
+      this.emit("ffmpeg-error", `pipeline=snapshot ${chunk.toString("utf8").trim()}`);
+    });
     return process;
   }
 
