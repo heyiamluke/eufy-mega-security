@@ -4,6 +4,8 @@ schema: 1
 id: t85d2
 name: "Smart Lock C34"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "C34"
 models:

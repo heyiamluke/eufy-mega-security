@@ -3,6 +3,9 @@
 schema: 1
 id: t8150
 name: 4G LTE Starlight Camera (S230)
+category: camera
+integration:
+  status: recognised
 models:
   - T8150
   - T8151

@@ -4,6 +4,8 @@ schema: 1
 id: t87a0
 name: Smart Display E10
 category: hub_adjacent
+integration:
+  status: recognised
 aliases:
   - eufy Smart Display
 models:

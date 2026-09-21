@@ -4,6 +4,8 @@ schema: 1
 id: t8531
 name: Video Smart Lock E330
 category: smart_lock
+integration:
+  status: recognised
 models:
   - T8531
   - E8531JY1

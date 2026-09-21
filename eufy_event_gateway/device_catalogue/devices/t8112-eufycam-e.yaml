@@ -3,6 +3,9 @@
 schema: 1
 id: t8112
 name: eufyCam E
+category: camera
+integration:
+  status: recognised
 models:
   - T8112
 device_type: 4

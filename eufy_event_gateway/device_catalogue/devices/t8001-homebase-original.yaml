@@ -4,6 +4,8 @@ schema: 1
 id: t8001
 name: HomeBase (original)
 category: homebase
+integration:
+  status: recognised
 aliases:
   - HomeBase 1
   - Kickstarter HomeBase

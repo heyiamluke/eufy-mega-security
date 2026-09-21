@@ -3,6 +3,9 @@
 schema: 1
 id: t8173
 name: SoloCam E42
+category: camera
+integration:
+  status: recognised
 models:
   - T8173
 device_type: 98

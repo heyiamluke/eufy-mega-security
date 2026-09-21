@@ -3,6 +3,9 @@
 schema: 1
 id: t8424
 name: Floodlight Cam 2 / E221
+category: camera
+integration:
+  status: recognised
 models:
   - T8424
 device_type: 39

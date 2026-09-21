@@ -3,6 +3,10 @@
 schema: 1
 id: t8141
 name: eufyCam 2C Pro (S220)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8141
   - T8142

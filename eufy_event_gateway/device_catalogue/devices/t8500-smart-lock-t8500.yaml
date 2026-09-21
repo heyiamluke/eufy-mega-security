@@ -4,6 +4,8 @@ schema: 1
 id: t8500
 name: "Smart Lock T8500"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "Smart Lock with Wi-Fi Bridge"
   - "Smart Lock Front Door"

@@ -3,6 +3,9 @@
 schema: 1
 id: t8453-e120
 name: Garage-Control Cam E120
+category: camera
+integration:
+  status: recognised
 models:
   - T8453
 device_type: 133

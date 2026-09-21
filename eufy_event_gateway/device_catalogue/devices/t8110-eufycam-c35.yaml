@@ -3,6 +3,9 @@
 schema: 1
 id: t8110
 name: eufyCam C35
+category: camera
+integration:
+  status: recognised
 models:
   - T8110
 device_type: 10035

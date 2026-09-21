@@ -7,6 +7,23 @@ marketing specifications and general product observations.
 Every device record uses the same compact YAML format and is validated by the
 catalogue check.
 
+Every record also has an `integration` status:
+
+- `recognised` identifies the product without creating Home Assistant entities.
+- `ready_to_test` admits it through an implemented handler but still needs
+  focused real-hardware confirmation.
+- `supported` admits it through an implemented handler with confirmed working
+  behaviour.
+
+`ready_to_test` and `supported` records name their `camera`, `sensor`, or
+`homebase` handler. Runtime identity and admission tables are generated from
+these fields, so do not maintain a separate model or device-type allowlist.
+
+Use `alternate_device_types` only when the same retail model has credible
+evidence for another numeric inventory type. A `declared`, `mixed`, or `unknown`
+alternate is recognised for diagnostics but is not admitted. A `reported` or
+`tested` alternate inherits the record's implemented handler.
+
 Use `category` when it helps distinguish cameras, doorbells, HomeBases, NVRs,
 locks, sensors, sirens, keypads, remotes, safes, trackers, chimes, and other
 accessories. Put alternate product names under `aliases` and model or product

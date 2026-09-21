@@ -4,6 +4,9 @@ schema: 1
 id: t8030
 name: HomeBase 3 (S380)
 category: homebase
+integration:
+  status: supported
+  handler: homebase
 aliases:
   - HomeBase 3
   - HomeBase S380

@@ -4,6 +4,8 @@ schema: 1
 id: t8020
 name: "Wi-Fi Doorbell Chime"
 category: chime
+integration:
+  status: recognised
 aliases:
   - "Wi-Fi Doorbell Chime for Battery Video Doorbell"
 models:

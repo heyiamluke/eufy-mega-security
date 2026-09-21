@@ -3,6 +3,9 @@
 schema: 1
 id: t8426
 name: Floodlight Camera E30
+category: camera
+integration:
+  status: recognised
 models:
   - T8426
   - T8426121

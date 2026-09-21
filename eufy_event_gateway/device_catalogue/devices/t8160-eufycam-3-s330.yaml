@@ -3,6 +3,10 @@
 schema: 1
 id: t8160
 name: eufyCam 3 (S330)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8160
 device_type: 19

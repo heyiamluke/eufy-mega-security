@@ -4,6 +4,8 @@ schema: 1
 id: t8520
 name: "Smart Lock Touch & Wi-Fi"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "Smart Lock Touch & Wifi"
 models:

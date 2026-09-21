@@ -4,6 +4,8 @@ schema: 1
 id: t90k0
 name: "Key Fob E10"
 category: remote
+integration:
+  status: recognised
 models:
   - T90K0
   - T90K0121

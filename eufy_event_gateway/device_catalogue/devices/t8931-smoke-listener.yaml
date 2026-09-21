@@ -4,6 +4,8 @@ schema: 1
 id: t8931
 name: "Smoke Listener"
 category: security_sensor
+integration:
+  status: recognised
 aliases:
   - "Smoke and Carbon Monoxide Alarm Listener"
 models:

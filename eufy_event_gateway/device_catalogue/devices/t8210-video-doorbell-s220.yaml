@@ -4,6 +4,9 @@ schema: 1
 id: t8210
 name: Video Doorbell S220
 category: doorbell
+integration:
+  status: supported
+  handler: camera
 models:
   - T8210
   - T8210C

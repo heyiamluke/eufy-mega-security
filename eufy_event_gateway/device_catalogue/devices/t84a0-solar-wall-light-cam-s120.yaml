@@ -3,6 +3,10 @@
 schema: 1
 id: t84a0
 name: Solar Wall Light Cam S120
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T84A0
   - T81A0

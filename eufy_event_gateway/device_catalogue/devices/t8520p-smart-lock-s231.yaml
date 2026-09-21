@@ -4,6 +4,8 @@ schema: 1
 id: t8520p
 name: "Smart Lock S231"
 category: smart_lock
+integration:
+  status: recognised
 models:
   - T8520P
 device_type: 51

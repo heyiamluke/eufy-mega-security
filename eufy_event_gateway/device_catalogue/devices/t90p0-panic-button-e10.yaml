@@ -4,6 +4,8 @@ schema: 1
 id: t90p0
 name: "Panic Button E10"
 category: remote
+integration:
+  status: recognised
 models:
   - T90P0
   - T90P0121

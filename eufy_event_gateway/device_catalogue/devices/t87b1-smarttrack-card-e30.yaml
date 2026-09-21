@@ -4,6 +4,8 @@ schema: 1
 id: t87b1
 name: "SmartTrack Card E30"
 category: tracker
+integration:
+  status: recognised
 models:
   - T87B1
   - T87B1011

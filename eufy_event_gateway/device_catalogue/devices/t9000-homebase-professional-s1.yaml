@@ -4,6 +4,8 @@ schema: 1
 id: t9000
 name: HomeBase Professional S1
 category: homebase
+integration:
+  status: recognised
 aliases:
   - HomeBase Professional
   - HomeBase Pro

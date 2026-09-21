@@ -3,6 +3,9 @@
 schema: 1
 id: t8b00
 name: SoloCam C210
+category: camera
+integration:
+  status: recognised
 models:
   - T8B00
 device_type: 64

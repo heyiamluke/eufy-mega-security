@@ -4,6 +4,8 @@ schema: 1
 id: t8026
 name: "Video Doorbell Chime 2"
 category: chime
+integration:
+  status: recognised
 aliases:
   - "Doorbell Chime 2"
 models:

@@ -3,6 +3,10 @@
 schema: 1
 id: t8416
 name: Indoor Cam S350
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8416
   - T8416121

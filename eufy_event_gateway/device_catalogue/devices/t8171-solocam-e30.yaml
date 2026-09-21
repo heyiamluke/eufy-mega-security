@@ -3,6 +3,10 @@
 schema: 1
 id: t8171
 name: SoloCam E30
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8171
 device_type: 88
@@ -40,6 +44,17 @@ capabilities:
           status: declared
       read:
         parameter: 1138
+    streaming_quality:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1020
+      values:
+        "0": "Auto"
+        "1": "HD (720P)"
+        "2": "Full HD (1080P)"
+        "3": "Max"
   controls:
     enabled:
       connections:

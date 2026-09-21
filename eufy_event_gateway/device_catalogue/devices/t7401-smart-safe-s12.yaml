@@ -4,6 +4,8 @@ schema: 1
 id: t7401
 name: "Smart Safe S12"
 category: smart_safe
+integration:
+  status: recognised
 models:
   - T7401
 device_type: 141

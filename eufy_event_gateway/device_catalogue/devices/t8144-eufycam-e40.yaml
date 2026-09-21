@@ -3,6 +3,10 @@
 schema: 1
 id: t8144
 name: eufyCam E40
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8144
 device_type: 49

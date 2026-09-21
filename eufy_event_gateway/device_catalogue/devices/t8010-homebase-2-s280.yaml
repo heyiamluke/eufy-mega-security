@@ -4,6 +4,9 @@ schema: 1
 id: t8010
 name: HomeBase 2 (S280)
 category: homebase
+integration:
+  status: supported
+  handler: homebase
 aliases:
   - HomeBase 2
   - HomeBase S280

@@ -3,6 +3,10 @@
 schema: 1
 id: t8425
 name: Floodlight Cam E340
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8425
   - T8425121

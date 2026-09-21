@@ -7,8 +7,10 @@
     "schema",
     "id",
     "name",
+    "category",
     "models",
     "device_type",
+    "integration",
     "capabilities"
   ],
   "additionalProperties": false,
@@ -43,6 +45,9 @@
         "passive_accessory"
       ]
     },
+    "integration": {
+      "$ref": "#/$defs/integration"
+    },
     "aliases": {
       "type": "array",
       "items": {
@@ -64,6 +69,35 @@
         "integer",
         "null"
       ]
+    },
+    "alternate_device_types": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "value",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "tested",
+              "reported",
+              "mixed",
+              "declared",
+              "unknown"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     "notes": {
       "type": "string",
@@ -112,6 +146,48 @@
     }
   },
   "$defs": {
+    "integration": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "supported",
+            "ready_to_test",
+            "recognised"
+          ]
+        },
+        "handler": {
+          "enum": [
+            "camera",
+            "sensor",
+            "homebase"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "supported",
+                  "ready_to_test"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "handler"
+            ]
+          }
+        }
+      ]
+    },
     "status": {
       "enum": [
         "tested",

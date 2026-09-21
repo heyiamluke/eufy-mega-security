@@ -4,6 +4,8 @@ schema: 1
 id: t8506
 name: "Smart Lock C220"
 category: smart_lock
+integration:
+  status: recognised
 models:
   - T8506
   - T8506111

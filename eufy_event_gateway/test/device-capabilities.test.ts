@@ -9,10 +9,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { GatewayState } from "../src/domain/gateway-state.js";
+import { NON_CAMERA_DEVICE_TYPES } from "../src/provider/camera-capability-core.js";
 import { describeDeviceCapabilities, deviceCapabilityLogSummaries } from "../src/provider/device-capabilities-core.js";
 import { DOORBELL_CAPABILITY_CORE } from "../src/provider/doorbell-capability-core.js";
-import { HOMEBASE_CAPABILITY_CORE } from "../src/provider/homebase-capability-core.js";
-import { SENSOR_CAPABILITY_CORE } from "../src/provider/sensor-capability-core.js";
+import { HOMEBASE_CAPABILITY_CORE, HOMEBASE_DEVICE_TYPES } from "../src/provider/homebase-capability-core.js";
+import { SENSOR_CAPABILITY_CORE, SENSOR_DEVICE_TYPES } from "../src/provider/sensor-capability-core.js";
 
 const noSupport = { homeBaseSupported: false, homeBaseRouteReady: false, doorbellSupported: false, cameraStreamSupported: false } as const;
 
@@ -22,6 +23,12 @@ test("keeps published non-camera catalogues small and unique", () => {
   assert.equal(new Set(entries.map(({ id }) => id)).size, entries.length);
   assert.equal(entries.every(({ evidenceParamIds }) => evidenceParamIds.every((id) => Number.isSafeInteger(id) && id >= 0 && id <= 65_535)), true);
   assert.equal(SENSOR_CAPABILITY_CORE.every(({ gatewaySupport }) => gatewaySupport === "implemented"), true);
+});
+
+test("uses catalogue admission for sensors and catalogue recognition for HomeBases", () => {
+  assert.deepEqual([...SENSOR_DEVICE_TYPES], [2, 10, 20, 126, 127]);
+  assert.equal(HOMEBASE_DEVICE_TYPES.has(28), true);
+  assert.equal(NON_CAMERA_DEVICE_TYPES.has(211), true);
 });
 
 test("admits a contact sensor only for its reported implemented fields", () => {

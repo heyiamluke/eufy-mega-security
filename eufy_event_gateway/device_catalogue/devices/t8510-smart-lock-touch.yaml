@@ -4,6 +4,8 @@ schema: 1
 id: t8510
 name: "Smart Lock Touch"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "Smart Lock Touch with Wi-Fi Bridge"
 models:

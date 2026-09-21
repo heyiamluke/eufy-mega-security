@@ -3,6 +3,9 @@
 schema: 1
 id: t8440
 name: Outdoor Cam 1080p (no light)
+category: camera
+integration:
+  status: recognised
 models:
   - T8440
 device_type: 44

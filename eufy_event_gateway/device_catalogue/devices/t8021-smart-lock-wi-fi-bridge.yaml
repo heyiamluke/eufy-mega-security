@@ -4,6 +4,8 @@ schema: 1
 id: t8021
 name: Smart Lock Wi-Fi Bridge
 category: hub_adjacent
+integration:
+  status: recognised
 aliases:
   - Wi-Fi Bridge
 models:

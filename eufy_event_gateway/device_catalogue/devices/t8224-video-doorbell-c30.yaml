@@ -3,9 +3,18 @@
 schema: 1
 id: t8224
 name: Video Doorbell C30
+category: doorbell
+integration:
+  status: supported
+  handler: camera
 models:
   - T8224
 device_type: 96
+alternate_device_types:
+  - value: 95
+    status: declared
+    notes: Other device data associates this model family with type 95, while community inventory reports type 96.
+notes: Community inventory reports type 96, while other device data associates this model family with type 95. The mapping may vary by hardware revision.
 capabilities:
   readable:
     battery_level:

@@ -4,6 +4,8 @@ schema: 1
 id: t8501
 name: "Smart Lock D20"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "Smart Lock Solo"
   - "WiFi Solo Door Lock"

@@ -4,6 +4,9 @@ schema: 1
 id: t90e0
 name: "Entry Sensor E20"
 category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
 models:
   - T90E0
   - T90E0121

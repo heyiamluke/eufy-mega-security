@@ -4,6 +4,8 @@ schema: 1
 id: t8790
 name: "SmartDrop S300"
 category: smart_drop
+integration:
+  status: recognised
 aliases:
   - "Smart Drop S300"
   - "SmartDrop S300 Security Delivery Box"

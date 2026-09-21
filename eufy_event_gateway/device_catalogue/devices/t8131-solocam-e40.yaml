@@ -3,6 +3,9 @@
 schema: 1
 id: t8131
 name: SoloCam E40
+category: camera
+integration:
+  status: recognised
 models:
   - T8131
 device_type: 33

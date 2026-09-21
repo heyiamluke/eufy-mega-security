@@ -3,6 +3,10 @@
 schema: 1
 id: t8214
 name: Video Doorbell E340 (Battery)
+category: doorbell
+integration:
+  status: supported
+  handler: camera
 models:
   - T8214
   - T8214111

@@ -3,6 +3,10 @@
 schema: 1
 id: t8114
 name: eufyCam 2
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8114
 device_type: 9

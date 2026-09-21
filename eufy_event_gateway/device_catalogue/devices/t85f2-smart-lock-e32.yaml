@@ -4,6 +4,8 @@ schema: 1
 id: t85f2
 name: "Smart Lock E32"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "FamiLock E32"
 models:

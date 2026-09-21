@@ -3,6 +3,9 @@
 schema: 1
 id: t8420-variant-6
 name: Floodlight Cam (T8420X hardware variant)
+category: camera
+integration:
+  status: recognised
 models:
   - T8420
 device_type: 3

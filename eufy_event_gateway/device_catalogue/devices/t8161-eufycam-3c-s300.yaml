@@ -3,6 +3,10 @@
 schema: 1
 id: t8161
 name: eufyCam 3C (S300)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8161
 device_type: 23

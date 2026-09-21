@@ -4,6 +4,8 @@ schema: 1
 id: t90f0
 name: "Flood and Freeze Sensor E20"
 category: security_sensor
+integration:
+  status: recognised
 models:
   - T90F0
   - T90F0121

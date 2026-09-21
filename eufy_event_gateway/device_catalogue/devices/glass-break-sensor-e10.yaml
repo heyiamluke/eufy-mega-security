@@ -4,6 +4,8 @@ schema: 1
 id: glass-break-sensor-e10
 name: "Glass Break Sensor E10"
 category: security_sensor
+integration:
+  status: recognised
 models: []
 device_type: null
 notes: "The retail model code is not confirmed. No integration-usable properties or controls are confirmed yet."

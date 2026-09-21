@@ -3,6 +3,10 @@
 schema: 1
 id: t8410c
 name: Indoor Cam Pan & Tilt 2K (T8410C)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8410C
   - T8410C21

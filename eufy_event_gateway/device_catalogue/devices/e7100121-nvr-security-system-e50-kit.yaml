@@ -4,6 +4,8 @@ schema: 1
 id: e7100121
 name: NVR Security System E50 (kit)
 category: nvr
+integration:
+  status: recognised
 aliases:
   - NVR E50
   - NVR Security System E50

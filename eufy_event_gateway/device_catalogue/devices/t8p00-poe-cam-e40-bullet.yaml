@@ -3,6 +3,9 @@
 schema: 1
 id: t8p00
 name: PoE Cam E40 (bullet)
+category: camera
+integration:
+  status: recognised
 models:
   - T8P00
   - T8P00121

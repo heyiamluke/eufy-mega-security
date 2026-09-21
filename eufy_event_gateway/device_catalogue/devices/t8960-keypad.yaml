@@ -4,6 +4,8 @@ schema: 1
 id: t8960
 name: "Keypad"
 category: keypad
+integration:
+  status: recognised
 aliases:
   - "eufy Security Keypad"
   - "alarm keypad"

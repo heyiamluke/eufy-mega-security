@@ -3,6 +3,9 @@
 schema: 1
 id: t8414
 name: Indoor Cam Mini 2K
+category: camera
+integration:
+  status: recognised
 models:
   - T8414
 device_type: 100

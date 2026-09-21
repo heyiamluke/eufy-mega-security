@@ -4,10 +4,11 @@ schema: 1
 id: t7402
 name: "Smart Safe T7402"
 category: smart_safe
+integration:
+  status: recognised
 models:
   - T7402
-device_type: null
-notes: "The numeric device type mapping is unconfirmed, so device_type remains null."
+device_type: 142
 capabilities:
   readable:
     battery_level:

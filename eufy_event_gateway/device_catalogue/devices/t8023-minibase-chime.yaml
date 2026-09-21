@@ -4,6 +4,8 @@ schema: 1
 id: t8023
 name: MiniBase Chime
 category: hub_adjacent
+integration:
+  status: recognised
 aliases:
   - Minibase Chime
 models:

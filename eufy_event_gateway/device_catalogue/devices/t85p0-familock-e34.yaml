@@ -4,6 +4,8 @@ schema: 1
 id: t85p0
 name: "FamiLock E34"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "E34"
 models:

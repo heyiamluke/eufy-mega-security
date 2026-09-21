@@ -3,6 +3,10 @@
 schema: 1
 id: t8134
 name: SoloCam S220
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8134
 device_type: 63

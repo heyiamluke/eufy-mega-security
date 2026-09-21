@@ -4,6 +4,9 @@ schema: 1
 id: t817l
 name: Wired Cam C31
 category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T817L
   - T817L121

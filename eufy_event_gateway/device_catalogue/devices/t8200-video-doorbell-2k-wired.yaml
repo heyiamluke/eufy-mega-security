@@ -3,6 +3,10 @@
 schema: 1
 id: t8200-standard
 name: Video Doorbell 2K (Wired)
+category: doorbell
+integration:
+  status: supported
+  handler: camera
 models:
   - T8200
 device_type: 5

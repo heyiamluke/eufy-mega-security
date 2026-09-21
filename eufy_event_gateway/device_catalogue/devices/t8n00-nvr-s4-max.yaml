@@ -4,6 +4,8 @@ schema: 1
 id: t8n00
 name: NVR S4 Max
 category: nvr
+integration:
+  status: recognised
 aliases:
   - NVR S4
   - S4 8-Channel NVR

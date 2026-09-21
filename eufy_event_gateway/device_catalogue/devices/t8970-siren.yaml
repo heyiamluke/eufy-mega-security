@@ -4,6 +4,8 @@ schema: 1
 id: t8970
 name: "Siren"
 category: siren
+integration:
+  status: recognised
 aliases:
   - "Outdoor/Indoor Siren"
   - "eufy Security Siren"

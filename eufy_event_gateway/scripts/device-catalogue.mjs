@@ -1,17 +1,18 @@
 /**
  * Validates and queries the contributor-maintained device capability catalogue.
  *
- * The command reads repository data only. Runtime admission remains owned by
- * the provider capability modules, which can adopt catalogue facts explicitly.
+ * The command validates human-edited records and generates the immutable
+ * identity and admission tables consumed by provider capability modules.
  */
 
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 const catalogueDirectory = join(dirname(fileURLToPath(import.meta.url)), "..", "device_catalogue");
 const devicesDirectory = join(catalogueDirectory, "devices");
+const generatedRuntimeFile = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "provider", "devices", "generated-catalogue.ts");
 const forbiddenReferencePattern = /sdk|eufy-security-client|mega-yfue|source_repo|file_line|verified_by|xref_mega|build\/http\/types\.js|src\/model\/|(?:no)?lib[0-9]|\blibrary\b/i;
 const legacyIdentifierPattern = /(?:^|[-_])(?:no)?lib(?:[0-9_]|$)/i;
 const deviceExtensions = [".yaml"];
@@ -84,19 +85,36 @@ function validateDevice(file, source, record, ids) {
 function validateSimplifiedDevice(file, record) {
   const errors = [];
   const allowedTopLevel = new Set([
-    "schema", "id", "name", "category", "aliases", "models", "device_type", "notes", "capabilities", "ignored",
+    "schema", "id", "name", "category", "integration", "aliases", "models", "device_type", "alternate_device_types", "notes", "capabilities", "ignored",
   ]);
   for (const key of Object.keys(record)) {
     if (!allowedTopLevel.has(key)) errors.push(`${file}: unknown top-level field ${key}`);
   }
   if (typeof record.name !== "string" || record.name.length === 0) errors.push(`${file}: missing name`);
-  if (record.category !== undefined
-    && ![
+  if (![
       "camera", "doorbell", "homebase", "hub_adjacent", "nvr", "smart_lock",
       "security_sensor", "siren", "keypad", "remote", "smart_drop", "smart_safe",
       "tracker", "chime", "passive_accessory",
     ].includes(record.category)) {
     errors.push(`${file}: category is invalid`);
+  }
+  const integration = record.integration;
+  if (!integration || typeof integration !== "object" || Array.isArray(integration)) {
+    errors.push(`${file}: integration must be a map`);
+  } else {
+    const allowedIntegrationFields = new Set(["status", "handler"]);
+    for (const key of Object.keys(integration)) {
+      if (!allowedIntegrationFields.has(key)) errors.push(`${file}: integration has unknown field ${key}`);
+    }
+    if (!["supported", "ready_to_test", "recognised"].includes(integration.status)) {
+      errors.push(`${file}: integration status is invalid`);
+    }
+    if (integration.handler !== undefined && !["camera", "sensor", "homebase"].includes(integration.handler)) {
+      errors.push(`${file}: integration handler is invalid`);
+    }
+    if (["supported", "ready_to_test"].includes(integration.status) && integration.handler === undefined) {
+      errors.push(`${file}: ${integration.status} integration must name its handler`);
+    }
   }
   if (record.aliases !== undefined
     && (!Array.isArray(record.aliases)
@@ -109,6 +127,28 @@ function validateSimplifiedDevice(file, record) {
   }
   if (record.device_type !== null && !Number.isSafeInteger(record.device_type)) {
     errors.push(`${file}: device_type must be an integer or null`);
+  }
+  if (record.alternate_device_types !== undefined) {
+    if (!Array.isArray(record.alternate_device_types)) {
+      errors.push(`${file}: alternate_device_types must be an array`);
+    } else {
+      const values = new Set();
+      for (const alternate of record.alternate_device_types) {
+        if (!alternate || typeof alternate !== "object" || Array.isArray(alternate)) {
+          errors.push(`${file}: alternate device type must be a map`);
+          continue;
+        }
+        if (!Number.isSafeInteger(alternate.value)) errors.push(`${file}: alternate device type value must be an integer`);
+        if (alternate.value === record.device_type || values.has(alternate.value)) errors.push(`${file}: alternate device type values must be unique`);
+        values.add(alternate.value);
+        if (!["tested", "reported", "mixed", "declared", "unknown"].includes(alternate.status)) {
+          errors.push(`${file}: alternate device type status is invalid`);
+        }
+        for (const key of Object.keys(alternate)) {
+          if (!["value", "status", "notes"].includes(key)) errors.push(`${file}: alternate device type has unknown field ${key}`);
+        }
+      }
+    }
   }
   if (record.notes !== undefined && (typeof record.notes !== "string" || record.notes.length === 0)) {
     errors.push(`${file}: notes must be a non-empty string`);
@@ -262,6 +302,92 @@ function countSelectableValues(record) {
   );
 }
 
+function runtimeModule(devices) {
+  const records = devices
+    .flatMap(({ record }) => {
+      const identity = {
+        id: record.id,
+        name: record.name,
+        category: record.category,
+        models: record.models,
+      };
+      const primary = Number.isSafeInteger(record.device_type) ? [{
+        ...identity,
+        deviceType: record.device_type,
+        status: record.integration.status,
+        handler: record.integration.handler ?? null,
+      }] : [];
+      const alternates = (record.alternate_device_types ?? []).map((alternate) => ({
+        ...identity,
+        deviceType: alternate.value,
+        status: ["tested", "reported"].includes(alternate.status) ? record.integration.status : "recognised",
+        handler: ["tested", "reported"].includes(alternate.status) ? record.integration.handler ?? null : null,
+      }));
+      return [...primary, ...alternates];
+    })
+    .sort((left, right) => left.deviceType - right.deviceType || left.id.localeCompare(right.id));
+  const typesForHandler = (handler) => [...new Set(records
+    .filter(({ status, handler: candidate }) => candidate === handler && status !== "recognised")
+    .map(({ deviceType }) => deviceType))].sort((left, right) => left - right);
+  const knownNonCameraTypes = [...new Set(records
+    .filter(({ category }) => !["camera", "doorbell"].includes(category))
+    .map(({ deviceType }) => deviceType))]
+    .filter((deviceType) => !records.some(({ category, deviceType: candidate }) => candidate === deviceType && ["camera", "doorbell"].includes(category)))
+    .sort((left, right) => left - right);
+  const knownCameraTypes = [...new Set(records
+    .filter(({ category }) => ["camera", "doorbell"].includes(category))
+    .map(({ deviceType }) => deviceType))].sort((left, right) => left - right);
+  const knownHomeBaseTypes = [...new Set(records
+    .filter(({ category }) => category === "homebase")
+    .map(({ deviceType }) => deviceType))].sort((left, right) => left - right);
+  return `/**
+ * Generated runtime identity and admission data from the human-edited device catalogue.
+ *
+ * The catalogue generator owns this file. Provider capability modules consume
+ * these immutable records and must not add device identities independently.
+ */
+
+/** One catalogue record with a confirmed numeric inventory type. */
+export interface GeneratedCatalogueDevice {
+  readonly deviceType: number;
+  readonly id: string;
+  readonly name: string;
+  readonly category: string;
+  readonly models: readonly string[];
+  readonly status: "supported" | "ready_to_test" | "recognised";
+  readonly handler: "camera" | "sensor" | "homebase" | null;
+}
+
+/** Every typed device known to the contributor-maintained catalogue. */
+export const GENERATED_CATALOGUE_DEVICES: readonly GeneratedCatalogueDevice[] = ${JSON.stringify(records, null, 2)} as const;
+
+/** Device types admitted to the implemented camera handler. */
+export const GENERATED_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set(${JSON.stringify(typesForHandler("camera"))});
+
+/** Device types admitted to the implemented standalone-sensor handler. */
+export const GENERATED_SENSOR_DEVICE_TYPES: ReadonlySet<number> = new Set(${JSON.stringify(typesForHandler("sensor"))});
+
+/** Known HomeBase types evaluated by the HomeBase capability handler. */
+export const GENERATED_HOMEBASE_DEVICE_TYPES: ReadonlySet<number> = new Set(${JSON.stringify(knownHomeBaseTypes)});
+
+/** Known camera-like types, including recognised devices not yet admitted. */
+export const GENERATED_KNOWN_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set(${JSON.stringify(knownCameraTypes)});
+
+/** Known non-camera types that must not enter camera review or admission. */
+export const GENERATED_NON_CAMERA_DEVICE_TYPES: ReadonlySet<number> = new Set(${JSON.stringify(knownNonCameraTypes)});
+`;
+}
+
+async function generatedRuntimeMismatch(devices) {
+  const expected = runtimeModule(devices);
+  try {
+    return await readFile(generatedRuntimeFile, "utf8") === expected ? null : expected;
+  } catch (error) {
+    if (error?.code === "ENOENT") return expected;
+    throw error;
+  }
+}
+
 async function check() {
   const devices = await loadDevices();
   const ids = new Set();
@@ -270,6 +396,9 @@ async function check() {
     ...devices.flatMap(({ file, source, record }) => validateDevice(file, source, record, ids)),
     ...validateIdentityKeys(devices),
   ];
+  if (await generatedRuntimeMismatch(devices) !== null) {
+    errors.push("generated runtime catalogue is stale; run npm run catalogue:generate");
+  }
   const capabilityCount = devices.reduce(
     (count, { record }) => count + countCapabilities(record),
     0,
@@ -282,6 +411,19 @@ async function check() {
     throw new Error(errors.join("\n"));
   }
   console.log(JSON.stringify({ devices: devices.length, capabilities: capabilityCount, selectableValues: optionCount }));
+}
+
+async function generate() {
+  const devices = await loadDevices();
+  const ids = new Set();
+  const errors = [
+    ...await validateCatalogueSources(),
+    ...devices.flatMap(({ file, source, record }) => validateDevice(file, source, record, ids)),
+    ...validateIdentityKeys(devices),
+  ];
+  if (errors.length > 0) throw new Error(errors.join("\n"));
+  await writeFile(generatedRuntimeFile, runtimeModule(devices), "utf8");
+  console.log(generatedRuntimeFile);
 }
 
 async function query(model, capabilityKey) {
@@ -300,5 +442,6 @@ async function query(model, capabilityKey) {
 
 const [command = "check", model, capabilityKey] = process.argv.slice(2);
 if (command === "check") await check();
+else if (command === "generate") await generate();
 else if (command === "query" && model) await query(model, capabilityKey);
-else throw new Error("Usage: device-catalogue.mjs check | query MODEL [CAPABILITY]");
+else throw new Error("Usage: device-catalogue.mjs check | generate | query MODEL [CAPABILITY]");

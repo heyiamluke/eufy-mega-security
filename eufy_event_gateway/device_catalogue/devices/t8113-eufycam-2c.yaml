@@ -4,6 +4,9 @@ schema: 1
 id: t8113
 name: eufyCam 2C
 category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8113
   - T8113-Z

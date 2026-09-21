@@ -3,6 +3,10 @@
 schema: 1
 id: t8410
 name: Indoor Cam E220 / 2K Pan & Tilt (Solo IndoorCam P24)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8410
   - T8413

@@ -3,6 +3,9 @@
 schema: 1
 id: t8203
 name: Video Doorbell (Wired) S330 / Dual
+category: doorbell
+integration:
+  status: recognised
 models:
   - T8203
 device_type: 93

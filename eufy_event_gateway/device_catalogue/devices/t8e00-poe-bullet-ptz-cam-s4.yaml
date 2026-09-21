@@ -3,6 +3,9 @@
 schema: 1
 id: t8e00
 name: PoE Bullet-PTZ Cam S4
+category: camera
+integration:
+  status: recognised
 models:
   - T8E00
   - T8E00121

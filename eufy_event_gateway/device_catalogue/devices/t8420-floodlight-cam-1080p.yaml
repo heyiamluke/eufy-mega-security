@@ -3,6 +3,9 @@
 schema: 1
 id: t8420-standard
 name: Floodlight Cam 1080p
+category: camera
+integration:
+  status: recognised
 models:
   - T8420
 device_type: 3

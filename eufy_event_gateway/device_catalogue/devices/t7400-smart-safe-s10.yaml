@@ -4,6 +4,8 @@ schema: 1
 id: t7400
 name: "Smart Safe S10"
 category: smart_safe
+integration:
+  status: recognised
 aliases:
   - "Wi-Fi S10 Smart Safe"
 models:

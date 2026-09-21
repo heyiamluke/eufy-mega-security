@@ -3,6 +3,9 @@
 schema: 1
 id: t86c1
 name: Wall Light Cam S4
+category: camera
+integration:
+  status: recognised
 models:
   - T86C1
   - T86C1121

@@ -4,6 +4,8 @@ schema: 1
 id: t8503
 name: "Retrofit Smart Lock E110"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "Retrofit Smart Lock R10"
   - "R10"

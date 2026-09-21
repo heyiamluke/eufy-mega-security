@@ -3,6 +3,10 @@
 schema: 1
 id: t84a1
 name: Wired Wall Light Cam S100
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T84A1
   - T84A1311

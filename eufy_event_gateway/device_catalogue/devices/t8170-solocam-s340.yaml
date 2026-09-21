@@ -3,6 +3,10 @@
 schema: 1
 id: t8170
 name: SoloCam S340
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8170
   - T81701W1
@@ -41,6 +45,17 @@ capabilities:
           status: declared
       read:
         field: charging_days
+    streaming_quality:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1020
+      values:
+        "0": "Auto"
+        "1": "HD (720P)"
+        "2": "Full HD (1080P)"
+        "3": "Max"
   controls:
     enabled:
       connections:

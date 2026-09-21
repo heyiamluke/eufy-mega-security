@@ -3,6 +3,10 @@
 schema: 1
 id: t8162
 name: eufyCam S3 Pro
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8162
 device_type: 26

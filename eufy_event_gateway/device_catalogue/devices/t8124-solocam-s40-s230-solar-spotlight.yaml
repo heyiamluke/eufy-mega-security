@@ -3,6 +3,10 @@
 schema: 1
 id: t8124
 name: SoloCam S40 / S230 (solar spotlight)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8124
 device_type: 62

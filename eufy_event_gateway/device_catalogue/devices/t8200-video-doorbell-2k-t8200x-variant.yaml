@@ -3,6 +3,10 @@
 schema: 1
 id: t8200-variant-6
 name: Video Doorbell 2K (T8200X variant)
+category: doorbell
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8200
 device_type: 5

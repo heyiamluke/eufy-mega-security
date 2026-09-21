@@ -4,6 +4,8 @@ schema: 1
 id: t85l1
 name: "Smart Lock C32"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "C32"
   - "FamiLock C32"

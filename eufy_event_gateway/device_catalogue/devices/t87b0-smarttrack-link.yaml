@@ -4,6 +4,8 @@ schema: 1
 id: t87b0
 name: "SmartTrack Link"
 category: tracker
+integration:
+  status: recognised
 aliases:
   - "SmartTrack Link - Find My Compatible Tracker"
 models:

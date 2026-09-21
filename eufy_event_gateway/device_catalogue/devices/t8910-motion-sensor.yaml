@@ -4,6 +4,9 @@ schema: 1
 id: t8910
 name: "Motion Sensor"
 category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
 models:
   - T8910
   - T8910021

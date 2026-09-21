@@ -3,6 +3,9 @@
 schema: 1
 id: t8600
 name: eufyCam E330 (Professional)
+category: camera
+integration:
+  status: recognised
 models:
   - T8600
 device_type: 24

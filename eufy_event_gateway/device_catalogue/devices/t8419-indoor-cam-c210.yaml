@@ -3,6 +3,10 @@
 schema: 1
 id: t8419
 name: Indoor Cam C210
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8419
 device_type: 10009

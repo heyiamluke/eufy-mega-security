@@ -3,6 +3,9 @@
 schema: 1
 id: video-doorbell-s4
 name: Video Doorbell S4
+category: doorbell
+integration:
+  status: recognised
 models: []
 device_type: null
 capabilities: {}

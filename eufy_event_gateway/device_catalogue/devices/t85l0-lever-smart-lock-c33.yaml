@@ -4,6 +4,8 @@ schema: 1
 id: t85l0
 name: "Lever Smart Lock C33"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "Smart Lock C33"
   - "Smart Lever Lock C33"

@@ -6,8 +6,13 @@ schema: 1
 # Keep the ID stable. Use the lowercase primary model code when it is unique.
 id: t1234
 name: Camera name
-# Optional. Use a simple product role such as camera, doorbell, homebase, smart_lock, security_sensor, or siren.
-# category: camera
+# Use a simple product role such as camera, doorbell, homebase, smart_lock, security_sensor, or siren.
+category: camera
+
+# recognised records are diagnostic knowledge only. Use ready_to_test or supported only when an implemented handler exists.
+integration:
+  status: recognised
+  # handler: camera # Required for ready_to_test or supported.
 # Optional alternate product names. Keep model and product codes under models.
 # aliases:
 #   - Alternate product name
@@ -16,6 +21,10 @@ models:
 
 # Use null when the numeric inventory type is not known yet.
 device_type: null
+# Optional when another numeric type is credibly associated with this same model.
+# alternate_device_types:
+#   - value: 123
+#     status: declared
 
 # Optional device-wide caveat that would otherwise be repeated on several capabilities.
 # notes: Explain the shared limitation once here.

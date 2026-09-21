@@ -3,6 +3,9 @@
 schema: 1
 id: t8130
 name: SoloCam E20
+category: camera
+integration:
+  status: recognised
 models:
   - T8130
 device_type: 32

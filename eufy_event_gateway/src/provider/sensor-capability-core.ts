@@ -7,9 +7,10 @@
  */
 
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
+import { GENERATED_SENSOR_DEVICE_TYPES } from "./devices/generated-catalogue.js";
 
 /** Inventory types treated as sensor-family rows, not camera candidates. */
-export const SENSOR_DEVICE_TYPES: ReadonlySet<number> = new Set([2, 10, 20, 21, 22, 123, 126, 127]);
+export const SENSOR_DEVICE_TYPES: ReadonlySet<number> = GENERATED_SENSOR_DEVICE_TYPES;
 
 /** Reads and events implemented by the standalone-sensor adapter. */
 export const SENSOR_CAPABILITY_CORE: readonly CoreCapabilityEntry[] = [

@@ -4,6 +4,8 @@ schema: 1
 id: t8740
 name: "Video Doorbell Add-On Chime"
 category: chime
+integration:
+  status: recognised
 aliases:
   - "eufy Doorbell Chime"
   - "Indoor Chime for 2K battery doorbell"

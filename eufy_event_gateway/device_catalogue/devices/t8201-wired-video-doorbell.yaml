@@ -3,6 +3,10 @@
 schema: 1
 id: t8201
 name: Wired Video Doorbell (T8201)
+category: doorbell
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8201
   - T8201X

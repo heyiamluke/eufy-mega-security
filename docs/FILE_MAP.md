@@ -16,7 +16,7 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `docs/CAMERA_CAPABILITY_MATRIX.md` | Camera core discovery boundary and implemented battery reads. |
 | `docs/DEVICE_CAPABILITY_BASELINES.md` | Separate sensor, HomeBase, and doorbell core discovery boundaries. |
 | `docs/DEVICE_COMPATIBILITY_MATRIX.md` | Device, HomeBase topology, capability, and versioned hardware evidence ledger. |
-| `eufy_event_gateway/device_catalogue/` | Contributor-editable property and command reference, split into one validated JSON file per device. |
+| `eufy_event_gateway/device_catalogue/` | Contributor-editable identity, admission, property, command, and evidence source, split into one validated YAML file per device. |
 | `docs/TODO.md` | Implementation backlog and hardware-evidence follow-up list. |
 | `hacs.json` | HACS metadata for the custom integration. |
 | `examples/node-red-gate-and-motion.json` | Importable Node-RED flow showing motion events and gateway actions. |
@@ -41,7 +41,7 @@ If you are new to the project, read [`DEVELOPERS_START_HERE.md`](DEVELOPERS_STAR
 | `eufy_event_gateway/src/provider/{sensor,homebase,doorbell}-capability-core.ts` | Small core family lookups. |
 | `eufy_event_gateway/src/provider/device-capability-core.ts` | Shared row shape used by each family definition file. |
 | `eufy_event_gateway/src/provider/device-capabilities-core.ts` | Shared evaluator for all camera, sensor, HomeBase, and doorbell core lookups; separates evidence from support without admitting unsupported devices. |
-| `eufy_event_gateway/src/provider/devices/` | Typed compatibility catalogue for device models, HomeBase topologies, capabilities, quirks, and versioned evidence. |
+| `eufy_event_gateway/src/provider/devices/generated-catalogue.ts` | Runtime identity and admission tables generated from the YAML device catalogue. Never edit this file directly. |
 | `eufy_event_gateway/src/provider/simulated-provider.ts` | Deterministic provider for local UI, API, SSE, and lifecycle testing without an Eufy account. |
 
 ### Mega protocol

@@ -3,6 +3,9 @@
 schema: 1
 id: t8442
 name: Outdoor Cam 1080p (Solo OutdoorCam C22)
+category: camera
+integration:
+  status: recognised
 models:
   - T8442
 device_type: 46

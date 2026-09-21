@@ -3,6 +3,10 @@
 schema: 1
 id: t8423
 name: Floodlight Cam 2 Pro (S330)
+category: camera
+integration:
+  status: supported
+  handler: camera
 models:
   - T8423
 device_type: 38

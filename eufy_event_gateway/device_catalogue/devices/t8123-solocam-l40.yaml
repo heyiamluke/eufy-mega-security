@@ -3,6 +3,9 @@
 schema: 1
 id: t8123
 name: SoloCam L40
+category: camera
+integration:
+  status: recognised
 models:
   - T8123
 device_type: 61

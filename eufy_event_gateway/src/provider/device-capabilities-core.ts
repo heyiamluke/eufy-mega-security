@@ -8,7 +8,7 @@
  */
 
 import type { CameraCapability, CameraCapabilityManifest, CapabilityMatrixRow, DeviceCapabilityManifest } from "../domain/types.js";
-import { CAMERA_CAPABILITY_CORE, hasMainsBatterySentinel, megaDeviceRole, NON_CAMERA_DEVICE_TYPES } from "./camera-capability-core.js";
+import { CAMERA_CAPABILITY_CORE, hasMainsBatterySentinel, KNOWN_CAMERA_DEVICE_TYPES, megaDeviceRole, NON_CAMERA_DEVICE_TYPES } from "./camera-capability-core.js";
 import type { CoreCapabilityEntry } from "./device-capability-core.js";
 import { DOORBELL_CAPABILITY_CORE } from "./doorbell-capability-core.js";
 import { HOMEBASE_CAPABILITY_CORE, HOMEBASE_DEVICE_TYPES } from "./homebase-capability-core.js";
@@ -45,7 +45,9 @@ export function describeCameraCapabilities(device: CapabilityInventoryRow, optio
 }): CameraCapabilityManifest {
   const acceptedAsCamera = isSupportedCameraType(device);
   const reason = acceptedAsCamera ? "supported-camera-type"
-    : device.category !== "eufy_security" ? "non-security-category" : "unrecognized-camera-type";
+    : device.category !== "eufy_security" ? "non-security-category"
+      : KNOWN_CAMERA_DEVICE_TYPES.has(device.deviceType ?? -1) ? "catalogued-camera-type"
+        : "unrecognized-camera-type";
   const capabilities: CameraCapability[] = [];
   const mainsSentinel = hasMainsBatterySentinel(device.model);
   if (acceptedAsCamera) {
@@ -228,7 +230,9 @@ export function cameraCapabilityLogSummaries(manifests: readonly CameraCapabilit
     const battery = manifest.matrix.find(({ id }) => id === "battery.level")?.deviceEvidence;
     const admission = manifest.acceptedAsCamera ? "known-camera-type"
       : manifest.reviewCandidate ? "review-camera-like"
-        : manifest.reason === "non-security-category" ? "excluded-category" : "unrecognized-type";
+        : manifest.reason === "non-security-category" ? "excluded-category"
+          : manifest.reason === "catalogued-camera-type" ? "catalogued-camera"
+            : "unrecognized-type";
     const message = [
       `model=${safeModel(manifest.model)}`,
       `device_type=${manifest.deviceType ?? "missing"}`,

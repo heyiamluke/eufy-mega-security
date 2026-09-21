@@ -4,6 +4,9 @@ schema: 1
 id: t90m0
 name: "Motion Sensor E20"
 category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
 aliases:
   - "PIR Sensor E20"
 models:

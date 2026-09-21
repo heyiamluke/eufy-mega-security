@@ -3,6 +3,9 @@
 schema: 1
 id: t8222
 name: Video Doorbell C210 / 1080p (Battery)
+category: doorbell
+integration:
+  status: recognised
 models:
   - T8222
 device_type: 16

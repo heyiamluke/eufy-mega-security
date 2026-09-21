@@ -3,6 +3,10 @@
 schema: 1
 id: t8223
 name: Video Doorbell C31
+category: doorbell
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8223
 device_type: 96

@@ -3,6 +3,10 @@
 schema: 1
 id: t8213
 name: Video Doorbell S330 / Dual (Battery)
+category: doorbell
+integration:
+  status: supported
+  handler: camera
 models:
   - T8213
 device_type: 91

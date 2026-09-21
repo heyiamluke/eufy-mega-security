@@ -4,6 +4,9 @@ schema: 1
 id: t85v0
 name: FamiLock S3 / S3 Max
 category: smart_lock
+integration:
+  status: supported
+  handler: camera
 aliases:
   - FamiLock S3
   - FamiLock S3 Max

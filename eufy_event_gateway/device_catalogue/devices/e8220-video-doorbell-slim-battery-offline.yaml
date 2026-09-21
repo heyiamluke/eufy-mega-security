@@ -3,6 +3,9 @@
 schema: 1
 id: e8220
 name: Video Doorbell Slim (Battery, offline E8220)
+category: doorbell
+integration:
+  status: recognised
 models: []
 device_type: null
 capabilities: {}

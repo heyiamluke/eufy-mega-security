@@ -4,6 +4,9 @@ schema: 1
 id: t8920
 name: "Water and Freeze Sensor"
 category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
 aliases:
   - "Water Sensor"
   - "Water and Freeze Sensor with Remote Alerts"

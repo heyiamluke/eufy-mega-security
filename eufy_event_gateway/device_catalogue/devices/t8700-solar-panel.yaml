@@ -4,6 +4,8 @@ schema: 1
 id: t8700
 name: "Solar Panel"
 category: passive_accessory
+integration:
+  status: recognised
 aliases:
   - "eufyCam Solar Panel"
 models:

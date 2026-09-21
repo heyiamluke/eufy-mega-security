@@ -4,6 +4,8 @@ schema: 1
 id: t90r0
 name: "Indoor Siren E20"
 category: siren
+integration:
+  status: recognised
 aliases:
   - "Siren Sensor E20"
 models:

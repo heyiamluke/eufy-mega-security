@@ -4,6 +4,8 @@ schema: 1
 id: t85f1
 name: "Smart Lock E30"
 category: smart_lock
+integration:
+  status: recognised
 aliases:
   - "E30"
 models:

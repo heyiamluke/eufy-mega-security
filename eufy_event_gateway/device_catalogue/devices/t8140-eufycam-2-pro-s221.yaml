@@ -3,6 +3,9 @@
 schema: 1
 id: t8140
 name: eufyCam 2 Pro (S221)
+category: camera
+integration:
+  status: recognised
 models:
   - T8140
 device_type: 14

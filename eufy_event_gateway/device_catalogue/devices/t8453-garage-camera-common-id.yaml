@@ -3,6 +3,9 @@
 schema: 1
 id: t8453-common
 name: Garage camera (T8453 common id)
+category: camera
+integration:
+  status: recognised
 models:
   - T8453
 device_type: 131

@@ -48,6 +48,8 @@ const record = {
   schema: 1,
   id,
   name,
+  category: "camera",
+  integration: { status: "recognised" },
   models: [model],
   device_type: null,
   capabilities: {},

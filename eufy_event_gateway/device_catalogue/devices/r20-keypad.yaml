@@ -4,6 +4,8 @@ schema: 1
 id: r20-keypad
 name: "R20 Keypad"
 category: keypad
+integration:
+  status: recognised
 aliases:
   - "Lock 8592"
 models: []

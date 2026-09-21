@@ -3,6 +3,10 @@
 schema: 1
 id: t8400
 name: Indoor Cam C120 / 2K (Solo IndoorCam C24)
+category: camera
+integration:
+  status: ready_to_test
+  handler: camera
 models:
   - T8400
 device_type: 30

@@ -4,6 +4,8 @@ schema: 1
 id: t8530
 name: Video Smart Lock S330
 category: smart_lock
+integration:
+  status: recognised
 models:
   - T8530
   - E85301Y1

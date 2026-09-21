@@ -4,6 +4,9 @@ schema: 1
 id: t8900
 name: "Entry Sensor"
 category: security_sensor
+integration:
+  status: ready_to_test
+  handler: sensor
 models:
   - T8900
   - T89000D1

@@ -4,6 +4,8 @@ schema: 1
 id: t87b2
 name: "SmartTrack Card"
 category: tracker
+integration:
+  status: recognised
 models:
   - T87B2
   - T87B2011
