@@ -7,6 +7,11 @@ marketing specifications and general product observations.
 Every device record uses the same compact YAML format and is validated by the
 catalogue check.
 
+Use `category` when it helps distinguish cameras, doorbells, HomeBases, NVRs,
+and hub-adjacent accessories. Put alternate product names under `aliases` and
+model or product codes under `models`. A short top-level `notes` value can hold
+a device-wide caveat so it does not need to be repeated on every capability.
+
 Each filename combines the primary model code and readable display name, such
 as `t8170-solocam-s340.yaml`. The `id` stays minimal and stable, so that record
 uses `t8170`. Add the shortest meaningful ID suffix only when distinct records
@@ -26,12 +31,12 @@ Omit groups that have no known entries. Use `ignored` only when a device reports
 misleading values that the integration must deliberately suppress.
 
 Use HomeBase model codes as connection IDs: `T8010`, `T8030`, and `T9000`.
-Use `direct` for a camera that can connect without a HomeBase. Every capability
-has its own `connections` map because a feature may work through one HomeBase
-and fail through another. List each model explicitly rather than assuming an
-untested future HomeBase will behave the same way. The device's overall
-connection list is derived from those capability maps, so do not repeat it at
-the top of the file.
+Use `direct` for a camera that can connect without a HomeBase, and for a hub's
+own capabilities. Every capability has its own `connections` map because a
+feature may work through one HomeBase and fail through another. List each model
+explicitly rather than assuming an untested future HomeBase will behave the
+same way. The device's overall connection list is derived from those capability
+maps, so do not repeat it at the top of the file.
 
 Always quote human-facing labels under `values`. This keeps formatting
 consistent and prevents YAML from interpreting labels such as `On`, `Off`,
@@ -88,6 +93,9 @@ Use the model query when locating a record:
 npm run catalogue:query -- T817L
 npm run catalogue:query -- T817L night_vision
 ```
+
+Queries also match a record's exact display name and aliases, so `S380` can
+locate the `T8030` HomeBase record.
 
 Do not add serial numbers, account details, camera names, credentials, or raw
 payloads. Model numbers, numeric device types, protocol parameter identifiers,

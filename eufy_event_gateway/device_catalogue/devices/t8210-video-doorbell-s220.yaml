@@ -3,6 +3,7 @@
 schema: 1
 id: t8210
 name: Video Doorbell S220
+category: doorbell
 models:
   - T8210
   - T8210C
@@ -16,7 +17,9 @@ capabilities:
           tested_on: 2026-09-20
           notes: Reported HomeBase 2 battery percentages do not agree across setups.
         T8030:
-          status: declared
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: declared
       read:
@@ -26,7 +29,9 @@ capabilities:
         T8010:
           status: declared
         T8030:
-          status: declared
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: declared
       read:
@@ -36,26 +41,68 @@ capabilities:
         T8010:
           status: declared
         T8030:
-          status: declared
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: declared
       read:
         parameter: 1138
+    battery_health:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+        direct:
+          status: declared
+      read:
+        parameter: 1198
     last_charging_days:
       connections:
         T8010:
           status: reported
         T8030:
-          status: tested
-          tested_on: 2026-09-17
+          status: mixed
+          tested_on: 2026-09-21
           tested_by: mscodemonkey
+          notes: A value was observed previously, but the current HomeBase 3 setup reports it as unavailable.
         direct:
           status: tested
           tested_on: 2026-09-17
           tested_by: mscodemonkey
       read:
         field: charging_days
+    last_recognized_person:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: declared
+      read:
+        field: last_recognized_person
   controls:
+    enabled:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: declared
+        direct:
+          status: unknown
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
     motion_detection:
       connections:
         T8010:
@@ -114,6 +161,97 @@ capabilities:
           status: tested
           tested_by: mscodemonkey
   events:
+    motion:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: declared
+    person:
+      connections:
+        T8010:
+          status: declared
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: declared
+    stranger:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: unsupported
+    pet:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: unsupported
+    vehicle:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: unsupported
+    dog:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: unsupported
+    crying:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: unsupported
+    sound:
+      connections:
+        T8010:
+          status: unsupported
+        T8025:
+          status: declared
+        T8030:
+          status: declared
+        direct:
+          status: unsupported
+    package_stranded:
+      connections:
+        T8010:
+          status: unknown
+        T8025:
+          status: unknown
+        T8030:
+          status: unknown
+        direct:
+          status: unknown
+      notes: The integration exposes this generic sensor, but the device record does not declare it.
     doorbell_press:
       connections:
         T8010:

@@ -24,6 +24,24 @@
       "type": "string",
       "minLength": 1
     },
+    "category": {
+      "enum": [
+        "camera",
+        "doorbell",
+        "homebase",
+        "hub_adjacent",
+        "nvr",
+        "smart_lock"
+      ]
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
     "models": {
       "type": "array",
       "items": {
@@ -37,6 +55,10 @@
         "integer",
         "null"
       ]
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1
     },
     "capabilities": {
       "type": "object",

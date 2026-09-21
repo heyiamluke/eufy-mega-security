@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: e7100121
+name: NVR Security System E50 (kit)
+category: nvr
+aliases:
+  - NVR E50
+  - NVR Security System E50
+models:
+  - E7100121
+device_type: null
+notes: This is the confirmed kit code. The standalone recorder model and integration-usable capabilities are not known yet.
+capabilities: {}

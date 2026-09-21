@@ -42,6 +42,10 @@ function deviceName(record) {
   return record.name;
 }
 
+function deviceAliases(record) {
+  return record.aliases ?? [];
+}
+
 async function loadDevices() {
   const files = (await readdir(devicesDirectory)).filter(isDeviceFile).sort();
   return Promise.all(files.map(async (file) => {
@@ -79,16 +83,31 @@ function validateDevice(file, source, record, ids) {
 
 function validateSimplifiedDevice(file, record) {
   const errors = [];
-  const allowedTopLevel = new Set(["schema", "id", "name", "models", "device_type", "capabilities", "ignored"]);
+  const allowedTopLevel = new Set([
+    "schema", "id", "name", "category", "aliases", "models", "device_type", "notes", "capabilities", "ignored",
+  ]);
   for (const key of Object.keys(record)) {
     if (!allowedTopLevel.has(key)) errors.push(`${file}: unknown top-level field ${key}`);
   }
   if (typeof record.name !== "string" || record.name.length === 0) errors.push(`${file}: missing name`);
+  if (record.category !== undefined
+    && !["camera", "doorbell", "homebase", "hub_adjacent", "nvr", "smart_lock"].includes(record.category)) {
+    errors.push(`${file}: category is invalid`);
+  }
+  if (record.aliases !== undefined
+    && (!Array.isArray(record.aliases)
+      || record.aliases.some((alias) => typeof alias !== "string" || alias.length === 0)
+      || new Set(record.aliases).size !== record.aliases.length)) {
+    errors.push(`${file}: aliases must be a unique array of non-empty names`);
+  }
   if (!Array.isArray(record.models) || record.models.some((model) => typeof model !== "string" || model.length === 0)) {
     errors.push(`${file}: models must be an array of model codes`);
   }
   if (record.device_type !== null && !Number.isSafeInteger(record.device_type)) {
     errors.push(`${file}: device_type must be an integer or null`);
+  }
+  if (record.notes !== undefined && (typeof record.notes !== "string" || record.notes.length === 0)) {
+    errors.push(`${file}: notes must be a non-empty string`);
   }
   if (!record.capabilities || typeof record.capabilities !== "object" || Array.isArray(record.capabilities)) {
     errors.push(`${file}: capabilities must be a map`);
@@ -212,6 +231,7 @@ function findDevice(devices, query) {
   return devices.filter(({ record }) => [
     record.id,
     deviceName(record),
+    ...deviceAliases(record),
     ...(deviceModels(record) ?? []),
   ].some((value) => String(value).toUpperCase() === normalized));
 }

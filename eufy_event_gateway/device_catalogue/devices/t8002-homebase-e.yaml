@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8002
+name: HomeBase E
+category: homebase
+models:
+  - T8002
+device_type: 0
+notes: Protocol type 0 is shared with T8001 and T8010, so these capabilities still need model-specific confirmation.
+capabilities:
+  readable:
+    current_mode:
+      connections:
+        direct:
+          status: unknown
+      read:
+        parameter: 1151
+      values:
+        "0": "Away"
+        "1": "Home"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "63": "Disarmed"
+    alarm_active:
+      connections:
+        direct:
+          status: unknown
+      read:
+        field: alarm
+    storage_status:
+      connections:
+        direct:
+          status: unknown
+      read:
+        parameter: 1135
+    storage_capacity:
+      connections:
+        direct:
+          status: unknown
+      read:
+        field: sd_capacity
+    storage_available:
+      connections:
+        direct:
+          status: unknown
+      read:
+        field: sd_capacity_available
+  controls:
+    guard_mode:
+      connections:
+        direct:
+          status: unknown
+      read:
+        parameter: 1224
+      write:
+        command: 1224
+      values:
+        "0": "Away"
+        "1": "Home"
+        "2": "Schedule"
+        "3": "Custom 1"
+        "4": "Custom 2"
+        "5": "Custom 3"
+        "6": "Off"
+        "47": "Geofencing"
+        "63": "Disarmed"
+      notes: The Off value is reported only when a keypad is attached.
+    time_format:
+      connections:
+        direct:
+          status: unknown
+      read:
+        parameter: 1253
+      write:
+        command: 1253
+      values:
+        "0": "12 hour"
+        "1": "24 hour"
+    alarm_tone:
+      connections:
+        direct:
+          status: unknown
+      read:
+        parameter: 1281
+      write:
+        command: 1281
+      values:
+        "1": "Alarm sound 1"
+        "2": "Alarm sound 2"

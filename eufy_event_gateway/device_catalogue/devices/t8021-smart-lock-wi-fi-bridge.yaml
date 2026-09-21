@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8021
+name: Smart Lock Wi-Fi Bridge
+category: hub_adjacent
+aliases:
+  - Wi-Fi Bridge
+models:
+  - T8021
+device_type: null
+notes: The bridge is known, but no integration-usable properties or controls are confirmed yet.
+capabilities: {}
