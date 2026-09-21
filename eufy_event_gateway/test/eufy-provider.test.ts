@@ -110,10 +110,33 @@ test("parses only whitelisted Mega inventory fields and de-duplicates serials", 
   assert.deepEqual(result, [{
     serial: "T8113ABC", name: "Test camera", model: "T8113-Z", parentSerial: "T8030ABC",
     deviceType: 8, category: "eufy_security", channel: 3, p2pDid: "ABC-123456-XYZ",
-    adminUserId: null, userName: null, firmware: null, p2pConnection: null, cipherId: null,
+    adminUserId: null, userName: null, firmware: null, p2pConnection: null, localAddress: null, cipherId: null,
     paramTypes: [], reads: { lastChargingDays: 44 },
   }]);
   assert.equal(JSON.stringify(result).includes("must-not-escape"), false);
+});
+
+test("retains only the freshest private HomeBase LAN address", () => {
+  const [station] = parseMegaInventory({ devices: [{
+    device_sn: "homebase",
+    device_model: "T8010",
+    local_ip: "203.0.113.5",
+    ip_addr: "192.168.1.30",
+    params: [
+      { param_type: 1176, param_value: "192.168.1.40", update_time: 100 },
+      { param_type: 1176, param_value: "192.168.1.50", update_time: 200 },
+      { param_type: 1176, param_value: "198.51.100.8", update_time: 300 },
+    ],
+  }] });
+  assert.equal(station?.localAddress, "192.168.1.50");
+
+  const [fallback] = parseMegaInventory({ devices: [{
+    device_sn: "fallback",
+    device_model: "T8010",
+    local_ip: "198.51.100.9",
+    ip_addr: "10.0.0.20",
+  }] });
+  assert.equal(fallback?.localAddress, "10.0.0.20");
 });
 
 test("decodes only validated capability-backed inventory values", () => {
@@ -661,7 +684,7 @@ test("summarizes PPCS failure stages without private transport data", () => {
     videoNalTypes: [7, 8, 5],
     closeReason: "first_frame_timeout",
   }, new Error("Timed out waiting for a fresh camera frame"));
-  assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 direct_lookup_candidates=0 alternate_lookup_candidates=0 data_datagrams=3 frame_headers=2 video_frames=0/);
+  assert.match(summary, /model=T81A0 route=direct stage=first_frame cam_id=1 local_lookup_candidates=0 direct_lookup_candidates=0 alternate_lookup_candidates=0 data_datagrams=3 frame_headers=2 video_frames=0/);
   assert.match(summary, /video_output_frames=0 incomplete_access_units=0 incomplete_access_unit_bytes=0 foreign_video_frames=0 data_types=0,2 commands=1700,1103 frame_shapes=1700:1:64:0,1103:0:32:2 sequence_gaps=1 sequence_restarts=0 duplicate_datagrams=0 stale_datagrams=0 parser_resyncs=0 parser_blocked=true pending_bytes=17 video_results=none video_codec=h264 video_nal_types=7,8,5 codec_bootstrap=ready/);
   assert.match(summary, /battery_history=not-reported/);
   assert.match(summary, /close_reason=first_frame_timeout/);

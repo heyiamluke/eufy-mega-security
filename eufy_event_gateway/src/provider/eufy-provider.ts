@@ -49,6 +49,7 @@ export interface MegaInventoryDevice {
   readonly channel: number | null;
   readonly p2pDid: string | null;
   readonly p2pConnection: string | null;
+  readonly localAddress: string | null;
   readonly cipherId: number | null;
   readonly adminUserId: string | null;
   readonly userName: string | null;
@@ -213,6 +214,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         : undefined;
       const stream = new FirstPartyPpcsSession({
         stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
+        localAddress: peer.localAddress,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model, accountId: device.adminUserId,
         homeBaseAttached: route.homeBaseAttached,
         cipherId: device.cipherId,
@@ -267,6 +269,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         stationSerial: peer.serial,
         p2pDid: peer.p2pDid,
         appConnection: peer.p2pConnection,
+        localAddress: peer.localAddress,
         dskKey: dsk.key,
         channel: device.channel,
         cameraModel: device.model,
@@ -338,6 +341,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       }
       const session = new FirstPartyPpcsSession({
         stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
+        localAddress: peer.localAddress,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model,
         accountId: device.adminUserId, homeBaseAttached: true, purpose: "control", maxSeconds: 40,
         resolveCipherKey: (cipherId: number) => this.#resolveCipherKey(cipherId, peer),
@@ -391,6 +395,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       }
       const session = new FirstPartyPpcsSession({
         stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
+        localAddress: peer.localAddress,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model,
         accountId: device.adminUserId, homeBaseAttached: true, purpose: "control", maxSeconds: 40,
         resolveCipherKey: (cipherId: number) => this.#resolveCipherKey(cipherId, peer),
@@ -741,6 +746,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     }
     const session = new FirstPartyPpcsSession({
       stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
+      localAddress: peer.localAddress,
       dskKey: dsk.key, channel: device.channel, cameraModel: device.model,
       accountId: device.adminUserId, homeBaseAttached: true, purpose: "control", maxSeconds: 30,
       resolveCipherKey: (cipherId: number) => this.#resolveCipherKey(cipherId, peer),
@@ -996,6 +1002,7 @@ export function parseMegaInventory(response: unknown): MegaInventoryDevice[] {
       channel: integer(value.device_channel) ?? integer(value.channel),
       p2pDid: safeValue(value.p2p_did, 128),
       p2pConnection: safeValue(value.p2p_conn, 512) ?? safeValue(value.app_conn, 512),
+      localAddress: freshestLanAddress(value),
       cipherId: integer(value.cipher_id),
       adminUserId: isRecord(value.member) ? safeValue(value.member.admin_user_id, 128) : null,
       userName: isRecord(value.member) ? safeValue(value.member.nick_name, 128) : null,
@@ -1017,6 +1024,35 @@ function safeLastChargingDays(value: unknown): number | undefined {
   return parsed !== null && Number.isInteger(parsed) && parsed >= 0 && parsed <= 36_500
     ? parsed
     : undefined;
+}
+
+function freshestLanAddress(value: Record<string, unknown>): string | null {
+  let freshest: { readonly address: string; readonly updatedAt: number } | null = null;
+  if (Array.isArray(value.params)) {
+    for (const raw of value.params) {
+      if (!isRecord(raw)) continue;
+      const address = safeValue(raw.param_value, 45);
+      if (!address || !isPrivateIpv4(address)) continue;
+      const updatedAt = finiteNumber(raw.update_time) ?? 0;
+      if (!freshest || updatedAt > freshest.updatedAt) freshest = { address, updatedAt };
+    }
+  }
+  if (freshest) return freshest.address;
+  for (const raw of [value.local_ip, value.ip_addr]) {
+    const address = safeValue(raw, 45);
+    if (address && isPrivateIpv4(address)) return address;
+  }
+  return null;
+}
+
+function isPrivateIpv4(value: string): boolean {
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(value);
+  if (!match) return false;
+  const octets = match.slice(1).map(Number);
+  if (octets.some((octet) => octet > 255)) return false;
+  return octets[0] === 10
+    || (octets[0] === 172 && octets[1]! >= 16 && octets[1]! <= 31)
+    || (octets[0] === 192 && octets[1] === 168);
 }
 
 /** Decode only capability-backed numeric inventory reads; arbitrary values are discarded. */
@@ -1358,7 +1394,7 @@ export function isPpcsRouteReady(
 export function ppcsStreamLogSummary(
   model: string,
   route: PpcsStreamRoute | null,
-  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "alternateLookupCandidates" | "batteryHistory" | "closeReason" | "commands" | "directLookupCandidates" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "incompleteAccessUnitBytes" | "incompleteAccessUnits" | "mediaStartAttempts" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "types" | "videoCodec" | "videoNalTypes" | "videoOutputFrames" | "videoResults">>,
+  stats: Pick<FirstPartyPpcsSession["stats"], "camId" | "dataDatagrams" | "frameHeaders" | "videoFrames"> & Partial<Pick<FirstPartyPpcsSession["stats"], "alternateLookupCandidates" | "batteryHistory" | "closeReason" | "commands" | "directLookupCandidates" | "duplicateDatagrams" | "foreignVideoFrames" | "frameShapes" | "incompleteAccessUnitBytes" | "incompleteAccessUnits" | "localLookupCandidates" | "mediaStartAttempts" | "parserBlocked" | "parserResyncs" | "pendingBytes" | "sequenceGaps" | "sequenceRestarts" | "staleDatagrams" | "types" | "videoCodec" | "videoNalTypes" | "videoOutputFrames" | "videoResults">>,
   error?: unknown,
 ): string {
   const stage = stats.camId === 0 ? "lookup" : stats.videoFrames === 0 ? "first_frame" : "media";
@@ -1378,6 +1414,7 @@ export function ppcsStreamLogSummary(
     `route=${route ? route.homeBaseAttached ? "homebase" : "direct" : "unavailable"}`,
     `stage=${stage}`,
     `cam_id=${stats.camId}`,
+    `local_lookup_candidates=${stats.localLookupCandidates ?? 0}`,
     `direct_lookup_candidates=${stats.directLookupCandidates ?? 0}`,
     `alternate_lookup_candidates=${stats.alternateLookupCandidates ?? 0}`,
     `data_datagrams=${stats.dataDatagrams}`,

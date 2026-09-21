@@ -24,6 +24,7 @@ import {
   ppcsCommandMagicOffset,
   ppcsFrameChannel,
   ppcsLookupCandidate,
+  ppcsLocalLookupTargets,
   ppcsPartialCommandPrefix,
   ppcsSequenceDisposition,
 } from "../src/stream/first-party-ppcs.js";
@@ -85,6 +86,16 @@ test("accepts both PPCS cloud candidate response forms", () => {
   assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x84])), true);
   assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x40])), false);
   assert.deepEqual(ppcsCandidatePorts(32_108), [32_105, 32_106, 32_107, 32_108, 32_109, 32_110, 32_111]);
+});
+
+test("adds the HomeBase inventory address to local PPCS lookup", () => {
+  assert.deepEqual(ppcsLocalLookupTargets(null), [
+    { host: "255.255.255.255", port: 32_108 },
+  ]);
+  assert.deepEqual(ppcsLocalLookupTargets("192.168.1.50"), [
+    { host: "255.255.255.255", port: 32_108 },
+    { host: "192.168.1.50", port: 32_108 },
+  ]);
 });
 
 test("labels a standalone live start as level-one frame type 11", () => {

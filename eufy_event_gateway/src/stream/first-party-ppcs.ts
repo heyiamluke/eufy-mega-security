@@ -43,6 +43,7 @@ const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
 const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
 const CONTROL_TIMEOUT_MILLISECONDS = 10_000;
 const LOOKUP_RETRY_MILLISECONDS = 1_000;
+const LOCAL_LOOKUP_PORT = 32_108;
 const PPCS_RECEIVE_BUFFER_BYTES = 1024 * 1024;
 const PPCS_SEQUENCE_LOOKBACK = 0x8000;
 const PPCS_STALE_RETRANSMIT_DEPTH = 1024;
@@ -315,6 +316,14 @@ export function ppcsCandidatePorts(port: number): number[] {
   return ports;
 }
 
+/** Build broadcast and current-SDK directed targets for a local PPCS lookup. */
+export function ppcsLocalLookupTargets(localAddress?: string | null): Array<{ readonly host: string; readonly port: number }> {
+  return [
+    { host: "255.255.255.255", port: LOCAL_LOOKUP_PORT },
+    ...(localAddress ? [{ host: localAddress, port: LOCAL_LOOKUP_PORT }] : []),
+  ];
+}
+
 /**
  * Normalizes one camera's continuous video byte stream to Annex-B framing.
  *
@@ -457,6 +466,7 @@ export interface PpcsCameraOptions {
   readonly stationSerial: string;
   readonly p2pDid: string;
   readonly appConnection: string;
+  readonly localAddress?: string | null;
   readonly dskKey: string;
   readonly channel: number;
   readonly cameraModel: string;
@@ -506,6 +516,7 @@ export class FirstPartyPpcsSession {
   readonly output = new PassThrough();
   readonly stats = {
     camId: 0,
+    localLookupCandidates: 0,
     directLookupCandidates: 0,
     alternateLookupCandidates: 0,
     dataDatagrams: 0,
@@ -758,7 +769,9 @@ export class FirstPartyPpcsSession {
   #lookup(): void {
     if (this.#remote) return;
     const local = Buffer.from([0, 0]);
-    this.#send(REQ.localLookup, local, { host: "255.255.255.255", port: 32108 });
+    for (const address of ppcsLocalLookupTargets(this.#options.localAddress)) {
+      this.#send(REQ.localLookup, local, address);
+    }
     const lookup = buildPpcsCloudLookup(
       this.#options.p2pDid,
       this.#options.dskKey,
@@ -775,8 +788,8 @@ export class FirstPartyPpcsSession {
 
   #handle(message: Buffer, info: RemoteInfo): boolean {
     if (has(message, RESP.localLookup)) {
-      const did = decodeDid(message.subarray(4, 24));
-      if (did === this.#options.p2pDid) this.#checkCandidate({ host: info.address, port: info.port });
+      this.stats.localLookupCandidates++;
+      this.#checkCandidate({ host: info.address, port: info.port });
       return false;
     }
     const candidate = ppcsLookupCandidate(message);
@@ -1228,7 +1241,6 @@ function has(value: Buffer, header: Buffer): boolean { return value.subarray(0, 
 function commandKey(serial: string, did: string): Buffer { return Buffer.from(`${serial.slice(-7)}${did.substring(did.indexOf("-"), did.indexOf("-") + 9)}`); }
 function decryptEcb(value: Buffer, key: Buffer): Buffer { const decipher = createDecipheriv(`aes-${key.length * 8}-ecb`, key, null); decipher.setAutoPadding(false); return Buffer.concat([decipher.update(value), decipher.final()]); }
 function encodeDid(value: string): Buffer { const [a, b, c] = value.split("-"); const result = Buffer.alloc(20); Buffer.from(a ?? "").copy(result); result.writeUInt32BE(Number(b ?? 0), 8); Buffer.from(c ?? "").copy(result, 12); return result; }
-function decodeDid(value: Buffer): string { return `${value.subarray(0, 8).toString().replace(/\0+$/g, "")}-${value.readUInt32BE(8).toString().padStart(6, "0")}-${value.subarray(12, 20).toString().replace(/\0+$/g, "")}`; }
 function decodeCloudAddresses(value: string): { host: string; port: number }[] {
   const table = Buffer.from("4959433db5bf6da347534f6165e371e9677f02030badb3892b2f35c16b8b959711e5a70deff1050783fb9d3bc5c713171d1f2529d3df", "hex");
   const encoded = value.split(":", 1)[0] ?? ""; const out = Buffer.alloc(Math.floor(encoded.length / 2));
