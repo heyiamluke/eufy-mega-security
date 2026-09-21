@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.77
+
+- Align HomeBase cloud candidate handling and attached-camera media starts with the current SDK, removing unsupported legacy branches introduced in the previous release.
+- Convert confirmed H.265 live streams to a shared low-latency H.264 viewer feed when a HomeBase ignores the requested H.264 codec.
+- Keep native H.264 live streams on the direct path and retain original codecs for snapshots and recordings.
+
 ## 0.1.76
 
 - Complete the PPCS relay and TURN handshake used when a HomeBase cannot be reached through a direct peer address.
