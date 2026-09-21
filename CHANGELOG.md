@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.78
+
+- Add current-SDK directed LAN discovery for HomeBases when broadcast lookup is blocked by container or network boundaries.
+- Reassert attached-camera media starts until complete codec configuration and an IDR make the stream decoder-ready.
+- Recognise untyped four-byte HomeBase command acknowledgements instead of waiting for the readback fallback.
+- Report redacted viewer and snapshot conversion failures through the gateway log.
+
 ## 0.1.77
 
 - Align HomeBase cloud candidate handling and attached-camera media starts with the current SDK, removing unsupported legacy branches introduced in the previous release.
