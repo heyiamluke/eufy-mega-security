@@ -122,7 +122,7 @@ export class SimulatedProvider implements CameraProvider {
 
   async startStream(serial: string): Promise<void> {
     this.#assertSerial(serial);
-    this.#events?.streamStarted(serial, Readable.from([]));
+    this.#events?.streamStarted(serial, Readable.from([]), () => "h264");
   }
 
   async stopStream(serial: string): Promise<void> {

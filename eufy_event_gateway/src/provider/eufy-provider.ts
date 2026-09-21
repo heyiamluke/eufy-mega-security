@@ -232,7 +232,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         if (this.#ppcsStreams.get(serial) === stream) this.#ppcsStreams.delete(serial);
         throw error;
       }
-      this.#events?.streamStarted(serial, stream.output);
+      this.#events?.streamStarted(serial, stream.output, () => stream.videoCodec);
       const finalize = () => this.#finalizeStream(serial, stream, device, route);
       stream.output.once("end", finalize);
       stream.output.once("close", finalize);

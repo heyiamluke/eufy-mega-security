@@ -18,6 +18,7 @@ const VIDEO_FRAME_HEADER_BYTES = 22;
 export interface PpcsVideoFrameHeader {
   readonly payloadLength: number;
   readonly keyframe: boolean;
+  readonly streamType: number;
   readonly sequence: number;
   readonly width: number;
   readonly height: number;
@@ -27,6 +28,7 @@ export interface PpcsVideoFrameHeader {
 /** One complete decoded access unit ready for media normalisation. */
 export interface PpcsAccessUnit {
   readonly keyframe: boolean;
+  readonly streamType: number;
   readonly width: number;
   readonly height: number;
   readonly data: Buffer;
@@ -46,6 +48,7 @@ export function parsePpcsVideoFrameHeader(payload: Buffer): PpcsVideoFrameHeader
   return {
     payloadLength: payload.readUInt32LE(0),
     keyframe: (flags & 1) === 1,
+    streamType: payload.readUInt8(5),
     sequence: payload.readUInt16LE(6),
     width: payload.readInt16LE(10),
     height: payload.readInt16LE(12),
@@ -131,5 +134,11 @@ function beginsAccessUnit(body: Buffer): boolean {
 }
 
 function unitOf(header: PpcsVideoFrameHeader, data: Buffer): PpcsAccessUnit {
-  return { keyframe: header.keyframe, width: header.width, height: header.height, data };
+  return {
+    keyframe: header.keyframe,
+    streamType: header.streamType,
+    width: header.width,
+    height: header.height,
+    data,
+  };
 }

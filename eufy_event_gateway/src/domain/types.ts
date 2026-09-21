@@ -19,6 +19,9 @@ export type ConnectionState =
 /** Lifecycle states for a camera's shared media source. */
 export type StreamState = "idle" | "starting" | "streaming" | "stopping" | "error";
 
+/** Video codecs accepted by the gateway's stream and recording consumers. */
+export type VideoCodec = "h264" | "h265";
+
 /** Detection kinds exposed as independent transient camera states. */
 export type DetectionKind =
   | "motion"
