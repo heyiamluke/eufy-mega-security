@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.75
+
+- Honour Home Assistant siren durations for both camera and HomeBase siren entities.
+- Repair the JPEG header used to reconstruct wrapped event images.
+- Preserve HomeBase video codec metadata so H.264 frames are not misidentified as H.265 during live view, snapshot, or recording startup.
+- Add confirmed guard-mode reads and writes for HomeBase 2 on firmware that supports the current command protocol, without enabling HomeBase 3-only controls.
+
 ## 0.1.74
 
 - Generate camera, sensor, HomeBase, and non-camera runtime admission data from the human-edited device catalogue.
