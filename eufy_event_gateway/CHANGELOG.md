@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.80
+
+- Scope Home Assistant device-registry lookups to the owning config entry, removing the deprecated ambiguous lookup scheduled for removal in Home Assistant 2027.8.
+
 ## 0.1.79
 
 - Keep the general Motion entity active for person and other visual camera detections.
