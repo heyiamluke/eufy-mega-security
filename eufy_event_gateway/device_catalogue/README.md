@@ -26,6 +26,14 @@ not belong in filenames or IDs.
 Omit groups that have no known entries. Use `ignored` only when a device reports
 misleading values that the integration must deliberately suppress.
 
+Use HomeBase model codes as connection IDs: `T8010`, `T8030`, and `T9000`.
+Use `direct` for a camera that can connect without a HomeBase. Every capability
+has its own `connections` map because a feature may work through one HomeBase
+and fail through another. List each model explicitly rather than assuming an
+untested future HomeBase will behave the same way. The device's overall
+connection list is derived from those capability maps, so do not repeat it at
+the top of the file.
+
 Always quote human-facing labels under `values`. This keeps formatting
 consistent and prevents YAML from interpreting labels such as `On`, `Off`,
 `Yes`, or `No` as another data type.
@@ -34,15 +42,25 @@ For a command that accepts a numeric range, describe its argument under
 `write.input` with a name, type, minimum, and maximum. Do not leave the range
 only in prose.
 
+Use `requires_parameter` when the device must report a capability parameter
+before a control can be exposed. A non-numeric cloud field belongs under
+`read.field` instead of `read.parameter`.
+
 ## Evidence boundary
 
-Each connection and capability uses one support level:
+Each capability records one support level for every listed connection:
 
 - `tested` means the capability was confirmed on real hardware through this
   gateway.
 - `reported` means a user supplied the result but it has not been reproduced.
 - `declared` means device data says the capability exists.
+- `failing` means the capability was attempted through that connection and is
+  currently not working.
+- `unsupported` means that connection is known not to offer the capability.
 - `unknown` keeps an unconfirmed research lead visible.
+
+A tested result may include `tested_on` and `tested_by`. Store `tested_by` as
+the contributor's GitHub username without the leading `@`.
 
 Runtime code may consume only capabilities marked `tested`. Other levels remain
 research until they are confirmed.

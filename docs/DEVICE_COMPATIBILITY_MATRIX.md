@@ -37,7 +37,7 @@ serials, credentials, snapshots, and videos stay outside the repository.
 
 | Marketing model | Eufy model and type | HomeBase 2 | HomeBase 3 | T9000 | Direct | Current capability notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| EufyCam 2C | T8113-Z, type 8 | `unverified` | `confirmed` | `unverified` | `unverified` | Discovery, motion, person, snapshots, live video, and camera siren control confirmed by developer testing. A local camera accepted a five-second siren duration and explicit stop. |
+| EufyCam 2C | T8113-Z, type 8 | `unverified` | `confirmed` | `unverified` | `unverified` | Discovery, motion and person events, snapshots, live video, motion detection control, and camera siren control confirmed by developer testing. A local camera accepted a five-second siren duration and explicit stop. |
 | EufyCam 2C Pro | T8142-Z, type 15 | `confirmed` | `unverified` | `unverified` | `unverified` | Discovery, snapshots, and live video confirmed. Events need focused testing. |
 | Wired Cam C31 | T817L, type 10031 | `unverified` | `confirmed` | `unverified` | `unverified` | Live video, snapshots, motion detection control, camera siren control, and night vision control confirmed. Raw 0 is PureColor, 1 is Infrared, and 2 is Spotlight. Battery-shaped fields are suppressed. |
 | eufyCam S330 | T8160, type 19 | `unverified` | `confirmed` | `unverified` | `unverified` | Discovery, sensors, retained images, and live video confirmed. |
@@ -65,7 +65,7 @@ serials, credentials, snapshots, and videos stay outside the repository.
 | Marketing model | Eufy model and type | Topology | Current capability notes | Evidence |
 | --- | --- | --- | --- | --- |
 | Video Doorbell | T8200, type 5 | Direct or self-parented | Discovery and self-parented PPCS are confirmed. Press and video remain unresolved. | Developer, v0.1.63. |
-| Video Doorbell | T8210, type 7 | Direct and HomeBase 2 | Live video and snapshots confirmed directly. HomeBase 2 playback has a separate blank or frozen report. | Developer and community, versions not consistently recorded. |
+| Video Doorbell S220 | T8210, type 7 | Direct, HomeBase 2, and HomeBase 3 | Live video and snapshots confirmed directly. Doorbell presses and motion detection control confirmed through HomeBase 3. HomeBase 2 playback has a separate blank or frozen report. | Developer and community, versions not consistently recorded. |
 | Video Doorbell | T8213, type 91 | HomeBase 3 | Discovery, sensors, retained images, and live stream confirmed. | Developer, v0.1.63. |
 | Video Doorbell E340 | T8214, type 94 | HomeBase 3 and T9000 | T9000 discovery and entities confirmed. T8030 live video has intermittent frame jumps. Press notifications need focused testing. | Community reports, versions not consistently recorded. |
 | Video Doorbell C30 | T8224, type 96 | Direct | Admission and doorbell press handling are implemented. Live media remains unverified. | Community evidence from `lsnewman`, issue #83, app/integration v0.1.59 reported; press support released in v0.1.63. |

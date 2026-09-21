@@ -55,7 +55,6 @@ const record = {
   name,
   models: [model],
   device_type: null,
-  connections: {},
   capabilities: {},
 };
 await writeFile(target, `# yaml-language-server: $schema=../device.schema.json\n\n${stringify(record)}`);

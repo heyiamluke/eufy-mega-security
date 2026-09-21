@@ -12,23 +12,25 @@ models:
 # Use null when the numeric inventory type is not known yet.
 device_type: null
 
-# Valid support levels are tested, reported, declared, and unknown.
-connections:
-  homebase3: unknown
-
 capabilities:
+  # Connection results use tested, reported, declared, failing, unsupported, or unknown.
   # Values that the integration can read but cannot change.
   readable:
     battery_level:
-      status: unknown
+      connections:
+        T8030:
+          status: unknown
+          # tested_on: 2026-09-21
+          # tested_by: github-username
       read:
         parameter: 0 # Replace with the real numeric parameter.
 
   # Settings and actions that the integration can change.
   controls:
     example_select:
-      status: unknown
-      requires: homebase3
+      connections:
+        T8030:
+          status: unknown
       read:
         parameter: 0 # Remove read when the control has no readable state.
       write:
@@ -40,8 +42,9 @@ capabilities:
 
     # Use write.input instead of values when a command accepts a numeric range.
     example_timed_action:
-      status: unknown
-      requires: homebase3
+      connections:
+        T8030:
+          status: unknown
       write:
         command: 0
         input:
@@ -52,12 +55,15 @@ capabilities:
 
   media:
     live_view:
-      status: unknown
-      requires: homebase3
+      connections:
+        T8030:
+          status: unknown
 
   events:
     motion:
-      status: unknown
+      connections:
+        T8030:
+          status: unknown
 
 # Keep this section only for misleading device fields that must be suppressed.
 ignored:

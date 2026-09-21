@@ -13,8 +13,8 @@ export const DEVICE_COMPATIBILITY: readonly DeviceCompatibility[] = [
   {
     family: "camera", marketingName: "EufyCam 2C", eufyModel: "T8113-Z", deviceTypes: [8],
     topologies: {
-      homebase3: { status: "confirmed", capabilities: { discovery: "confirmed", motionEvents: "confirmed", personEvents: "confirmed", snapshots: "confirmed", liveVideo: "confirmed", sirenControl: "confirmed" } },
-    }, evidence: [{ status: "developer-tested", date: "2026-09-21", appVersion: developerRelease, integrationVersion: developerRelease, capabilities: ["discovery", "motionEvents", "personEvents", "snapshots", "liveVideo", "sirenControl"], note: "Five-second trigger and explicit stop heard on a local camera." }],
+      homebase3: { status: "confirmed", capabilities: { discovery: "confirmed", motionEvents: "confirmed", personEvents: "confirmed", snapshots: "confirmed", liveVideo: "confirmed", motionDetectionControl: "confirmed", sirenControl: "confirmed" } },
+    }, evidence: [{ status: "developer-tested", date: "2026-09-21", appVersion: developerRelease, integrationVersion: developerRelease, capabilities: ["discovery", "motionEvents", "personEvents", "snapshots", "liveVideo", "motionDetectionControl", "sirenControl"], note: "Motion detection was switched off and on. A five-second siren trigger and explicit stop were also confirmed on local hardware." }],
   },
   {
     family: "camera", marketingName: "eufyCam 2", eufyModel: "T8114", deviceTypes: [9],
@@ -124,7 +124,11 @@ export const DEVICE_COMPATIBILITY: readonly DeviceCompatibility[] = [
   },
   {
     family: "doorbell", marketingName: "Video Doorbell", eufyModel: "T8210", deviceTypes: [7],
-    topologies: { direct: { status: "confirmed", capabilities: { discovery: "confirmed", snapshots: "confirmed", liveVideo: "confirmed" } }, homebase2: { status: "partial", capabilities: { liveVideo: "partial" }, quirks: ["Blank or frozen playback remains under investigation."] } }, evidence: [],
+    topologies: {
+      direct: { status: "confirmed", capabilities: { discovery: "confirmed", snapshots: "confirmed", liveVideo: "confirmed" } },
+      homebase2: { status: "partial", capabilities: { liveVideo: "partial" }, quirks: ["Blank or frozen playback remains under investigation."] },
+      homebase3: { status: "confirmed", capabilities: { discovery: "confirmed", doorbellPress: "confirmed", motionDetectionControl: "confirmed" } },
+    }, evidence: [{ status: "developer-tested", date: "2026-09-20", appVersion: developerRelease, integrationVersion: developerRelease, capabilities: ["doorbellPress", "motionDetectionControl"], note: "A doorbell press was routed and motion detection was switched off and on on local hardware." }],
   },
   {
     family: "doorbell", marketingName: "Video Doorbell", eufyModel: "T8213", deviceTypes: [91],

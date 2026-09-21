@@ -16,7 +16,10 @@ const forbiddenReferencePattern = /sdk|eufy-security-client|mega-yfue|source_rep
 const legacyIdentifierPattern = /(?:^|[-_])(?:no)?lib(?:[0-9_]|$)/i;
 const deviceExtensions = [".json", ".yaml"];
 const capabilityGroups = ["readable", "controls", "media", "events"];
-const supportStatuses = ["tested", "reported", "declared", "unknown"];
+const supportStatuses = ["tested", "reported", "declared", "failing", "unsupported", "unknown"];
+const connectionPattern = /^(?:direct|T[A-Z0-9]+)$/;
+const simplifiedCapabilityFields = new Set(["connections", "requires_parameter", "read", "write", "values", "notes", "source"]);
+const capabilityConnectionFields = new Set(["status", "tested_on", "tested_by", "notes"]);
 
 function isDeviceFile(file) {
   return deviceExtensions.some((extension) => file.endsWith(extension));
@@ -101,7 +104,7 @@ function validateDevice(file, source, record, ids) {
 
 function validateSimplifiedDevice(file, record) {
   const errors = [];
-  const allowedTopLevel = new Set(["schema", "id", "name", "models", "device_type", "connections", "capabilities", "ignored"]);
+  const allowedTopLevel = new Set(["schema", "id", "name", "models", "device_type", "capabilities", "ignored"]);
   for (const key of Object.keys(record)) {
     if (!allowedTopLevel.has(key)) errors.push(`${file}: unknown top-level field ${key}`);
   }
@@ -111,13 +114,6 @@ function validateSimplifiedDevice(file, record) {
   }
   if (record.device_type !== null && !Number.isSafeInteger(record.device_type)) {
     errors.push(`${file}: device_type must be an integer or null`);
-  }
-  if (!record.connections || typeof record.connections !== "object" || Array.isArray(record.connections)) {
-    errors.push(`${file}: connections must be a map`);
-  } else {
-    for (const [connection, status] of Object.entries(record.connections)) {
-      if (!connection || !supportStatuses.includes(status)) errors.push(`${file}: invalid connection ${connection}`);
-    }
   }
   if (!record.capabilities || typeof record.capabilities !== "object" || Array.isArray(record.capabilities)) {
     errors.push(`${file}: capabilities must be a map`);
@@ -134,14 +130,44 @@ function validateSimplifiedDevice(file, record) {
         errors.push(`${file}: ${group}.${name} must be a map`);
         continue;
       }
-      if (!supportStatuses.includes(capability.status)) errors.push(`${file}: ${group}.${name} has invalid status`);
-      if (capability.requires && !(capability.requires in (record.connections ?? {}))) {
-        errors.push(`${file}: ${group}.${name} requires unknown connection ${capability.requires}`);
+      for (const key of Object.keys(capability)) {
+        if (!simplifiedCapabilityFields.has(key)) errors.push(`${file}: ${group}.${name} has unknown field ${key}`);
+      }
+      if (!capability.connections || typeof capability.connections !== "object" || Array.isArray(capability.connections)
+        || Object.keys(capability.connections).length === 0) {
+        errors.push(`${file}: ${group}.${name} connections must be a non-empty map`);
+      } else {
+        for (const [connection, result] of Object.entries(capability.connections)) {
+          if (!connectionPattern.test(connection)) errors.push(`${file}: ${group}.${name} uses invalid connection ${connection}`);
+          if (!result || typeof result !== "object" || Array.isArray(result) || !supportStatuses.includes(result.status)) {
+            errors.push(`${file}: ${group}.${name} has invalid result for ${connection}`);
+            continue;
+          }
+          for (const key of Object.keys(result)) {
+            if (!capabilityConnectionFields.has(key)) errors.push(`${file}: ${group}.${name}.${connection} has unknown field ${key}`);
+          }
+          if (result.tested_by !== undefined
+            && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(result.tested_by)) {
+            errors.push(`${file}: ${group}.${name}.${connection} tested_by must be a GitHub username without @`);
+          }
+        }
       }
       if (group === "controls" && !capability.write) errors.push(`${file}: controls.${name} must define write`);
       if (group === "readable" && !capability.read) errors.push(`${file}: readable.${name} must define read`);
-      if (capability.read?.parameter !== undefined && (!Number.isSafeInteger(capability.read.parameter) || capability.read.parameter < 1)) {
-        errors.push(`${file}: ${group}.${name} read parameter must be a positive integer`);
+      if (capability.read) {
+        const hasParameter = capability.read.parameter !== undefined;
+        const hasField = capability.read.field !== undefined;
+        if (hasParameter === hasField) errors.push(`${file}: ${group}.${name} read must define exactly one parameter or field`);
+        if (hasParameter && (!Number.isSafeInteger(capability.read.parameter) || capability.read.parameter < 1)) {
+          errors.push(`${file}: ${group}.${name} read parameter must be a positive integer`);
+        }
+        if (hasField && !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(capability.read.field)) {
+          errors.push(`${file}: ${group}.${name} read field must use snake case`);
+        }
+      }
+      if (capability.requires_parameter !== undefined
+        && (!Number.isSafeInteger(capability.requires_parameter) || capability.requires_parameter < 1)) {
+        errors.push(`${file}: ${group}.${name} requires_parameter must be a positive integer`);
       }
       if (capability.write && (!Number.isSafeInteger(capability.write.command) || capability.write.command < 1)) {
         errors.push(`${file}: ${group}.${name} write command must be a positive integer`);

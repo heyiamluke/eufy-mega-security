@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+
+id: t8113
+name: eufyCam 2C
+models:
+  - T8113
+  - T8113-Z
+device_type: 8
+
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+
+    battery_charging:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+
+    battery_temperature:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+
+    last_charging_days:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        field: charging_days
+
+  controls:
+    motion_detection:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        0: "Off"
+        1: "On"
+
+    night_vision:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        0: "Off"
+        1: "Infrared"
+        2: "Spotlight"
+
+    siren:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
+
+  media:
+    live_view:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+
+    snapshot:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+
+  events:
+    motion:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+
+    person:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey

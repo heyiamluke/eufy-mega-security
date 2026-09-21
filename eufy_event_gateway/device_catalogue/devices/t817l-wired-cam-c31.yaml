@@ -9,16 +9,14 @@ models:
   - T817L121
 device_type: 10031
 
-connections:
-  homebase3: tested
-  direct: declared
-
 capabilities:
   controls:
     motion_detection:
-      status: tested
-      tested_on: 2026-09-21
-      requires: homebase3
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
       read:
         parameter: 1011
       write:
@@ -28,9 +26,11 @@ capabilities:
         1: "On"
 
     night_vision:
-      status: tested
-      tested_on: 2026-09-21
-      requires: homebase3
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
       read:
         parameter: 1277
       write:
@@ -41,9 +41,12 @@ capabilities:
         2: "Spotlight"
 
     siren:
-      status: tested
-      tested_on: 2026-09-21
-      requires: homebase3
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+      requires_parameter: 1015
       write:
         command: 1202
         input:
@@ -51,17 +54,25 @@ capabilities:
           type: integer
           minimum: 0
           maximum: 900
-      notes: Available when capability parameter 1015 is reported. A duration of 0 stops the siren.
+      notes: A duration of 0 stops the siren.
 
   media:
     live_view:
-      status: tested
-      tested_on: 2026-09-21
-      requires: homebase3
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+        direct:
+          status: declared
     snapshot:
-      status: tested
-      tested_on: 2026-09-21
-      requires: homebase3
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+        direct:
+          status: declared
 
 ignored:
   battery:
