@@ -72,6 +72,20 @@ export function needsStandaloneMediaReassert(
   return !homeBaseAttached && codec === "unknown";
 }
 
+/** Decide whether an attached camera needs the pre-2.0.9.7 direct live-start command. */
+export function usesLegacyAttachedMediaStart(stationFirmware: string | null | undefined): boolean {
+  if (!stationFirmware) return false;
+  const parts = stationFirmware.match(/\d+/g)?.slice(0, 4).map(Number);
+  if (!parts || parts.length < 4) return false;
+  const minimum = [2, 0, 9, 7];
+  for (let index = 0; index < minimum.length; index += 1) {
+    const current = parts[index] ?? 0;
+    const required = minimum[index] ?? 0;
+    if (current !== required) return current < required;
+  }
+  return false;
+}
+
 /**
  * Decide whether a decoded HomeBase media command belongs to the camera this session requested.
  *
@@ -334,9 +348,8 @@ export class PpcsVideoStreamNormalizer {
     return this.#mode;
   }
 
-  /** Return the codec announced by parameter-set NAL units, when observed. */
+  /** Return the codec proven by decoder setup, falling back to the PPCS frame marker. */
   get codec(): "h264" | "h265" | "unknown" {
-    if (this.#declaredCodec) return this.#declaredCodec;
     if (this.#nalHeaderBytes.some((byte) => {
       const type = (byte >> 1) & 0x3f;
       return type === 32 || type === 33 || type === 34;
@@ -345,7 +358,7 @@ export class PpcsVideoStreamNormalizer {
       const type = byte & 0x1f;
       return type === 7 || type === 8;
     })) return "h264";
-    return "unknown";
+    return this.#declaredCodec ?? "unknown";
   }
 
   /** Return distinct codec-specific NAL types without retaining their payloads. */
@@ -455,6 +468,7 @@ interface PendingPpcsFrame {
 /** Peer and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
   readonly stationSerial: string;
+  readonly stationFirmware?: string | null;
   readonly p2pDid: string;
   readonly appConnection: string;
   readonly dskKey: string;
@@ -628,7 +642,11 @@ export class FirstPartyPpcsSession {
       if (!this.#remote) return;
       this.#send(REQ.ping, Buffer.alloc(0), this.#remote);
       if (this.#options.purpose === "control") return;
-      if (this.#options.homeBaseAttached && this.#level2Key && needsAttachedMediaReassert(this.#lastAttachedMediaFrameAt, Date.now())) {
+      if (
+        this.#options.homeBaseAttached
+        && (this.#level2Key || usesLegacyAttachedMediaStart(this.#options.stationFirmware))
+        && needsAttachedMediaReassert(this.#lastAttachedMediaFrameAt, Date.now())
+      ) {
         this.#startAttachedMedia();
       }
       else if (needsStandaloneMediaReassert(Boolean(this.#options.homeBaseAttached), this.#videoNormalizer.codec)) {
@@ -779,7 +797,13 @@ export class FirstPartyPpcsSession {
       this.#remote = { host: info.address, port: info.port };
       this.#send(REQ.ping, Buffer.alloc(0), this.#remote);
       this.#sendCommand(1100, voidPayload(255));
-      if (!this.#options.homeBaseAttached && this.#options.purpose !== "control") this.#startOwnMedia();
+      if (this.#options.purpose !== "control") {
+        if (this.#options.homeBaseAttached && usesLegacyAttachedMediaStart(this.#options.stationFirmware)) {
+          this.#startAttachedMedia();
+        } else if (!this.#options.homeBaseAttached) {
+          this.#startOwnMedia();
+        }
+      }
       return true;
     }
     if (has(message, RESP.pong)) return false;
@@ -1026,8 +1050,13 @@ export class FirstPartyPpcsSession {
   }
 
   #startAttachedMedia(): void {
-    if (!this.#remote || !this.#level2Key) return;
+    if (!this.#remote) return;
     const key = publicModulus(this.#rsa.publicKey);
+    if (usesLegacyAttachedMediaStart(this.#options.stationFirmware)) {
+      this.#sendCommand(1003, buildLegacyAttachedLiveStartPayload(this.#options.channel, key));
+      return;
+    }
+    if (!this.#level2Key) return;
     const value = JSON.stringify({
       account_id: this.#options.accountId ?? "",
       cmd: 1003,
@@ -1092,6 +1121,20 @@ function rawPayload(data: Buffer, channel: number, signCode: number, magic: read
   result.writeUInt16LE(data.length, 0); result[4] = magic[0]; result[5] = magic[1];
   result[6] = channel & 0xff; result[7] = signCode & 0xff; result[8] = streamId & 0xff;
   data.copy(result, 10); return result;
+}
+
+/** Build the direct live-start body used by older HomeBase firmware. */
+export function buildLegacyAttachedLiveStartPayload(channel: number, publicKey: string): Buffer {
+  if (!Number.isSafeInteger(channel) || channel < 0 || channel > 255) {
+    throw new Error("Legacy attached live start requires a valid camera channel");
+  }
+  if (!publicKey) throw new Error("Legacy attached live start requires a public key");
+  const value = Buffer.alloc(4);
+  value.writeUInt32LE(channel, 0);
+  const keyBytes = Buffer.from(publicKey, "ascii");
+  const paddedKey = Buffer.alloc(Math.ceil(Math.max(keyBytes.length, 128) / 128) * 128);
+  keyBytes.copy(paddedKey);
+  return rawPayload(Buffer.concat([value, paddedKey]), channel, 0, [1, 0], 0);
 }
 
 function buildIntStringCommandBody(value: number, valueSub: number, accountId: string, key: Buffer): Buffer {

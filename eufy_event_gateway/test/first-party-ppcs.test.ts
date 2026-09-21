@@ -10,6 +10,7 @@ import test from "node:test";
 
 import {
   buildCameraEnableBody,
+  buildLegacyAttachedLiveStartPayload,
   buildNightVisionBody,
   acceptsAttachedCameraMedia,
   buildPpcsCloudLookup,
@@ -26,6 +27,7 @@ import {
   ppcsLookupCandidate,
   ppcsPartialCommandPrefix,
   ppcsSequenceDisposition,
+  usesLegacyAttachedMediaStart,
 } from "../src/stream/first-party-ppcs.js";
 
 test("builds the two PPCS cloud lookup variants", () => {
@@ -71,6 +73,26 @@ test("reissues a standalone start only while codec headers are missing", () => {
   assert.equal(needsStandaloneMediaReassert(false, "h264"), false);
   assert.equal(needsStandaloneMediaReassert(false, "h265"), false);
   assert.equal(needsStandaloneMediaReassert(true, "unknown"), false);
+});
+
+test("selects the direct attached-media command only for known older firmware", () => {
+  assert.equal(usesLegacyAttachedMediaStart("2.0.9.6"), true);
+  assert.equal(usesLegacyAttachedMediaStart("1.9.9.99h"), true);
+  assert.equal(usesLegacyAttachedMediaStart("2.0.9.7"), false);
+  assert.equal(usesLegacyAttachedMediaStart("3.4.2.6h"), false);
+  assert.equal(usesLegacyAttachedMediaStart("unknown"), false);
+  assert.equal(usesLegacyAttachedMediaStart(null), false);
+});
+
+test("builds the older HomeBase direct live-start body", () => {
+  const publicKey = "ab".repeat(128);
+  const payload = buildLegacyAttachedLiveStartPayload(4, publicKey);
+
+  assert.equal(payload.readUInt16LE(0), payload.length - 10);
+  assert.deepEqual(payload.subarray(4, 10), Buffer.from([1, 0, 4, 0, 0, 0]));
+  assert.equal(payload.readUInt32LE(10), 4);
+  assert.equal(payload.subarray(14, 14 + publicKey.length).toString("ascii"), publicKey);
+  assert.ok(payload.subarray(14 + publicKey.length).every((value) => value === 0));
 });
 
 test("accepts direct and relay PPCS discovery responses", () => {
@@ -279,13 +301,22 @@ test("records privacy-safe H.264 NAL types across output chunks", () => {
   assert.deepEqual(normalizer.nalTypes, [7, 8, 5]);
 });
 
-test("uses PPCS frame metadata when NAL bytes resemble the wrong codec", () => {
+test("prefers decoder setup over a conflicting PPCS frame marker", () => {
   const normalizer = new PpcsVideoStreamNormalizer();
 
   normalizer.push(Buffer.from([0, 0, 0, 1, 0x40, 0x01]), "h264");
 
+  assert.equal(normalizer.codec, "h265");
+  assert.deepEqual(normalizer.nalTypes, [32]);
+});
+
+test("uses the PPCS frame marker when media bytes do not identify a codec", () => {
+  const normalizer = new PpcsVideoStreamNormalizer();
+
+  normalizer.push(Buffer.from([0, 0, 0, 1, 0x1c, 0x01]), "h264");
+
   assert.equal(normalizer.codec, "h264");
-  assert.deepEqual(normalizer.nalTypes, [0]);
+  assert.deepEqual(normalizer.nalTypes, [28]);
 });
 
 test("records privacy-safe H.265 NAL types across output chunks", () => {

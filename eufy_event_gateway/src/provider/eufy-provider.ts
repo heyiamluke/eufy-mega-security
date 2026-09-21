@@ -212,7 +212,8 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
         ? await this.#resolveCipherKey(device.cipherId, peer)
         : undefined;
       const stream = new FirstPartyPpcsSession({
-        stationSerial: peer.serial, p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
+        stationSerial: peer.serial, stationFirmware: peer.firmware,
+        p2pDid: peer.p2pDid, appConnection: peer.p2pConnection,
         dskKey: dsk.key, channel: device.channel, cameraModel: device.model, accountId: device.adminUserId,
         homeBaseAttached: route.homeBaseAttached,
         cipherId: device.cipherId,
