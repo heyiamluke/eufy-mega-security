@@ -3,8 +3,8 @@
  *
  * Inventory presence and child-camera route readiness apply to discovered
  * HomeBases. A discovered station may attempt the conservative state read,
- * while general commands remain T8030-only. The separately evidenced siren
- * command may be offered to discovered stations.
+ * while general commands remain T8030-only. Current T8010 firmware may use the
+ * separately evidenced guard-mode and siren commands.
  */
 
 import type { CoreCapabilityEntry } from "./device-capability-core.js";

@@ -46,9 +46,19 @@ async def async_setup_entry(
     known_mode_stations: set[str] = set()
     known_storage_stations: set[str] = set()
     known_sensors: set[str] = set()
+    registry = er.async_get(hass)
     _migrate_storage_display_units(hass, coordinator)
 
     def add_new() -> None:
+        for serial, station in coordinator.stations.items():
+            if station.get("guardModeControlSupported") is not True:
+                continue
+            entity_id = registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{serial}_guard_mode_read_only"
+            )
+            if entity_id is not None:
+                registry.async_remove(entity_id)
+
         serials = set(coordinator.cameras) - known_cameras
         if serials:
             known_cameras.update(serials)
@@ -72,7 +82,7 @@ async def async_setup_entry(
             known_mode_stations.update(mode_station_serials)
             entities = []
             for serial in sorted(mode_station_serials):
-                if coordinator.stations[serial].get("controlsSupported") is not True:
+                if coordinator.stations[serial].get("guardModeControlSupported") is not True:
                     entities.append(EufyGuardModeSensor(coordinator, serial))
                 entities.append(EufyEffectiveModeSensor(coordinator, serial))
             async_add_entities(entities)

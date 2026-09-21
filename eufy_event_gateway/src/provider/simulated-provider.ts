@@ -25,6 +25,7 @@ function simulatedStation(overrides: Partial<HomeBaseState> = {}): HomeBaseState
     available: true,
     cameraRouteReady: true,
     controlsSupported: true,
+    guardModeControlSupported: true,
     stateReadSupported: true,
     homeBaseSirenControlSupported: true,
     connected: true,
@@ -116,7 +117,7 @@ export class SimulatedProvider implements CameraProvider {
       category: "eufy_security",
       deviceType: 18,
       paramTypes: [],
-    }, { homeBaseSupported: true, homeBaseRouteReady: true, doorbellSupported: false, cameraStreamSupported: false }));
+    }, { homeBaseSupported: true, homeBaseGuardModeSupported: true, homeBaseRouteReady: true, doorbellSupported: false, cameraStreamSupported: false }));
     events.connection("connected", "simulated provider");
   }
 

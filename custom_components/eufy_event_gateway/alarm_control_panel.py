@@ -42,7 +42,7 @@ async def async_setup_entry(
         serials = {
             serial
             for serial, station in coordinator.stations.items()
-            if station.get("controlsSupported") is True
+            if station.get("guardModeControlSupported") is True
         } - known
         if serials:
             known.update(serials)

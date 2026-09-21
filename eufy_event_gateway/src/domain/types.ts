@@ -142,6 +142,9 @@ export interface HomeBaseState {
   /** Whether the model may receive the managed station control set. */
   readonly controlsSupported: boolean;
 
+  /** Whether the station may receive confirmed guard-mode writes. */
+  readonly guardModeControlSupported: boolean;
+
   /** Whether the local state path is enabled for this station model. */
   readonly stateReadSupported: boolean;
   readonly homeBaseSirenControlSupported: boolean;

@@ -48,18 +48,15 @@ async def async_setup_entry(
         serials = {
             serial
             for serial, station in coordinator.stations.items()
-            if station.get("controlsSupported") is True
+            if station.get("guardModeControlSupported") is True
         } - known_stations
         if serials:
             known_stations.update(serials)
             entities = []
             for serial in sorted(serials):
-                entities.extend(
-                    (
-                        EufyGuardModeSelect(coordinator, serial),
-                        EufyAlarmToneSelect(coordinator, serial),
-                    )
-                )
+                entities.append(EufyGuardModeSelect(coordinator, serial))
+                if coordinator.stations[serial].get("controlsSupported") is True:
+                    entities.append(EufyAlarmToneSelect(coordinator, serial))
             async_add_entities(entities)
         camera_serials = {
             serial
