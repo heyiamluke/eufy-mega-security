@@ -1,12 +1,15 @@
 # Changelog
 
-## 0.1.73
+## 0.1.74
 
 - Generate camera, sensor, HomeBase, and non-camera runtime admission data from the human-edited device catalogue.
 - Remove the duplicate hand-written TypeScript compatibility ledger.
 - Distinguish recognised devices, hardware-ready test candidates, and supported handlers without automatically admitting every known product.
 - Add 53 accessory records, including locks, sensors, sirens, keypads, safes, trackers, chimes, remotes, and SmartDrop.
 - Reconcile the T7402, T7403, and T87B4 numeric type mappings and retain the conflicting T8224 type 95 and 96 evidence.
+
+## 0.1.73
+
 - Normalise device catalogue IDs to their primary model code and retain readable display names in filenames.
 - Keep short variant suffixes only for the four model codes that identify multiple records.
 - Add validation that filenames retain a model and display slug, unique IDs use their model code, and shared models document their variant rule.
