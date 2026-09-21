@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t85v0
+name: FamiLock S3 / S3 Max (T85V0)
+models:
+  - T85V0
+  - T85V01Y1
+device_type: 203
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+    last_charging_days:
+      connections:
+        T8030:
+          status: declared
+      read:
+        field: charging_days
+  controls:
+    enabled:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        T8030:
+          status: declared
+    snapshot:
+      connections:
+        T8030:
+          status: declared
+  events:
+    motion:
+      connections:
+        T8030:
+          status: declared
+    person:
+      connections:
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8030:
+          status: declared
+    doorbell_press:
+      connections:
+        T8030:
+          status: declared

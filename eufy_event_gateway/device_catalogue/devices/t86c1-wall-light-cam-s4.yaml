@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t86c1
+name: Wall Light Cam S4
+models:
+  - T86C1
+  - T86C1121
+device_type: null
+capabilities: {}

@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8220
+name: Video Doorbell Slim (Battery, 1080p, T8220)
+models:
+  - T8220
+device_type: null
+capabilities: {}

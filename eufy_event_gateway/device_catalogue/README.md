@@ -4,9 +4,8 @@ This is the contributor-editable source for what the integration can read,
 control, stream, and receive from each device. It deliberately excludes
 marketing specifications and general product observations.
 
-New and migrated device records use YAML. The remaining JSON files use the
-older detailed format and will be migrated carefully as their data is reviewed.
-Both formats are validated and queryable during that transition.
+Every device record uses the same compact YAML format and is validated by the
+catalogue check.
 
 Each filename combines the primary model code and readable display name, such
 as `t8170-solocam-s340.yaml`. The `id` stays minimal and stable, so that record
@@ -53,14 +52,16 @@ Each capability records one support level for every listed connection:
 - `tested` means the capability was confirmed on real hardware through this
   gateway.
 - `reported` means a user supplied the result but it has not been reproduced.
+- `mixed` means different real-world reports disagree for that connection.
 - `declared` means device data says the capability exists.
 - `failing` means the capability was attempted through that connection and is
   currently not working.
 - `unsupported` means that connection is known not to offer the capability.
 - `unknown` keeps an unconfirmed research lead visible.
 
-A tested result may include `tested_on` and `tested_by`. Store `tested_by` as
-the contributor's GitHub username without the leading `@`.
+A real-world result may include `tested_on` and `tested_by`, including results
+reported by another user. Store `tested_by` as the contributor's GitHub
+username without the leading `@`.
 
 Runtime code may consume only capabilities marked `tested`. Other levels remain
 research until they are confirmed.
@@ -99,7 +100,6 @@ and public evidence links are suitable for this catalogue.
 - `property-reference.json` is the legacy cross-device property glossary.
 - `unmapped-device-types.json` records known numeric types without a confirmed
   retail model.
-- `schema.json` documents the legacy JSON structure.
 
 The device files are the maintained source. Contributors should update them
 directly instead of importing private research material into the repository.

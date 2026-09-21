@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8201
+name: Wired Video Doorbell (T8201)
+models:
+  - T8201
+  - T8201X
+device_type: 5
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 2001
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    doorbell_press:
+      connections:
+        direct:
+          status: declared

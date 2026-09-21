@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8416
+name: Indoor Cam S350
+models:
+  - T8416
+  - T8416121
+device_type: 104
+capabilities:
+  controls:
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T9000:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Off"
+        "1": "Infrared"
+        "2": "Spotlight"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: failing
+          tested_on: 2026-09-17
+          tested_by: geroh20-source
+          notes: The T9000 camera route cannot complete peer lookup.
+    snapshot:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared
+        T9000:
+          status: declared

@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8420-variant-6
+name: Floodlight Cam (T8420X hardware variant)
+models:
+  - T8420
+device_type: 3
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 2001
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared

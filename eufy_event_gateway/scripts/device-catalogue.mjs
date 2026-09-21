@@ -14,9 +14,9 @@ const catalogueDirectory = join(dirname(fileURLToPath(import.meta.url)), "..", "
 const devicesDirectory = join(catalogueDirectory, "devices");
 const forbiddenReferencePattern = /sdk|eufy-security-client|mega-yfue|source_repo|file_line|verified_by|xref_mega|build\/http\/types\.js|src\/model\/|(?:no)?lib[0-9]|\blibrary\b/i;
 const legacyIdentifierPattern = /(?:^|[-_])(?:no)?lib(?:[0-9_]|$)/i;
-const deviceExtensions = [".json", ".yaml"];
+const deviceExtensions = [".yaml"];
 const capabilityGroups = ["readable", "controls", "media", "events"];
-const supportStatuses = ["tested", "reported", "declared", "failing", "unsupported", "unknown"];
+const supportStatuses = ["tested", "reported", "mixed", "declared", "failing", "unsupported", "unknown"];
 const connectionPattern = /^(?:direct|T[A-Z0-9]+)$/;
 const simplifiedCapabilityFields = new Set(["connections", "requires_parameter", "read", "write", "values", "notes", "source"]);
 const capabilityConnectionFields = new Set(["status", "tested_on", "tested_by", "notes"]);
@@ -30,16 +30,16 @@ function deviceFileStem(file) {
   return extension ? basename(file, extension) : basename(file);
 }
 
-function parseDevice(file, source) {
-  return file.endsWith(".yaml") ? parse(source) : JSON.parse(source);
+function parseDevice(_file, source) {
+  return parse(source);
 }
 
 function deviceModels(record) {
-  return record.schema === 1 ? record.models : record.identity?.model_codes;
+  return record.models;
 }
 
 function deviceName(record) {
-  return record.schema === 1 ? record.name : record.identity?.display_name;
+  return record.name;
 }
 
 async function loadDevices() {
@@ -73,33 +73,8 @@ function validateDevice(file, source, record, ids) {
   else if (ids.has(record.id)) errors.push(`${file}: duplicate id ${record.id}`);
   else ids.add(record.id);
 
-  if (record.schema === 1) return [...errors, ...validateSimplifiedDevice(file, record)];
-  if (record.$schema !== "../schema.json") errors.push(`${file}: invalid schema reference`);
-  if (!record.identity || typeof record.identity.display_name !== "string") errors.push(`${file}: missing display name`);
-  if (!Array.isArray(record.identity?.model_codes)) errors.push(`${file}: model_codes must be an array`);
-  if (!record.device_registry || typeof record.device_registry !== "object") errors.push(`${file}: missing device registry`);
-  if (!record.capabilities || typeof record.capabilities !== "object") errors.push(`${file}: missing capabilities`);
-
-  for (const [kind, capabilities] of Object.entries(record.capabilities ?? {})) {
-    if (!Array.isArray(capabilities)) {
-      errors.push(`${file}: ${kind} must be an array`);
-      continue;
-    }
-    const keys = new Set();
-    for (const capability of capabilities) {
-      const key = `${capability.key}\u0000${capability.context}`;
-      if (!capability.key || !capability.context || !capability.available) errors.push(`${file}: incomplete ${kind} capability`);
-      if (keys.has(key)) errors.push(`${file}: duplicate ${kind} ${capability.key} (${capability.context})`);
-      keys.add(key);
-      const optionValues = new Set();
-      for (const option of capability.value?.options ?? []) {
-        const value = JSON.stringify(option.value);
-        if (optionValues.has(value)) errors.push(`${file}: duplicate option ${value} for ${capability.key}`);
-        optionValues.add(value);
-      }
-    }
-  }
-  return errors;
+  if (record.schema !== 1) errors.push(`${file}: schema must be 1`);
+  return [...errors, ...validateSimplifiedDevice(file, record)];
 }
 
 function validateSimplifiedDevice(file, record) {
@@ -220,9 +195,6 @@ function validateIdentityKeys(devices) {
       if (records.length > 1 && !record.id.startsWith(`${primaryModel}-`)) {
         errors.push(`${file}: shared primary model id must start with ${primaryModel}-`);
       }
-      if (record.schema !== 1 && records.length > 1 && !record.identity.variant_rule) {
-        errors.push(`${file}: shared primary model requires a variant rule`);
-      }
     }
   }
   for (const { file, record } of devices) {
@@ -241,29 +213,19 @@ function findDevice(devices, query) {
     record.id,
     deviceName(record),
     ...(deviceModels(record) ?? []),
-    ...(record.identity?.aliases ?? []),
   ].some((value) => String(value).toUpperCase() === normalized));
 }
 
 function countCapabilities(record) {
-  if (record.schema === 1) {
-    return Object.values(record.capabilities).reduce((sum, entries) => sum + Object.keys(entries).length, 0);
-  }
-  return Object.values(record.capabilities).reduce((sum, rows) => sum + rows.length, 0);
+  return Object.values(record.capabilities).reduce((sum, entries) => sum + Object.keys(entries).length, 0);
 }
 
 function countSelectableValues(record) {
-  if (record.schema === 1) {
-    return Object.values(record.capabilities).reduce(
-      (sum, entries) => sum + Object.values(entries).reduce(
-        (entrySum, entry) => entrySum + Object.keys(entry.values ?? {}).length,
-        0,
-      ),
-      0,
-    );
-  }
   return Object.values(record.capabilities).reduce(
-    (sum, rows) => sum + rows.reduce((rowSum, row) => rowSum + (row.value?.options?.length ?? 0), 0),
+    (sum, entries) => sum + Object.values(entries).reduce(
+      (entrySum, entry) => entrySum + Object.keys(entry.values ?? {}).length,
+      0,
+    ),
     0,
   );
 }
@@ -295,17 +257,11 @@ async function query(model, capabilityKey) {
   if (matches.length === 0) throw new Error(`No device matches ${model}`);
   const output = matches.map(({ file, record }) => {
     if (!capabilityKey) return { file, ...record };
-    if (record.schema === 1) {
-      const capabilities = Object.entries(record.capabilities).flatMap(([group, entries]) => {
-        const capability = entries[capabilityKey];
-        return capability ? [{ group, name: capabilityKey, ...capability }] : [];
-      });
-      return { file, id: record.id, name: record.name, models: record.models, capabilities };
-    }
-    const capabilities = Object.entries(record.capabilities).flatMap(([kind, rows]) => rows
-      .filter((row) => row.key.toLowerCase() === capabilityKey.toLowerCase())
-      .map((row) => ({ kind, ...row })));
-    return { file, id: record.id, identity: record.identity, capabilities };
+    const capabilities = Object.entries(record.capabilities).flatMap(([group, entries]) => {
+      const capability = entries[capabilityKey];
+      return capability ? [{ group, name: capabilityKey, ...capability }] : [];
+    });
+    return { file, id: record.id, name: record.name, models: record.models, capabilities };
   });
   console.log(JSON.stringify(output, null, 2));
 }

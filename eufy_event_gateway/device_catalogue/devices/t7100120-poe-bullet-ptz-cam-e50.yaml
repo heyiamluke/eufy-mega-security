@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t7100120
+name: PoE Bullet-PTZ Cam E50
+models:
+  - T7100120
+device_type: null
+capabilities: {}

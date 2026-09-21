@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8213
+name: Video Doorbell S330 / Dual (Battery)
+models:
+  - T8213
+device_type: 91
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1138
+    last_charging_days:
+      connections:
+        T8030:
+          status: declared
+      read:
+        field: charging_days
+  controls:
+    enabled:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        T8030:
+          status: reported
+          tested_on: 2026-09-14
+          tested_by: AbeltjeNL
+    snapshot:
+      connections:
+        T8030:
+          status: reported
+          tested_on: 2026-09-14
+          tested_by: AbeltjeNL
+  events:
+    motion:
+      connections:
+        T8030:
+          status: declared
+    person:
+      connections:
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8030:
+          status: declared
+    doorbell_press:
+      connections:
+        T8030:
+          status: declared

@@ -1,0 +1,91 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8222
+name: Video Doorbell C210 / 1080p (Battery)
+models:
+  - T8222
+device_type: 16
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8010:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        T8010:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        T8010:
+          status: declared
+      read:
+        parameter: 1138
+    last_charging_days:
+      connections:
+        T8010:
+          status: declared
+      read:
+        field: charging_days
+  controls:
+    enabled:
+      connections:
+        T8010:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8010:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        T8010:
+          status: declared
+    snapshot:
+      connections:
+        T8010:
+          status: declared
+  events:
+    motion:
+      connections:
+        T8010:
+          status: declared
+    person:
+      connections:
+        T8010:
+          status: declared
+    pet:
+      connections:
+        T8010:
+          status: declared
+    vehicle:
+      connections:
+        T8010:
+          status: declared
+    sound:
+      connections:
+        T8010:
+          status: declared
+    doorbell_press:
+      connections:
+        T8010:
+          status: declared

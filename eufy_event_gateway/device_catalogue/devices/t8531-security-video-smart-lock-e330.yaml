@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8531
+name: Security Video Smart Lock E330 (T8531)
+models:
+  - T8531
+device_type: 189
+capabilities: {}

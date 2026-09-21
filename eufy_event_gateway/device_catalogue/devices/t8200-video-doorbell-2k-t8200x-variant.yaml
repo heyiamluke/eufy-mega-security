@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8200-variant-6
+name: Video Doorbell 2K (T8200X variant)
+models:
+  - T8200
+device_type: 5
+capabilities:
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: failing
+          tested_on: 2026-09-17
+          tested_by: sm0keKings
+          notes: The device accepts the request but sends no usable video frame.
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    doorbell_press:
+      connections:
+        direct:
+          status: declared

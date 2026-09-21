@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8224
+name: Video Doorbell C30
+models:
+  - T8224
+device_type: 96
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+      read:
+        parameter: 1138
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: failing
+          tested_on: 2026-09-20
+          tested_by: lsnewman
+          notes: The direct media route is not ready.
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared
+    doorbell_press:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: lsnewman

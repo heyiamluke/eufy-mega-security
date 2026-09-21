@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8p10
+name: PoE Cam E41 (turret)
+models:
+  - T8P10
+  - T8P10121
+device_type: null
+capabilities: {}

@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8202
+name: Video Doorbell 2K Pro (Wired, connected T8202)
+models:
+  - T8202
+device_type: null
+capabilities: {}

@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8p00
+name: PoE Cam E40 (bullet)
+models:
+  - T8P00
+  - T8P00121
+device_type: null
+capabilities: {}

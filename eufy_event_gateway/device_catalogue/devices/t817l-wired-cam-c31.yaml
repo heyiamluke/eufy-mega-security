@@ -1,16 +1,40 @@
 # yaml-language-server: $schema=../device.schema.json
 
 schema: 1
-
 id: t817l
 name: Wired Cam C31
 models:
   - T817L
   - T817L121
 device_type: 10031
-
 capabilities:
   controls:
+    enabled:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    privacy_mode:
+      connections:
+        T8030:
+          status: tested
+          tested_on: 2026-09-20
+          tested_by: mscodemonkey
+      requires_parameter: 6250
+      write:
+        command: 6250
+      values:
+        "0": "Off"
+        "1": "On"
+      notes: Write-only control with no reliable state readback.
     motion_detection:
       connections:
         T8030:
@@ -22,9 +46,8 @@ capabilities:
       write:
         command: 1011
       values:
-        0: "Off"
-        1: "On"
-
+        "0": "Off"
+        "1": "On"
     night_vision:
       connections:
         T8030:
@@ -36,10 +59,9 @@ capabilities:
       write:
         command: 1277
       values:
-        0: "PureColor"
-        1: "Infrared"
-        2: "Spotlight"
-
+        "0": "PureColor"
+        "1": "Infrared"
+        "2": "Spotlight"
     siren:
       connections:
         T8030:
@@ -55,7 +77,6 @@ capabilities:
           minimum: 0
           maximum: 900
       notes: A duration of 0 stops the siren.
-
   media:
     live_view:
       connections:
@@ -73,7 +94,6 @@ capabilities:
           tested_by: mscodemonkey
         direct:
           status: declared
-
 ignored:
   battery:
     fields:

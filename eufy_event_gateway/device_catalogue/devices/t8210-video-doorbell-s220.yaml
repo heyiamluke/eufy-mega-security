@@ -1,27 +1,26 @@
 # yaml-language-server: $schema=../device.schema.json
 
 schema: 1
-
 id: t8210
 name: Video Doorbell S220
 models:
   - T8210
   - T8210C
 device_type: 7
-
 capabilities:
   readable:
     battery_level:
       connections:
         T8010:
-          status: declared
+          status: mixed
+          tested_on: 2026-09-20
+          notes: Reported HomeBase 2 battery percentages do not agree across setups.
         T8030:
           status: declared
         direct:
           status: declared
       read:
         parameter: 1101
-
     battery_charging:
       connections:
         T8010:
@@ -32,7 +31,6 @@ capabilities:
           status: declared
       read:
         parameter: 2111
-
     battery_temperature:
       connections:
         T8010:
@@ -43,7 +41,6 @@ capabilities:
           status: declared
       read:
         parameter: 1138
-
     last_charging_days:
       connections:
         T8010:
@@ -58,7 +55,6 @@ capabilities:
           tested_by: mscodemonkey
       read:
         field: charging_days
-
   controls:
     motion_detection:
       connections:
@@ -75,9 +71,8 @@ capabilities:
       write:
         command: 1011
       values:
-        0: "Off"
-        1: "On"
-
+        "0": "Off"
+        "1": "On"
     auto_night_vision:
       connections:
         T8010:
@@ -91,32 +86,33 @@ capabilities:
       write:
         command: 1277
       values:
-        0: "Off"
-        1: "On"
-
+        "0": "Off"
+        "1": "On"
   media:
     live_view:
       connections:
         T8010:
-          status: failing
-          notes: Playback is reported blank or frozen.
+          status: mixed
+          tested_on: 2026-09-20
+          notes: One HomeBase 2 setup works after a restart, while other confirmed setups remain blank or
+            fail.
         T8030:
           status: unknown
         direct:
           status: tested
           tested_by: mscodemonkey
-
     snapshot:
       connections:
         T8010:
-          status: failing
-          notes: Fresh snapshot capture is reported not to complete.
+          status: mixed
+          tested_on: 2026-09-20
+          notes: One HomeBase 2 setup works after a restart, while other confirmed setups cannot capture a
+            usable image.
         T8030:
           status: unknown
         direct:
           status: tested
           tested_by: mscodemonkey
-
   events:
     doorbell_press:
       connections:

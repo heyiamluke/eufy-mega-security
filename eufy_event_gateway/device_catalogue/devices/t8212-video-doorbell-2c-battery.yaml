@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8212
+name: Video Doorbell 2C (Battery)
+models:
+  - T8212
+device_type: null
+capabilities: {}

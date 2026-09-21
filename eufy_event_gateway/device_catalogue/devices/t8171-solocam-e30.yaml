@@ -1,24 +1,29 @@
 # yaml-language-server: $schema=../device.schema.json
 
 schema: 1
-id: t8113
-name: eufyCam 2C
+id: t8171
+name: SoloCam E30
 models:
-  - T8113
-  - T8113-Z
-device_type: 8
+  - T8171
+device_type: 88
 capabilities:
   readable:
     battery_level:
       connections:
-        T8010:
+        direct:
           status: declared
+        T8010:
+          status: reported
+          tested_on: 2026-09-19
+          tested_by: unja4711
         T8030:
           status: declared
       read:
         parameter: 1101
     battery_charging:
       connections:
+        direct:
+          status: declared
         T8010:
           status: declared
         T8030:
@@ -27,29 +32,38 @@ capabilities:
         parameter: 2111
     battery_temperature:
       connections:
+        direct:
+          status: declared
         T8010:
           status: declared
         T8030:
           status: declared
       read:
         parameter: 1138
-    last_charging_days:
+  controls:
+    enabled:
       connections:
+        direct:
+          status: declared
         T8010:
           status: declared
         T8030:
           status: declared
       read:
-        field: charging_days
-  controls:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
     motion_detection:
       connections:
+        direct:
+          status: declared
         T8010:
           status: declared
         T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
       read:
         parameter: 1011
       write:
@@ -71,54 +85,65 @@ capabilities:
         "0": "Off"
         "1": "Infrared"
         "2": "Spotlight"
-    siren:
-      connections:
-        T8010:
-          status: unknown
-        T8030:
-          status: tested
-          tested_on: 2026-09-21
-          tested_by: mscodemonkey
-      requires_parameter: 1015
-      write:
-        command: 1202
-        input:
-          name: duration_seconds
-          type: integer
-          minimum: 0
-          maximum: 900
-      notes: A duration of 0 stops the siren.
   media:
     live_view:
       connections:
-        T8010:
+        direct:
           status: declared
+        T8010:
+          status: failing
+          tested_on: 2026-09-18
+          tested_by: unja4711
         T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
     snapshot:
       connections:
-        T8010:
+        direct:
           status: declared
+        T8010:
+          status: failing
+          tested_on: 2026-09-18
+          tested_by: unja4711
         T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
   events:
     motion:
       connections:
+        direct:
+          status: declared
         T8010:
-          status: unknown
+          status: declared
         T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
     person:
       connections:
+        direct:
+          status: declared
         T8010:
-          status: unknown
+          status: declared
         T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared
+        T8010:
+          status: declared
+        T8030:
+          status: declared

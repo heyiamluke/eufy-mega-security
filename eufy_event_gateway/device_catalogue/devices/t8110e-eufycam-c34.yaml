@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8110e
+name: eufyCam C34
+models:
+  - T8110E
+device_type: null
+capabilities: {}

@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8134
+name: SoloCam S220
+models:
+  - T8134
+device_type: 63
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1101
+    battery_charging:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 2111
+    battery_temperature:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1138
+  controls:
+    enabled:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: bh5wq98d8w-ctrl
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: bh5wq98d8w-ctrl
+    person:
+      connections:
+        direct:
+          status: declared
+        T8030:
+          status: reported
+          tested_on: 2026-09-16
+          tested_by: bh5wq98d8w-ctrl
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared

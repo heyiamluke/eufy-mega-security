@@ -1,19 +1,16 @@
 # yaml-language-server: $schema=../device.schema.json
 
 schema: 1
-id: t8113
-name: eufyCam 2C
+id: t8111
+name: eufyCam (original)
 models:
-  - T8113
-  - T8113-Z
-device_type: 8
+  - T8111
+device_type: 1
 capabilities:
   readable:
     battery_level:
       connections:
         T8010:
-          status: declared
-        T8030:
           status: declared
       read:
         parameter: 1101
@@ -21,15 +18,11 @@ capabilities:
       connections:
         T8010:
           status: declared
-        T8030:
-          status: declared
       read:
         parameter: 2111
     battery_temperature:
       connections:
         T8010:
-          status: declared
-        T8030:
           status: declared
       read:
         parameter: 1138
@@ -37,19 +30,24 @@ capabilities:
       connections:
         T8010:
           status: declared
-        T8030:
-          status: declared
       read:
         field: charging_days
   controls:
+    enabled:
+      connections:
+        T8010:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
     motion_detection:
       connections:
         T8010:
           status: declared
-        T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
       read:
         parameter: 1011
       write:
@@ -57,28 +55,10 @@ capabilities:
       values:
         "0": "Off"
         "1": "On"
-    night_vision:
-      connections:
-        T8010:
-          status: declared
-        T8030:
-          status: declared
-      read:
-        parameter: 1277
-      write:
-        command: 1277
-      values:
-        "0": "Off"
-        "1": "Infrared"
-        "2": "Spotlight"
     siren:
       connections:
         T8010:
-          status: unknown
-        T8030:
-          status: tested
-          tested_on: 2026-09-21
-          tested_by: mscodemonkey
+          status: declared
       requires_parameter: 1015
       write:
         command: 1202
@@ -93,32 +73,28 @@ capabilities:
       connections:
         T8010:
           status: declared
-        T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
     snapshot:
       connections:
         T8010:
           status: declared
-        T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
   events:
     motion:
       connections:
         T8010:
-          status: unknown
-        T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
     person:
       connections:
         T8010:
-          status: unknown
-        T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
+    pet:
+      connections:
+        T8010:
+          status: declared
+    vehicle:
+      connections:
+        T8010:
+          status: declared
+    sound:
+      connections:
+        T8010:
+          status: declared

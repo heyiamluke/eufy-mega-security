@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8419
+name: Indoor Cam C210
+models:
+  - T8419
+device_type: 10009
+capabilities:
+  controls:
+    motion_detection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+  media:
+    live_view:
+      connections:
+        direct:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: frcbn
+    snapshot:
+      connections:
+        direct:
+          status: declared
+  events:
+    motion:
+      connections:
+        direct:
+          status: declared
+    person:
+      connections:
+        direct:
+          status: declared
+    pet:
+      connections:
+        direct:
+          status: declared
+    vehicle:
+      connections:
+        direct:
+          status: declared
+    sound:
+      connections:
+        direct:
+          status: declared
+ignored:
+  battery_sentinel:
+    fields:
+      - battery_level
+      - battery_charging
+      - battery_temperature
+      - last_charging_days
+    reason: This mains-powered model reports battery-shaped sentinel values.

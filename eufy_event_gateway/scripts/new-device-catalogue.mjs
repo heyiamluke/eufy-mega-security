@@ -13,22 +13,17 @@ import { parse, stringify } from "yaml";
 const catalogueDirectory = join(dirname(fileURLToPath(import.meta.url)), "..", "device_catalogue");
 const devicesDirectory = join(catalogueDirectory, "devices");
 
-function parseRecord(file, source) {
-  return file.endsWith(".yaml") ? parse(source) : JSON.parse(source);
-}
-
 function slug(value) {
   return value.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 async function modelAlreadyExists(model) {
   const normalized = model.toUpperCase();
-  const files = (await readdir(devicesDirectory)).filter((file) => file.endsWith(".json") || file.endsWith(".yaml"));
+  const files = (await readdir(devicesDirectory)).filter((file) => file.endsWith(".yaml"));
   for (const file of files) {
     const source = await readFile(join(devicesDirectory, file), "utf8");
-    const record = parseRecord(file, source);
-    const models = record.schema === 1 ? record.models : record.identity?.model_codes;
-    if (models?.some((candidate) => String(candidate).toUpperCase() === normalized)) return file;
+    const record = parse(source);
+    if (record.models?.some((candidate) => String(candidate).toUpperCase() === normalized)) return file;
   }
   return null;
 }

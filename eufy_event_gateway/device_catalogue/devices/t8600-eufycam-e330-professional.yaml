@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8600
+name: eufyCam E330 (Professional)
+models:
+  - T8600
+device_type: 24
+capabilities:
+  controls:
+    enabled:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1035
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
+    motion_detection:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1011
+      write:
+        command: 1011
+      values:
+        "0": "Off"
+        "1": "On"
+    night_vision:
+      connections:
+        T8030:
+          status: declared
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        "0": "Off"
+        "1": "Infrared"
+        "2": "Spotlight"
+  media:
+    live_view:
+      connections:
+        T8030:
+          status: declared
+    snapshot:
+      connections:
+        T8030:
+          status: declared
+  events:
+    motion:
+      connections:
+        T8030:
+          status: declared
+    person:
+      connections:
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8030:
+          status: declared

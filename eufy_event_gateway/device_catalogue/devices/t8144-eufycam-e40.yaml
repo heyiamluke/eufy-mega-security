@@ -1,12 +1,11 @@
 # yaml-language-server: $schema=../device.schema.json
 
 schema: 1
-id: t8113
-name: eufyCam 2C
+id: t8144
+name: eufyCam E40
 models:
-  - T8113
-  - T8113-Z
-device_type: 8
+  - T8144
+device_type: 49
 capabilities:
   readable:
     battery_level:
@@ -42,14 +41,25 @@ capabilities:
       read:
         field: charging_days
   controls:
+    enabled:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+      read:
+        parameter: 99904
+      write:
+        command: 1035
+      values:
+        "0": "Off"
+        "1": "On"
     motion_detection:
       connections:
         T8010:
           status: declared
         T8030:
-          status: tested
-          tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          status: declared
       read:
         parameter: 1011
       write:
@@ -57,28 +67,12 @@ capabilities:
       values:
         "0": "Off"
         "1": "On"
-    night_vision:
-      connections:
-        T8010:
-          status: declared
-        T8030:
-          status: declared
-      read:
-        parameter: 1277
-      write:
-        command: 1277
-      values:
-        "0": "Off"
-        "1": "Infrared"
-        "2": "Spotlight"
     siren:
       connections:
         T8010:
-          status: unknown
+          status: declared
         T8030:
-          status: tested
-          tested_on: 2026-09-21
-          tested_by: mscodemonkey
+          status: declared
       requires_parameter: 1015
       write:
         command: 1202
@@ -92,33 +86,57 @@ capabilities:
     live_view:
       connections:
         T8010:
-          status: declared
-        T8030:
-          status: tested
+          status: failing
           tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          tested_by: philMo2305
+          notes: All tested cameras stream data but do not produce a usable live picture.
+        T8030:
+          status: declared
     snapshot:
       connections:
         T8010:
-          status: declared
-        T8030:
-          status: tested
+          status: mixed
           tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          tested_by: philMo2305
+          notes: Fresh images appeared on two of four tested cameras.
+        T8030:
+          status: declared
   events:
     motion:
       connections:
         T8010:
-          status: unknown
-        T8030:
-          status: tested
+          status: reported
           tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          tested_by: philMo2305
+        T8030:
+          status: declared
     person:
       connections:
         T8010:
-          status: unknown
-        T8030:
-          status: tested
+          status: reported
           tested_on: 2026-09-20
-          tested_by: mscodemonkey
+          tested_by: philMo2305
+        T8030:
+          status: declared
+    pet:
+      connections:
+        T8010:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+        T8030:
+          status: declared
+    vehicle:
+      connections:
+        T8010:
+          status: declared
+        T8030:
+          status: declared
+    sound:
+      connections:
+        T8010:
+          status: reported
+          tested_on: 2026-09-20
+          tested_by: philMo2305
+        T8030:
+          status: declared

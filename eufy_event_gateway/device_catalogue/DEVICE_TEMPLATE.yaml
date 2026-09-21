@@ -13,7 +13,7 @@ models:
 device_type: null
 
 capabilities:
-  # Connection results use tested, reported, declared, failing, unsupported, or unknown.
+  # Connection results use tested, reported, mixed, declared, failing, unsupported, or unknown.
   # Values that the integration can read but cannot change.
   readable:
     battery_level:
