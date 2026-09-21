@@ -221,6 +221,8 @@ class EufyGatewayCoordinator(
         if not isinstance(name, str) or not name.strip():
             return
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, serial)})
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, serial), self.config_entry.entry_id
+        )
         if device is not None and device.name != name:
             registry.async_update_device(device.id, name=name)
