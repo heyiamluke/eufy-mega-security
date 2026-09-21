@@ -18,7 +18,7 @@ import { createLogger } from "../logging.js";
 import { MegaClient } from "../mega/client.js";
 import { decodeEventImage, isJpeg } from "../mega/image.js";
 import { MegaPushReceiver, type MegaPushEvent } from "../mega/push.js";
-import { CameraControlAcknowledgementTimeoutError, FirstPartyPpcsSession } from "../stream/first-party-ppcs.js";
+import { CameraControlAcknowledgementTimeoutError, FirstPartyPpcsSession, hasDecoderReadyKeyframe } from "../stream/first-party-ppcs.js";
 import { HomeBaseCommandAcknowledgementTimeoutError, HomeBasePpcsSession, type HomeBasePpcsState } from "../stream/homebase-ppcs.js";
 import { cameraCapabilityLogSummaries, describeCameraCapabilities, isSupportedCameraType, describeDeviceCapabilities, deviceCapabilityLogSummaries } from "./device-capabilities-core.js";
 import { hasMainsBatterySentinel } from "./camera-capability-core.js";
@@ -1438,6 +1438,7 @@ export function ppcsStreamLogSummary(
     `video_codec=${codec}`,
     `video_nal_types=${nalTypes.join(",") || "none"}`,
     `codec_bootstrap=${codecBootstrap}`,
+    `decoder_ready=${hasDecoderReadyKeyframe(codec, nalTypes)}`,
     `media_start_attempts=${stats.mediaStartAttempts ?? 0}`,
     `close_reason=${stats.closeReason ?? "unknown"}`,
     `battery_history=${stats.batteryHistory ?? "not-reported"}`,

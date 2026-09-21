@@ -56,14 +56,29 @@ type PpcsStreamCloseReason = "client_stop" | "first_frame_timeout" | "max_durati
  * Decide whether a HomeBase-attached camera needs its full media start sent again.
  *
  * A HomeBase has no lightweight media keepalive for a child channel. Repeating
- * its start while frames are flowing resets that channel, so a reassert is
- * limited to startup and a genuine media stall.
+ * its start after a decoder-ready keyframe resets that channel, so a reassert
+ * is limited to incomplete startup and a genuine media stall.
  */
 export function needsAttachedMediaReassert(
   lastDeliveredFrameAt: number | null,
   now: number,
 ): boolean {
   return lastDeliveredFrameAt === null || now - lastDeliveredFrameAt >= ATTACHED_MEDIA_STALL_MILLISECONDS;
+}
+
+/** Return whether cumulative codec evidence includes configuration and an IDR. */
+export function hasDecoderReadyKeyframe(
+  codec: "h264" | "h265" | "unknown",
+  nalTypes: readonly number[],
+): boolean {
+  if (codec === "h264") return nalTypes.includes(7) && nalTypes.includes(8) && nalTypes.includes(5);
+  if (codec === "h265") {
+    return nalTypes.includes(32)
+      && nalTypes.includes(33)
+      && nalTypes.includes(34)
+      && (nalTypes.includes(19) || nalTypes.includes(20));
+  }
+  return false;
 }
 
 /** Reissue a standalone start until the camera announces a decodable codec configuration. */
@@ -932,11 +947,12 @@ export class FirstPartyPpcsSession {
     else if (command === 1300 && (!this.#options.homeBaseAttached || acceptsAttachedCameraMedia(command, frameChannel ?? -1, this.#options.channel))) {
       this.stats.videoFrames++;
       if (this.#writeVideo(payload, signCode)) {
-        if (this.#firstFrameTimer) {
+        const decoderReady = hasDecoderReadyKeyframe(this.stats.videoCodec, this.stats.videoNalTypes);
+        if ((!this.#options.homeBaseAttached || decoderReady) && this.#firstFrameTimer) {
           clearTimeout(this.#firstFrameTimer);
           this.#firstFrameTimer = null;
         }
-        if (this.#options.homeBaseAttached) this.#lastAttachedMediaFrameAt = Date.now();
+        if (this.#options.homeBaseAttached && decoderReady) this.#lastAttachedMediaFrameAt = Date.now();
       }
     } else if (command === 1300 && this.#options.homeBaseAttached) {
       this.stats.foreignVideoFrames++;
@@ -1054,6 +1070,7 @@ export class FirstPartyPpcsSession {
 
   #startAttachedMedia(): void {
     if (!this.#remote || !this.#level2Key) return;
+    this.stats.mediaStartAttempts++;
     const key = publicModulus(this.#rsa.publicKey);
     const value = JSON.stringify({
       account_id: this.#options.accountId ?? "",
