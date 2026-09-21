@@ -32,6 +32,8 @@ interface Session {
   state: "idle" | "starting" | "streaming" | "stopping" | "error";
   source: Readable | null;
   ffmpeg: ChildProcessWithoutNullStreams | null;
+  viewerFfmpeg: ChildProcessWithoutNullStreams | null;
+  viewerParameterSets: VideoParameterSetCache;
   stopTimer: NodeJS.Timeout | null;
   owned: boolean;
   leases: number;
@@ -50,6 +52,7 @@ interface Recording {
 }
 
 type ClipRemuxer = (video: Buffer, codec: VideoCodec) => Promise<Buffer>;
+type ViewerTranscoderFactory = () => ChildProcessWithoutNullStreams;
 
 const MAX_RECORDING_BYTES = 256 * 1024 * 1024;
 const MAX_PARAMETER_SET_SCAN_BYTES = 1024 * 1024;
@@ -162,10 +165,11 @@ function annexBStarts(data: Buffer): Array<{ offset: number; payloadOffset: numb
 /**
  * Coordinates one shared source per camera.
  *
- * HTTP viewers receive the source directly, while FFmpeg receives a tee of the
- * same bytes for retained JPEG snapshots and MP4 clips. Ownership counts avoid
- * duplicate camera sessions, and the idle grace period prevents refreshes from
- * repeatedly opening and closing a camera.
+ * HTTP viewers receive H.264 directly or share one H.265-to-H.264 transcoder,
+ * while a separate FFmpeg process receives the source for retained JPEG
+ * snapshots. MP4 clips retain the original camera codec. Ownership counts
+ * avoid duplicate camera sessions, and the idle grace period prevents
+ * refreshes from repeatedly opening and closing a camera.
  */
 export class LiveStreamManager extends EventEmitter {
   readonly #sessions = new Map<string, Session>();
@@ -178,6 +182,7 @@ export class LiveStreamManager extends EventEmitter {
     private readonly controller: StreamController,
     private readonly stopGraceMilliseconds: number,
     private readonly remuxClip: ClipRemuxer = remuxVideoToMp4,
+    private readonly createViewerTranscoder: ViewerTranscoderFactory = spawnH265ViewerTranscoder,
   ) {
     super();
   }
@@ -187,13 +192,23 @@ export class LiveStreamManager extends EventEmitter {
     const session = this.#session(serial);
     this.#cancelStop(session);
     session.clients.add(response);
-    const bootstrap = session.parameterSets.bootstrap;
-    const codec = session.parameterSets.codec;
+    const sourceBootstrap = session.parameterSets.bootstrap;
+    const sourceCodec = session.parameterSets.codec;
+    const viewerBootstrap = sourceCodec === "h265"
+      ? session.viewerParameterSets.bootstrap
+      : sourceBootstrap;
+    const viewerCodec = sourceCodec === "h265" ? "h264" : sourceCodec;
 
     // Headers retained from a stopped source belong to its old encoding session.
     // Wait for the replacement source instead of sending two HTTP header blocks.
-    if (session.source && session.state === "streaming" && bootstrap && codec) this.#startClient(response, codec, bootstrap);
-    else session.pendingClients.add(response);
+    if (session.source && session.state === "streaming" && viewerBootstrap && viewerCodec) {
+      this.#startClient(response, viewerCodec, viewerBootstrap);
+    } else {
+      session.pendingClients.add(response);
+      if (sourceCodec === "h265" && sourceBootstrap && !session.viewerFfmpeg) {
+        this.#startViewerTranscoder(serial, session, session.parameterSets.startup ?? sourceBootstrap);
+      }
+    }
     this.#updateState(serial, session);
 
     response.on("close", () => this.#removeClient(serial, response));
@@ -288,8 +303,10 @@ export class LiveStreamManager extends EventEmitter {
     session.source = source;
     session.state = "streaming";
     session.parameterSets = new VideoParameterSetCache();
+    session.viewerParameterSets = new VideoParameterSetCache();
     for (const client of session.clients) session.pendingClients.add(client);
     session.ffmpeg = null;
+    session.viewerFfmpeg = null;
 
     source.on("data", (chunk: Buffer) => {
       if (session.generation !== generation) return;
@@ -302,16 +319,19 @@ export class LiveStreamManager extends EventEmitter {
           session.ffmpeg = this.#startSnapshotExtractor(serial, codec);
           if (startup && session.ffmpeg.stdin.writable) session.ffmpeg.stdin.write(startup);
         }
-        for (const client of session.pendingClients) {
-          if (session.clients.has(client)) this.#startClient(client, codec, startup ?? bootstrap);
-        }
-        session.pendingClients.clear();
-      }
-      for (const client of session.clients) {
-        if (session.pendingClients.has(client)) continue;
-        client.write(chunk);
-        if (client.writableLength > 4 * 1024 * 1024) {
-          client.destroy(new Error("Live stream client exceeded the four-megabyte backpressure limit"));
+        if (codec === "h265") {
+          let started = false;
+          if (session.clients.size > 0 && !session.viewerFfmpeg) {
+            this.#startViewerTranscoder(serial, session, startup ?? bootstrap);
+            started = true;
+          }
+          if (!started && session.viewerFfmpeg?.stdin.writable) session.viewerFfmpeg.stdin.write(chunk);
+        } else {
+          for (const client of session.pendingClients) {
+            if (session.clients.has(client)) this.#startClient(client, codec, startup ?? bootstrap);
+          }
+          session.pendingClients.clear();
+          this.#writeViewerChunk(session, chunk);
         }
       }
       if (bootstrap && session.ffmpeg?.stdin.writable) session.ffmpeg.stdin.write(chunk);
@@ -358,6 +378,7 @@ export class LiveStreamManager extends EventEmitter {
     const session = this.#session(serial);
     session.clients.delete(response);
     session.pendingClients.delete(response);
+    if (session.clients.size === 0) this.#stopViewerTranscoder(session);
     this.#updateState(serial, session);
     this.#scheduleStopIfUnused(serial, session);
   }
@@ -540,6 +561,57 @@ export class LiveStreamManager extends EventEmitter {
     response.write(bootstrap);
   }
 
+  #writeViewerChunk(session: Session, chunk: Buffer): void {
+    for (const client of session.clients) {
+      if (session.pendingClients.has(client)) continue;
+      client.write(chunk);
+      if (client.writableLength > 4 * 1024 * 1024) {
+        client.destroy(new Error("Live stream client exceeded the four-megabyte backpressure limit"));
+      }
+    }
+  }
+
+  #startViewerTranscoder(serial: string, session: Session, startup: Buffer): void {
+    const generation = session.generation;
+    const process = this.createViewerTranscoder();
+    session.viewerFfmpeg = process;
+    session.viewerParameterSets = new VideoParameterSetCache();
+    process.stdout.on("data", (chunk: Buffer) => {
+      if (session.generation !== generation || session.viewerFfmpeg !== process) return;
+      session.viewerParameterSets.push(chunk, "h264");
+      const bootstrap = session.viewerParameterSets.bootstrap;
+      if (bootstrap) {
+        for (const client of session.pendingClients) {
+          if (session.clients.has(client)) this.#startClient(client, "h264", bootstrap);
+        }
+        session.pendingClients.clear();
+      }
+      this.#writeViewerChunk(session, chunk);
+    });
+    process.stderr.on("data", (chunk: Buffer) => this.emit("ffmpeg-error", chunk.toString("utf8").trim()));
+    process.stdin.on("error", (error) => {
+      if (session.generation === generation) this.emit("warning", error);
+    });
+    process.once("error", (error) => {
+      if (session.generation !== generation || session.viewerFfmpeg !== process) return;
+      session.viewerFfmpeg = null;
+      for (const client of session.clients) client.destroy(error);
+      session.clients.clear();
+      session.pendingClients.clear();
+      this.#updateState(serial, session, error.message);
+    });
+    process.once("close", (code) => {
+      if (session.generation !== generation || session.viewerFfmpeg !== process) return;
+      session.viewerFfmpeg = null;
+      const error = new Error(`H.265 viewer fallback exited with status ${code ?? "unknown"}`);
+      for (const client of session.clients) client.destroy(error);
+      session.clients.clear();
+      session.pendingClients.clear();
+      this.#updateState(serial, session, error.message);
+    });
+    if (process.stdin.writable) process.stdin.write(startup);
+  }
+
   #startSnapshotExtractor(serial: string, codec: VideoCodec): ChildProcessWithoutNullStreams {
 
     // FFmpeg turns the shared Annex-B stream into JPEGs. The store keeps the
@@ -581,6 +653,16 @@ export class LiveStreamManager extends EventEmitter {
       session.ffmpeg.kill("SIGTERM");
       session.ffmpeg = null;
     }
+    this.#stopViewerTranscoder(session);
+  }
+
+  #stopViewerTranscoder(session: Session): void {
+    if (session.viewerFfmpeg) {
+      session.viewerFfmpeg.stdin.end();
+      session.viewerFfmpeg.kill("SIGTERM");
+      session.viewerFfmpeg = null;
+    }
+    session.viewerParameterSets = new VideoParameterSetCache();
   }
 
   #session(serial: string): Session {
@@ -594,6 +676,8 @@ export class LiveStreamManager extends EventEmitter {
         state: "idle",
         source: null,
         ffmpeg: null,
+        viewerFfmpeg: null,
+        viewerParameterSets: new VideoParameterSetCache(),
         stopTimer: null,
         owned: false,
         leases: 0,
@@ -607,6 +691,33 @@ export class LiveStreamManager extends EventEmitter {
   #updateState(serial: string, session: Session, error: string | null = null): void {
     this.state.updateStream(serial, session.state, session.clients.size, error);
   }
+}
+
+/** Start the shared low-latency fallback used only when a camera returns H.265. */
+function spawnH265ViewerTranscoder(): ChildProcessWithoutNullStreams {
+  return spawn("ffmpeg", [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-f",
+    "hevc",
+    "-i",
+    "pipe:0",
+    "-an",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-tune",
+    "zerolatency",
+    "-pix_fmt",
+    "yuv420p",
+    "-x264-params",
+    "repeat-headers=1",
+    "-f",
+    "h264",
+    "pipe:1",
+  ]);
 }
 
 /** Remux Annex-B H.264 or H.265 into fragmented MP4 without re-encoding. */

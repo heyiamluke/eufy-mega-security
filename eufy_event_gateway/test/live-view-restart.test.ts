@@ -5,6 +5,8 @@
  * that a permissive ServerResponse mock would miss.
  */
 import assert from "node:assert/strict";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { createServer } from "node:http";
 import { PassThrough } from "node:stream";
 import test from "node:test";
@@ -32,7 +34,22 @@ for (const codec of ["h264", "h265"] as const) {
         source.end(Buffer.from([...headers, 0, 0, 0, 1, codec === "h264" ? 0x65 : 0x26, 1, starts]));
       },
       async stopStream() {},
-    }, 5);
+    }, 5, undefined, () => {
+      const process = Object.assign(new EventEmitter(), {
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+        kill: () => true,
+      }) as unknown as ChildProcessWithoutNullStreams;
+      process.stdin.once("data", () => {
+        (process.stdout as PassThrough).write(Buffer.from([
+          0, 0, 0, 1, 0x67, 0x42, 0, 0x1f,
+          0, 0, 0, 1, 0x68, 0xce, 6,
+          0, 0, 0, 1, 0x65, 1, starts,
+        ]));
+      });
+      return process;
+    });
     const server = createServer((_request, response) => {
       void manager.addClient("test-camera", response);
     });
@@ -47,8 +64,8 @@ for (const codec of ["h264", "h265"] as const) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const response: Response = await fetch(`http://127.0.0.1:${address.port}/`, { signal: AbortSignal.timeout(2_000) });
       const bytes = Buffer.from(await response.arrayBuffer());
-      assert.equal(response.headers.get("content-type"), `video/${codec}`);
-      assert.ok(bytes.includes(Buffer.from([0, 0, 0, 1, codec === "h264" ? 0x65 : 0x26, 1, attempt])));
+      assert.equal(response.headers.get("content-type"), "video/h264");
+      assert.ok(bytes.includes(Buffer.from([0, 0, 0, 1, 0x65, 1, attempt])));
     }
     assert.equal(starts, 2);
   });
