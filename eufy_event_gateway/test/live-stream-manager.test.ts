@@ -6,6 +6,8 @@
  * opening a real PPCS socket.
  */
 import assert from "node:assert/strict";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { EventEmitter } from "node:events";
 import type { ServerResponse } from "node:http";
 import { PassThrough } from "node:stream";
 import test from "node:test";
@@ -145,11 +147,19 @@ test("bootstraps first and repeat HTTP viewers with SPS and PPS", async () => {
   await manager.close();
 });
 
-test("starts an H.265 viewer only after VPS, SPS, and PPS arrive", async () => {
+test("shares an H.264 fallback with viewers when a camera returns H.265", async () => {
   const state = new GatewayState();
   state.registerCamera(camera);
   let manager: LiveStreamManager;
   let source: PassThrough;
+  const transcoder = Object.assign(new EventEmitter(), {
+    stdin: new PassThrough(),
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    kill: () => true,
+  }) as unknown as ChildProcessWithoutNullStreams;
+  const transcoderInput: Buffer[] = [];
+  transcoder.stdin.on("data", (chunk: Buffer) => transcoderInput.push(Buffer.from(chunk)));
   manager = new LiveStreamManager(
     state,
     {} as never,
@@ -163,6 +173,8 @@ test("starts an H.265 viewer only after VPS, SPS, and PPS arrive", async () => {
       },
     },
     5,
+    undefined,
+    () => transcoder,
   );
   const response = new PassThrough() as unknown as ServerResponse;
   let contentType = "";
@@ -180,12 +192,15 @@ test("starts an H.265 viewer only after VPS, SPS, and PPS arrive", async () => {
   const sps = annexBNal(0x42, 0x01, 0x01);
   const pps = annexBNal(0x44, 0x01, 0xc0);
   source!.write(Buffer.concat([vps, sps, pps, annexBNal(0x26, 0x01, 0xbb)]));
+  assert.ok(Buffer.concat(transcoderInput).includes(vps));
+  assert.equal(bytes.length, 0);
 
-  assert.equal(contentType, "video/h265");
-  assert.deepEqual(
-    Buffer.concat(bytes).subarray(0, annexBNal(0x02, 0x01, 0xaa).length),
-    annexBNal(0x02, 0x01, 0xaa),
-  );
+  const h264Sps = annexBNal(0x67, 0x42, 0x00, 0x1f);
+  const h264Pps = annexBNal(0x68, 0xce, 0x06);
+  (transcoder.stdout as PassThrough).write(Buffer.concat([h264Sps, h264Pps, annexBNal(0x65, 0x88)]));
+
+  assert.equal(contentType, "video/h264");
+  assert.ok(Buffer.concat(bytes).includes(h264Sps));
   await manager.close();
 });
 
