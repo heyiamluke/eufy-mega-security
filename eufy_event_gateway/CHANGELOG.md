@@ -1,10 +1,5 @@
 # Changelog
 
-## 0.1.75
-
-- Advertise duration support on camera and HomeBase siren entities so Home Assistant passes requested durations through to the device.
-- Add a regression check for the Home Assistant siren capability contract.
-
 ## 0.1.74
 
 - Generate camera, sensor, HomeBase, and non-camera runtime admission data from the human-edited device catalogue.
