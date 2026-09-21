@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.79
+
+- Keep the general Motion entity active for person and other visual camera detections.
+- Report invalid snapshot paths and gateway capture failures as useful Home Assistant action errors.
+
 ## 0.1.78
 
 - Add current-SDK directed LAN discovery for HomeBases when broadcast lookup is blocked by container or network boundaries.
