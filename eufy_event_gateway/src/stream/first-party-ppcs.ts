@@ -2,7 +2,7 @@
  * Implements one first-party Eufy PPCS UDP camera session.
  *
  * PPCS is Eufy's peer-to-peer camera transport, not RTSP and not a Home
- * Assistant protocol. This class performs LAN/cloud lookup, `CAM_CHECK`,
+ * Assistant protocol. This class performs LAN, cloud, and TURN lookup, `CAM_CHECK`,
  * command-frame reassembly, HomeBase gateway-info decryption, level-two key
  * setup, heartbeat, video-key exchange, H.264 or H.265 Annex-B media output,
  * and bounded camera control writes. It consumes
@@ -22,6 +22,10 @@ const MAGIC = Buffer.from("XZYH", "ascii");
 const REQ = {
   lookup: Buffer.from([0xf1, 0x26]),
   lookup2: Buffer.from([0xf1, 0x6a]),
+  turnLookup: Buffer.from([0xf1, 0x80]),
+  turnServerInit: Buffer.from([0xf1, 0x70]),
+  turnClientOk: Buffer.from([0xf1, 0x72]),
+  check2: Buffer.from([0xf1, 0x83]),
   localLookup: Buffer.from([0xf1, 0x30]),
   check: Buffer.from([0xf1, 0x41]),
   ping: Buffer.from([0xf1, 0xe0]),
@@ -32,6 +36,8 @@ const REQ = {
 const RESP = {
   lookupAddr: Buffer.from([0xf1, 0x40]),
   lookupAddr2: Buffer.from([0xf1, 0x82]),
+  turnServerOk: Buffer.from([0xf1, 0x71]),
+  turnServerToken: Buffer.from([0xf1, 0x73]),
   localLookup: Buffer.from([0xf1, 0x41]),
   camId: Buffer.from([0xf1, 0x42]),
   turnServerCamId: Buffer.from([0xf1, 0x84]),
@@ -43,6 +49,7 @@ const ATTACHED_MEDIA_STALL_MILLISECONDS = 10_000;
 const FIRST_VIDEO_FRAME_TIMEOUT_MILLISECONDS = 20_000;
 const CONTROL_TIMEOUT_MILLISECONDS = 10_000;
 const LOOKUP_RETRY_MILLISECONDS = 1_000;
+const PPCS_RECEIVE_BUFFER_BYTES = 1024 * 1024;
 const PPCS_SEQUENCE_LOOKBACK = 0x8000;
 const PPCS_STALE_RETRANSMIT_DEPTH = 1024;
 const ANNEX_B_START_CODE = Buffer.from([0, 0, 0, 1]);
@@ -305,13 +312,52 @@ export function buildPpcsCloudLookup(
   };
 }
 
-/** Read a peer candidate from either PPCS cloud lookup response form. */
+/** Read a direct peer candidate from the classic PPCS cloud lookup response. */
 export function ppcsLookupCandidate(message: Buffer): { readonly host: string; readonly port: number } | null {
-  if ((!has(message, RESP.lookupAddr) && !has(message, RESP.lookupAddr2)) || message.length < 12) return null;
+  if (!has(message, RESP.lookupAddr) || message.length < 12) return null;
   return {
     port: message.readUInt16LE(6),
     host: `${message[11]}.${message[10]}.${message[9]}.${message[8]}`,
   };
+}
+
+/** Read the relay address and four-byte challenge from a LOOKUP_ADDR2 response. */
+export function ppcsRelayCandidate(
+  message: Buffer,
+): { readonly host: string; readonly port: number; readonly challenge: Buffer } | null {
+  if (!has(message, RESP.lookupAddr2) || message.length < 24) return null;
+  return {
+    port: message.readUInt16LE(6),
+    host: `${message[11]}.${message[10]}.${message[9]}.${message[8]}`,
+    challenge: Buffer.from(message.subarray(20, 24)),
+  };
+}
+
+/** Build the challenge-bearing camera check required by a PPCS relay. */
+export function buildPpcsRelayCheck(p2pDid: string, challenge: Buffer): Buffer {
+  if (challenge.length !== 4) throw new Error("PPCS relay check requires a four-byte challenge");
+  return Buffer.concat([challenge, encodeDid(p2pDid), Buffer.alloc(4)]);
+}
+
+/** Build the cloud lookup that associates a confirmed TURN relay with this peer. */
+export function buildPpcsTurnLookup(
+  p2pDid: string,
+  relay: { readonly host: string; readonly port: number },
+  token: Buffer,
+): Buffer {
+  if (token.length !== 4) throw new Error("PPCS TURN lookup requires a four-byte token");
+  if (!Number.isSafeInteger(relay.port) || relay.port <= 0 || relay.port > 65_535) {
+    throw new Error("PPCS TURN lookup requires a valid relay port");
+  }
+  const octets = relay.host.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) {
+    throw new Error("PPCS TURN lookup requires an IPv4 relay address");
+  }
+  const address = Buffer.alloc(8);
+  address.writeUInt16BE(2, 0);
+  address.writeUInt16LE(relay.port, 2);
+  address.set([...octets].reverse(), 4);
+  return Buffer.concat([encodeDid(p2pDid), address, Buffer.alloc(8), token]);
 }
 
 /** Return whether a PPCS response completes either a direct or relay peer handshake. */
@@ -520,6 +566,9 @@ export class FirstPartyPpcsSession {
   readonly output = new PassThrough();
   readonly stats = {
     camId: 0,
+    directLookupCandidates: 0,
+    relayLookupCandidates: 0,
+    turnTokens: 0,
     dataDatagrams: 0,
     frameHeaders: 0,
     gatewayInfo: 0,
@@ -582,6 +631,7 @@ export class FirstPartyPpcsSession {
   #lookupTimer: ReturnType<typeof setInterval> | null = null;
   #selfAddress: { host: string; port: number } | null = null;
   #pendingControl: PendingControl | null = null;
+  readonly #turnHandshakes = new Set<string>();
 
   /** Return the codec declared by received PPCS frame metadata, when known. */
   get videoCodec(): VideoCodec | null {
@@ -618,6 +668,12 @@ export class FirstPartyPpcsSession {
         } catch (error) { clearTimeout(timeout); reject(error); }
       });
       this.#socket.bind(0, () => {
+        try {
+          this.#socket.setRecvBufferSize(PPCS_RECEIVE_BUFFER_BYTES);
+        } catch {
+
+          // Some hosts cap the UDP receive buffer below the requested size.
+        }
         this.#socket.setBroadcast(true);
         const port = this.#socket.address().port;
         void detectLocalIpv4().then((host) => {
@@ -785,9 +841,38 @@ export class FirstPartyPpcsSession {
       if (did === this.#options.p2pDid) this.#checkCandidate({ host: info.address, port: info.port });
       return false;
     }
-    const candidate = ppcsLookupCandidate(message);
-    if (candidate) {
-      if (candidate.host !== "0.0.0.0") this.#checkCandidate(candidate);
+    const relayCandidate = ppcsRelayCandidate(message);
+    if (relayCandidate) {
+      this.stats.relayLookupCandidates++;
+      const payload = buildPpcsRelayCheck(this.#options.p2pDid, relayCandidate.challenge);
+      for (let attempt = 0; attempt < 4; attempt += 1) this.#send(REQ.check2, payload, relayCandidate);
+      const key = `${relayCandidate.host}:${relayCandidate.port}`;
+      if (!this.#turnHandshakes.has(key)) {
+        this.#turnHandshakes.add(key);
+        this.#send(REQ.turnServerInit, Buffer.alloc(0), relayCandidate);
+      }
+      return false;
+    }
+    const directCandidate = ppcsLookupCandidate(message);
+    if (directCandidate) {
+      this.stats.directLookupCandidates++;
+      if (directCandidate.host !== "0.0.0.0") this.#checkCandidate(directCandidate);
+      return false;
+    }
+    if (has(message, RESP.turnServerOk)) {
+      this.#send(REQ.turnClientOk, Buffer.alloc(0), { host: info.address, port: info.port });
+      return false;
+    }
+    if (has(message, RESP.turnServerToken) && message.length >= 10) {
+      this.stats.turnTokens++;
+      const token = Buffer.from(message.subarray(4, 8));
+      const relay = { host: info.address, port: message.readUInt16BE(8) };
+      const payload = buildPpcsRelayCheck(this.#options.p2pDid, token);
+      for (let attempt = 0; attempt < 4; attempt += 1) this.#send(REQ.check2, payload, relay);
+      const lookup = buildPpcsTurnLookup(this.#options.p2pDid, relay, token);
+      for (const address of decodeCloudAddresses(this.#options.appConnection)) {
+        this.#send(REQ.turnLookup, lookup, address);
+      }
       return false;
     }
     if (isPpcsCameraIdentity(message)) {
