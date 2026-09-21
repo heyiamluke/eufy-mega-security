@@ -73,12 +73,33 @@ test("keeps expanded AI detections distinct and clears their transient flags", a
   state.recordDetection(camera.serial, "pet", true);
   state.recordDetection(camera.serial, "vehicle", true);
 
+  assert.equal(state.getCamera(camera.serial).motionDetected, true);
   assert.equal(state.getCamera(camera.serial).petDetected, true);
   assert.equal(state.getCamera(camera.serial).vehicleDetected, true);
   assert.equal(state.getCamera(camera.serial).lastDetection?.kind, "vehicle");
   await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(state.getCamera(camera.serial).motionDetected, false);
   assert.equal(state.getCamera(camera.serial).petDetected, false);
   assert.equal(state.getCamera(camera.serial).vehicleDetected, false);
+});
+
+test("keeps general motion active across overlapping visual detections", () => {
+  const state = new GatewayState();
+  state.registerCamera(camera);
+  state.recordMotion(camera.serial, true);
+  state.recordPerson(camera.serial, true, null);
+  state.recordDetection(camera.serial, "pet", true);
+
+  state.recordMotion(camera.serial, false);
+  assert.equal(state.getCamera(camera.serial).motionDetected, true);
+  state.recordPerson(camera.serial, false, null);
+  assert.equal(state.getCamera(camera.serial).motionDetected, true);
+  state.recordDetection(camera.serial, "pet", false);
+  assert.equal(state.getCamera(camera.serial).motionDetected, false);
+
+  state.recordDetection(camera.serial, "sound", true);
+  assert.equal(state.getCamera(camera.serial).motionDetected, false);
+  state.close();
 });
 
 test("records and clears a transient doorbell press for supported cameras", async () => {
