@@ -15,6 +15,7 @@ import {
   buildPpcsCloudLookup,
   buildStandaloneLiveStartPayload,
   decodePpcsVideoFrame,
+  hasDecoderReadyKeyframe,
   isPpcsCameraIdentity,
   needsAttachedMediaReassert,
   needsStandaloneMediaReassert,
@@ -112,10 +113,19 @@ test("labels a standalone live start as level-one frame type 11", () => {
   assert.equal(clear.subarray(0, value.length).toString("utf8"), value);
 });
 
-test("reasserts attached media only until a frame arrives or after a stall", () => {
+test("reasserts attached media during startup or after a stall", () => {
   assert.equal(needsAttachedMediaReassert(null, 1_000), true);
   assert.equal(needsAttachedMediaReassert(1_000, 6_000), false);
   assert.equal(needsAttachedMediaReassert(1_000, 11_000), true);
+});
+
+test("requires complete codec setup and an IDR before attached media settles", () => {
+  assert.equal(hasDecoderReadyKeyframe("h264", [7, 8, 5]), true);
+  assert.equal(hasDecoderReadyKeyframe("h264", [7, 8, 1]), false);
+  assert.equal(hasDecoderReadyKeyframe("h265", [32, 33, 34, 19]), true);
+  assert.equal(hasDecoderReadyKeyframe("h265", [32, 33, 34, 20]), true);
+  assert.equal(hasDecoderReadyKeyframe("h265", [32, 39, 1]), false);
+  assert.equal(hasDecoderReadyKeyframe("unknown", [32, 33, 34, 19]), false);
 });
 
 test("accepts only the requested camera's HomeBase video", () => {
