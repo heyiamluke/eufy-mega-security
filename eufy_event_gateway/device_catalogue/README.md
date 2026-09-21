@@ -26,6 +26,10 @@ not belong in filenames or IDs.
 Omit groups that have no known entries. Use `ignored` only when a device reports
 misleading values that the integration must deliberately suppress.
 
+Always quote human-facing labels under `values`. This keeps formatting
+consistent and prevents YAML from interpreting labels such as `On`, `Off`,
+`Yes`, or `No` as another data type.
+
 ## Evidence boundary
 
 Each connection and capability uses one support level:

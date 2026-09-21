@@ -36,9 +36,9 @@ capabilities:
       write:
         command: 1277
       values:
-        0: PureColor
-        1: Infrared
-        2: Spotlight
+        0: "PureColor"
+        1: "Infrared"
+        2: "Spotlight"
 
     siren:
       status: tested

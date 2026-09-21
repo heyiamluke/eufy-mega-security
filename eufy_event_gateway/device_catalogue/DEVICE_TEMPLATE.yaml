@@ -33,9 +33,10 @@ capabilities:
         parameter: 0 # Remove read when the control has no readable state.
       write:
         command: 0
+      # Always quote human-facing labels so YAML cannot reinterpret words such as On, Off, Yes, or No.
       values:
-        0: First option
-        1: Second option
+        0: "First option"
+        1: "Second option"
 
   media:
     live_view:
