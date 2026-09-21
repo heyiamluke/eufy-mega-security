@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.76
+
+- Complete the PPCS relay and TURN handshake used when a HomeBase cannot be reached through a direct peer address.
+- Use the legacy live-start command required by HomeBase firmware before 2.0.9.7.
+- Prefer recognisable H.264 or H.265 decoder setup over a conflicting HomeBase frame marker, while retaining the marker as a fallback for ambiguous media.
+- Increase the PPCS UDP receive buffer and report privacy-safe direct, relay, and TURN lookup progress in stream summaries.
+
 ## 0.1.75
 
 - Honour Home Assistant siren durations for both camera and HomeBase siren entities.
