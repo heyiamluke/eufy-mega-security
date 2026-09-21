@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "check": "npm run typecheck && npm run test:shell && npm run catalogue:check && npm test",
     "catalogue:check": "node scripts/device-catalogue.mjs check",
+    "catalogue:new": "node scripts/new-device-catalogue.mjs",
     "catalogue:query": "node scripts/device-catalogue.mjs query",
     "release:check": "node scripts/check-release-consistency.mjs",
     "dev": "tsx watch src/main.ts",
@@ -23,7 +24,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "protobufjs": "^7.6.6"
+    "protobufjs": "^7.6.6",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

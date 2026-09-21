@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=device.schema.json
+
+# Copy this file or run: npm run catalogue:new -- T1234 "Camera name"
+schema: 1
+
+# Keep the ID stable. Use the lowercase primary model code when it is unique.
+id: t1234
+name: Camera name
+models:
+  - T1234
+
+# Use null when the numeric inventory type is not known yet.
+device_type: null
+
+# Valid support levels are tested, reported, declared, and unknown.
+connections:
+  homebase3: unknown
+
+capabilities:
+  # Values that the integration can read but cannot change.
+  readable:
+    battery_level:
+      status: unknown
+      read:
+        parameter: 0 # Replace with the real numeric parameter.
+
+  # Settings and actions that the integration can change.
+  controls:
+    example_select:
+      status: unknown
+      requires: homebase3
+      read:
+        parameter: 0 # Remove read when the control has no readable state.
+      write:
+        command: 0
+      values:
+        0: First option
+        1: Second option
+
+  media:
+    live_view:
+      status: unknown
+      requires: homebase3
+
+  events:
+    motion:
+      status: unknown
+
+# Keep this section only for misleading device fields that must be suppressed.
+ignored:
+  example_field:
+    fields:
+      - raw.field.name
+    reason: Explain why the integration must ignore this value.

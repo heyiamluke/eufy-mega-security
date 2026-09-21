@@ -8,23 +8,48 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "yaml";
 
 const catalogueDirectory = join(dirname(fileURLToPath(import.meta.url)), "..", "device_catalogue");
 const devicesDirectory = join(catalogueDirectory, "devices");
 const forbiddenReferencePattern = /sdk|eufy-security-client|mega-yfue|source_repo|file_line|verified_by|xref_mega|build\/http\/types\.js|src\/model\/|(?:no)?lib[0-9]|\blibrary\b/i;
 const legacyIdentifierPattern = /(?:^|[-_])(?:no)?lib(?:[0-9_]|$)/i;
+const deviceExtensions = [".json", ".yaml"];
+const capabilityGroups = ["readable", "controls", "media", "events"];
+const supportStatuses = ["tested", "reported", "declared", "unknown"];
+
+function isDeviceFile(file) {
+  return deviceExtensions.some((extension) => file.endsWith(extension));
+}
+
+function deviceFileStem(file) {
+  const extension = deviceExtensions.find((candidate) => file.endsWith(candidate));
+  return extension ? basename(file, extension) : basename(file);
+}
+
+function parseDevice(file, source) {
+  return file.endsWith(".yaml") ? parse(source) : JSON.parse(source);
+}
+
+function deviceModels(record) {
+  return record.schema === 1 ? record.models : record.identity?.model_codes;
+}
+
+function deviceName(record) {
+  return record.schema === 1 ? record.name : record.identity?.display_name;
+}
 
 async function loadDevices() {
-  const files = (await readdir(devicesDirectory)).filter((file) => file.endsWith(".json")).sort();
+  const files = (await readdir(devicesDirectory)).filter(isDeviceFile).sort();
   return Promise.all(files.map(async (file) => {
     const source = await readFile(join(devicesDirectory, file), "utf8");
-    return { file, source, record: JSON.parse(source) };
+    return { file, source, record: parseDevice(file, source) };
   }));
 }
 
 async function validateCatalogueSources() {
   const files = (await readdir(catalogueDirectory, { recursive: true }))
-    .filter((file) => file.endsWith(".json") || file.endsWith(".md"));
+    .filter((file) => isDeviceFile(file) || file.endsWith(".md"));
   const errors = [];
   for (const file of files) {
     const source = await readFile(join(catalogueDirectory, file), "utf8");
@@ -35,15 +60,18 @@ async function validateCatalogueSources() {
 
 function validateDevice(file, source, record, ids) {
   const errors = [];
-  const fileStem = basename(file, ".json");
+  const fileStem = deviceFileStem(file);
   if (forbiddenReferencePattern.test(source)) errors.push(`${file}: contains forbidden reference-source metadata`);
   if (legacyIdentifierPattern.test(fileStem)) errors.push(`${file}: contains a legacy source identifier`);
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(fileStem)) errors.push(`${file}: filename must use lowercase kebab case`);
-  if (record.$schema !== "../schema.json") errors.push(`${file}: invalid schema reference`);
+  if (!record || typeof record !== "object" || Array.isArray(record)) return [...errors, `${file}: device record must be a map`];
   if (typeof record.id !== "string" || record.id.length === 0) errors.push(`${file}: missing id`);
   else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(record.id)) errors.push(`${file}: id must use lowercase kebab case`);
   else if (ids.has(record.id)) errors.push(`${file}: duplicate id ${record.id}`);
   else ids.add(record.id);
+
+  if (record.schema === 1) return [...errors, ...validateSimplifiedDevice(file, record)];
+  if (record.$schema !== "../schema.json") errors.push(`${file}: invalid schema reference`);
   if (!record.identity || typeof record.identity.display_name !== "string") errors.push(`${file}: missing display name`);
   if (!Array.isArray(record.identity?.model_codes)) errors.push(`${file}: model_codes must be an array`);
   if (!record.device_registry || typeof record.device_registry !== "object") errors.push(`${file}: missing device registry`);
@@ -71,11 +99,69 @@ function validateDevice(file, source, record, ids) {
   return errors;
 }
 
+function validateSimplifiedDevice(file, record) {
+  const errors = [];
+  const allowedTopLevel = new Set(["schema", "id", "name", "models", "device_type", "connections", "capabilities", "ignored"]);
+  for (const key of Object.keys(record)) {
+    if (!allowedTopLevel.has(key)) errors.push(`${file}: unknown top-level field ${key}`);
+  }
+  if (typeof record.name !== "string" || record.name.length === 0) errors.push(`${file}: missing name`);
+  if (!Array.isArray(record.models) || record.models.some((model) => typeof model !== "string" || model.length === 0)) {
+    errors.push(`${file}: models must be an array of model codes`);
+  }
+  if (record.device_type !== null && !Number.isSafeInteger(record.device_type)) {
+    errors.push(`${file}: device_type must be an integer or null`);
+  }
+  if (!record.connections || typeof record.connections !== "object" || Array.isArray(record.connections)) {
+    errors.push(`${file}: connections must be a map`);
+  } else {
+    for (const [connection, status] of Object.entries(record.connections)) {
+      if (!connection || !supportStatuses.includes(status)) errors.push(`${file}: invalid connection ${connection}`);
+    }
+  }
+  if (!record.capabilities || typeof record.capabilities !== "object" || Array.isArray(record.capabilities)) {
+    errors.push(`${file}: capabilities must be a map`);
+    return errors;
+  }
+  for (const [group, entries] of Object.entries(record.capabilities)) {
+    if (!capabilityGroups.includes(group)) errors.push(`${file}: unknown capability group ${group}`);
+    if (!entries || typeof entries !== "object" || Array.isArray(entries)) {
+      errors.push(`${file}: ${group} must be a named map`);
+      continue;
+    }
+    for (const [name, capability] of Object.entries(entries)) {
+      if (!capability || typeof capability !== "object" || Array.isArray(capability)) {
+        errors.push(`${file}: ${group}.${name} must be a map`);
+        continue;
+      }
+      if (!supportStatuses.includes(capability.status)) errors.push(`${file}: ${group}.${name} has invalid status`);
+      if (capability.requires && !(capability.requires in (record.connections ?? {}))) {
+        errors.push(`${file}: ${group}.${name} requires unknown connection ${capability.requires}`);
+      }
+      if (group === "controls" && !capability.write) errors.push(`${file}: controls.${name} must define write`);
+      if (group === "readable" && !capability.read) errors.push(`${file}: readable.${name} must define read`);
+      if (capability.read?.parameter !== undefined && (!Number.isSafeInteger(capability.read.parameter) || capability.read.parameter < 1)) {
+        errors.push(`${file}: ${group}.${name} read parameter must be a positive integer`);
+      }
+      if (capability.write && (!Number.isSafeInteger(capability.write.command) || capability.write.command < 1)) {
+        errors.push(`${file}: ${group}.${name} write command must be a positive integer`);
+      }
+      if (capability.values !== undefined && (!capability.values || typeof capability.values !== "object" || Array.isArray(capability.values))) {
+        errors.push(`${file}: ${group}.${name} values must be a map`);
+      }
+    }
+  }
+  if (record.ignored !== undefined && (!record.ignored || typeof record.ignored !== "object" || Array.isArray(record.ignored))) {
+    errors.push(`${file}: ignored must be a named map`);
+  }
+  return errors;
+}
+
 function validateIdentityKeys(devices) {
   const errors = [];
   const recordsByPrimaryModel = new Map();
   for (const device of devices) {
-    const primaryModel = device.record.identity?.model_codes?.[0];
+    const primaryModel = deviceModels(device.record)?.[0];
     if (!primaryModel) continue;
     const key = String(primaryModel).toLowerCase();
     const records = recordsByPrimaryModel.get(key) ?? [];
@@ -84,7 +170,7 @@ function validateIdentityKeys(devices) {
   }
   for (const [primaryModel, records] of recordsByPrimaryModel) {
     for (const { file, record } of records) {
-      const fileStem = basename(file, ".json");
+      const fileStem = deviceFileStem(file);
       if (!fileStem.startsWith(`${primaryModel}-`)) {
         errors.push(`${file}: filename must start with primary model ${primaryModel}-`);
       }
@@ -94,14 +180,14 @@ function validateIdentityKeys(devices) {
       if (records.length > 1 && !record.id.startsWith(`${primaryModel}-`)) {
         errors.push(`${file}: shared primary model id must start with ${primaryModel}-`);
       }
-      if (records.length > 1 && !record.identity.variant_rule) {
+      if (record.schema !== 1 && records.length > 1 && !record.identity.variant_rule) {
         errors.push(`${file}: shared primary model requires a variant rule`);
       }
     }
   }
   for (const { file, record } of devices) {
-    if (record.identity?.model_codes?.length > 0) continue;
-    const fileStem = basename(file, ".json");
+    if (deviceModels(record)?.length > 0) continue;
+    const fileStem = deviceFileStem(file);
     if (fileStem !== record.id && !fileStem.startsWith(`${record.id}-`)) {
       errors.push(`${file}: filename must start with id ${record.id}`);
     }
@@ -113,10 +199,33 @@ function findDevice(devices, query) {
   const normalized = query.toUpperCase();
   return devices.filter(({ record }) => [
     record.id,
-    record.identity.display_name,
-    ...record.identity.model_codes,
-    ...record.identity.aliases,
+    deviceName(record),
+    ...(deviceModels(record) ?? []),
+    ...(record.identity?.aliases ?? []),
   ].some((value) => String(value).toUpperCase() === normalized));
+}
+
+function countCapabilities(record) {
+  if (record.schema === 1) {
+    return Object.values(record.capabilities).reduce((sum, entries) => sum + Object.keys(entries).length, 0);
+  }
+  return Object.values(record.capabilities).reduce((sum, rows) => sum + rows.length, 0);
+}
+
+function countSelectableValues(record) {
+  if (record.schema === 1) {
+    return Object.values(record.capabilities).reduce(
+      (sum, entries) => sum + Object.values(entries).reduce(
+        (entrySum, entry) => entrySum + Object.keys(entry.values ?? {}).length,
+        0,
+      ),
+      0,
+    );
+  }
+  return Object.values(record.capabilities).reduce(
+    (sum, rows) => sum + rows.reduce((rowSum, row) => rowSum + (row.value?.options?.length ?? 0), 0),
+    0,
+  );
 }
 
 async function check() {
@@ -128,14 +237,11 @@ async function check() {
     ...validateIdentityKeys(devices),
   ];
   const capabilityCount = devices.reduce(
-    (count, { record }) => count + Object.values(record.capabilities).reduce((sum, rows) => sum + rows.length, 0),
+    (count, { record }) => count + countCapabilities(record),
     0,
   );
   const optionCount = devices.reduce(
-    (count, { record }) => count + Object.values(record.capabilities).reduce(
-      (sum, rows) => sum + rows.reduce((rowSum, row) => rowSum + (row.value?.options?.length ?? 0), 0),
-      0,
-    ),
+    (count, { record }) => count + countSelectableValues(record),
     0,
   );
   if (errors.length > 0) {
@@ -149,6 +255,13 @@ async function query(model, capabilityKey) {
   if (matches.length === 0) throw new Error(`No device matches ${model}`);
   const output = matches.map(({ file, record }) => {
     if (!capabilityKey) return { file, ...record };
+    if (record.schema === 1) {
+      const capabilities = Object.entries(record.capabilities).flatMap(([group, entries]) => {
+        const capability = entries[capabilityKey];
+        return capability ? [{ group, name: capabilityKey, ...capability }] : [];
+      });
+      return { file, id: record.id, name: record.name, models: record.models, capabilities };
+    }
     const capabilities = Object.entries(record.capabilities).flatMap(([kind, rows]) => rows
       .filter((row) => row.key.toLowerCase() === capabilityKey.toLowerCase())
       .map((row) => ({ kind, ...row })));

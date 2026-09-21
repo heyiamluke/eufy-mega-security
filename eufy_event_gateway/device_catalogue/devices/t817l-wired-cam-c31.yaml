@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+
+id: t817l
+name: Wired Cam C31
+models:
+  - T817L
+  - T817L121
+device_type: 10031
+
+connections:
+  homebase3: tested
+  direct: declared
+
+capabilities:
+  controls:
+    night_vision:
+      status: tested
+      tested_on: 2026-09-21
+      requires: homebase3
+      read:
+        parameter: 1277
+      write:
+        command: 1277
+      values:
+        0: PureColor
+        1: Infrared
+        2: Spotlight
+
+  media:
+    live_view:
+      status: tested
+      tested_on: 2026-09-21
+      requires: homebase3
+    snapshot:
+      status: tested
+      tested_on: 2026-09-21
+      requires: homebase3
+
+ignored:
+  battery:
+    fields:
+      - battery.level
+      - battery.charging
+      - battery.health
+      - battery.temperature
+    reason: Mains-powered device reports compatibility placeholder values.

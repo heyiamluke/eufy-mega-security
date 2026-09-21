@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mscodemonkey/eufy-mega-security/device-catalogue-v1.schema.json",
+  "title": "Eufy device capability record",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "name",
+    "models",
+    "device_type",
+    "connections",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "device_type": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "connections": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/status"
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readable": {
+          "$ref": "#/$defs/capabilityMap"
+        },
+        "controls": {
+          "$ref": "#/$defs/capabilityMap"
+        },
+        "media": {
+          "$ref": "#/$defs/capabilityMap"
+        },
+        "events": {
+          "$ref": "#/$defs/capabilityMap"
+        }
+      }
+    },
+    "ignored": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "tested",
+        "reported",
+        "declared",
+        "unknown"
+      ]
+    },
+    "capabilityMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/capability"
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "tested_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "requires": {
+          "type": "string"
+        },
+        "read": {
+          "type": "object",
+          "required": [
+            "parameter"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "parameter": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "required": [
+            "command"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "command": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
