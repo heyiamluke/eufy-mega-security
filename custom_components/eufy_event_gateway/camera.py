@@ -143,12 +143,20 @@ class EufyGatewayCamera(EufyGatewayEntity, Camera):
         return await self.coordinator.client.stream_url(self.serial)
 
     async def async_capture_snapshot(self, filename: str) -> None:
-        """Wake the camera, wait for a fresh frame, and save it through HA."""
+        """Wake the camera and save a fresh frame to an allowlisted HA path."""
         if not self.camera.get("streamSupported"):
             raise HomeAssistantError(
                 "Fresh snapshot capture is unavailable for this camera"
             )
-        await self.coordinator.client.capture_snapshot(self.serial)
+        if not self.hass.config.is_allowed_path(filename):
+            raise HomeAssistantError(
+                f"Cannot write snapshot to {filename}. Use a Home Assistant "
+                "allowlisted path ending in .jpg"
+            )
+        try:
+            await self.coordinator.client.capture_snapshot(self.serial)
+        except GatewayClientError as error:
+            raise HomeAssistantError(f"Could not capture snapshot: {error}") from error
         await self.hass.services.async_call(
             "camera",
             "snapshot",
