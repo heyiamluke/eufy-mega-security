@@ -183,12 +183,11 @@ export class HomeBasePpcsSession {
 
   /** Set the configured Eufy guard mode once and wait for its acknowledgement. */
   async setGuardMode(mode: number): Promise<void> {
-    const value = JSON.stringify({
-      account_id: this.options.accountId,
-      cmd: CMD_SET_ARMING,
-      mValue3: 0,
-      payload: { mode_type: mode, user_name: this.options.userName },
-    });
+    const value = buildHomeBaseGuardModeValue(
+      this.options.accountId,
+      this.options.userName,
+      mode,
+    );
     await this.#sendAcknowledgedCommand(CMD_SET_PAYLOAD, stringPayload(value, STATION_CHANNEL, this.#key));
   }
 
@@ -406,6 +405,20 @@ export class HomeBasePpcsSession {
   #send(type: Buffer, payload: Buffer, address: { host: string; port: number }): void {
     this.#socket.send(Buffer.concat([type, u16(payload.length), payload]), address.port, address.host);
   }
+}
+
+/** Build the wrapped guard-mode value accepted by current HomeBase firmware. */
+export function buildHomeBaseGuardModeValue(
+  accountId: string,
+  userName: string,
+  mode: number,
+): string {
+  return JSON.stringify({
+    account_id: accountId,
+    cmd: CMD_SET_ARMING,
+    mValue3: 0,
+    payload: { mode_type: mode, user_name: userName },
+  });
 }
 
 /** Convert checked camera-info and storage payloads into normalized station state. */

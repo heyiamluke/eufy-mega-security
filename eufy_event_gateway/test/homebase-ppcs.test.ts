@@ -9,10 +9,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildHomeBaseGuardModeValue,
   HOMEBASE_PPCS_REQUEST_HEADERS,
   isHomeBaseResultFrame,
   parseHomeBaseState,
 } from "../src/stream/homebase-ppcs.js";
+
+test("builds the current HomeBase guard-mode payload", () => {
+  assert.deepEqual(JSON.parse(buildHomeBaseGuardModeValue("account", "Home Assistant", 1)), {
+    account_id: "account",
+    cmd: 1224,
+    mValue3: 0,
+    payload: { mode_type: 1, user_name: "Home Assistant" },
+  });
+});
 
 test("uses PPCS local-lookup and camera-check request headers", () => {
   assert.equal(HOMEBASE_PPCS_REQUEST_HEADERS.localLookup.toString("hex"), "f130");

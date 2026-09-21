@@ -25,6 +25,7 @@ import {
   ppcsStreamRoute,
   safePushLogSummary,
   safeInventoryReads,
+  supportsHomeBaseGuardMode,
 } from "../src/provider/eufy-provider.js";
 import { HomeBaseCommandAcknowledgementTimeoutError, type HomeBasePpcsState } from "../src/stream/homebase-ppcs.js";
 
@@ -230,7 +231,7 @@ test("inherits the HomeBase live-view account identity for child cameras", () =>
   assert.equal(devices.find(({ serial }) => serial === "camera")?.adminUserId, "owner");
 });
 
-test("discovers T8010 without enabling unverified station controls", () => {
+test("enables only the proven T8010 guard-mode control on current firmware", () => {
   const [station] = parseMegaInventory({ devices: [{
     device_sn: "homebase", device_name: "HomeBase 2", device_model: "T8010",
     device_type: 0, category: "eufy_security", p2p_did: "did", p2p_conn: "connection",
@@ -246,6 +247,7 @@ test("discovers T8010 without enabling unverified station controls", () => {
     available: true,
     cameraRouteReady: true,
     controlsSupported: false,
+    guardModeControlSupported: true,
     stateReadSupported: false,
     homeBaseSirenControlSupported: true,
     connected: false,
@@ -257,6 +259,19 @@ test("discovers T8010 without enabling unverified station controls", () => {
     alarmTone: null,
     storage: { emmc: null, hdd: null },
   });
+});
+
+test("keeps old and missing T8010 firmware on read-only guard mode", () => {
+  const base = {
+    category: "eufy_security",
+    deviceType: 0,
+    model: "T8010",
+  } as const;
+
+  assert.equal(supportsHomeBaseGuardMode({ ...base, firmware: "2.0.7.8" }), false);
+  assert.equal(supportsHomeBaseGuardMode({ ...base, firmware: "2.0.7.9" }), true);
+  assert.equal(supportsHomeBaseGuardMode({ ...base, firmware: "3.4.2.6h" }), true);
+  assert.equal(supportsHomeBaseGuardMode({ ...base, firmware: null }), false);
 });
 
 test("classifies recognized Mega camera types without admitting stations or unknown devices", () => {

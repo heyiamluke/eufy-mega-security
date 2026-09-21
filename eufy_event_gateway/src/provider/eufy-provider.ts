@@ -440,7 +440,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
       serial,
       false,
       async (session) => session.readState(isHomeBase3(identity)),
-      false,
+      "discovered",
     );
     if (station.stateReadSupported && !this.#stationReadConfirmed.has(serial)) {
       this.#stationReadConfirmed.add(serial);
@@ -454,7 +454,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
 
   async setGuardMode(serial: string, mode: number): Promise<HomeBaseState> {
     if (![0, 1, 2, 3, 4, 5, 47, 63].includes(mode)) throw new Error("Unsupported HomeBase guard mode");
-    return this.#writeStationValue(serial, "guardMode", mode, (session) => session.setGuardMode(mode));
+    return this.#writeStationValue(serial, "guardMode", mode, (session) => session.setGuardMode(mode), "guard-mode");
   }
 
   async setAlarmVolume(serial: string, value: number): Promise<HomeBaseState> {
@@ -577,6 +577,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     }
     const deviceManifests = devices.flatMap((device) => describeDeviceCapabilities(device, {
       homeBaseSupported: isHomeBase3(device),
+      homeBaseGuardModeSupported: supportsHomeBaseGuardMode(device),
       homeBaseRouteReady: Boolean(device.p2pDid && device.p2pConnection && this.#dskKeys.has(device.serial)),
       doorbellSupported: isDoorbellDevice(device),
       cameraStreamSupported: isPpcsStreamSupported(device, this.#devices, dskPeerSerials),
@@ -760,7 +761,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     return this.#queueStationOperation(serial, true, async (session) => {
       await session.setSiren(durationSeconds);
       return session.readState(false);
-    }, false);
+    }, "discovered");
   }
 
   #recordStationRefreshFailure(serial: string, error: unknown): void {
@@ -780,7 +781,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
   #handlePush(events: ProviderEvents, event: MegaPushEvent): void {
     const station = this.#stations.get(event.stationSerial);
     const stationIdentity = this.#devices.get(event.stationSerial);
-    if (station?.controlsSupported && event.eventType === 9) {
+    if (station?.guardModeControlSupported && event.eventType === 9) {
       const updated = {
         ...station,
         guardMode: validGuardMode(event.guardMode) ? event.guardMode : station.guardMode,
@@ -847,6 +848,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     field: "guardMode" | "alarmVolume" | "promptVolume" | "alarmTone",
     expected: number,
     write: (session: HomeBasePpcsSession) => Promise<void>,
+    access: StationAccess = "managed",
   ): Promise<HomeBaseState> {
     try {
       return await this.#queueStationOperation(serial, true, async (session) => {
@@ -863,7 +865,7 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
           );
         }
         return result.observed;
-      });
+      }, access);
     } catch (error) {
       logger.warn(
         "station_command_failed",
@@ -877,12 +879,17 @@ export class EufyProvider implements CameraProvider, CaptchaProvider {
     serial: string,
     interruptMedia: boolean,
     operation: (session: HomeBasePpcsSession) => Promise<HomeBasePpcsState>,
-    requireWritableControls = true,
+    access: StationAccess = "managed",
   ): Promise<HomeBaseState> {
     const previous = this.#stationOperations.get(serial) ?? Promise.resolve(this.#requireStation(serial));
     const current = previous.catch(() => this.#requireStation(serial)).then(async () => {
       const identity = this.#devices.get(serial);
-      if (!identity || (requireWritableControls && !isHomeBase3(identity)) || (!requireWritableControls && !isDiscoveredHomeBase(identity)) || !identity.p2pDid || !identity.adminUserId) {
+      const accessSupported = identity && (
+        access === "managed" ? isHomeBase3(identity)
+          : access === "guard-mode" ? supportsHomeBaseGuardMode(identity)
+            : isDiscoveredHomeBase(identity)
+      );
+      if (!identity || !accessSupported || !identity.p2pDid || !identity.adminUserId) {
         throw new Error("HomeBase local command identity is unavailable");
       }
       if (interruptMedia) await this.#stopStationMedia(serial);
@@ -1167,6 +1174,15 @@ export function isDiscoveredHomeBase(
     && (isHomeBase3(device) || (device.deviceType === 0 && device.model.startsWith("T8010")));
 }
 
+/** Return whether inventory proves support for the wrapped guard-mode command. */
+export function supportsHomeBaseGuardMode(
+  device: Pick<MegaInventoryDevice, "category" | "deviceType" | "model" | "firmware">,
+): boolean {
+  if (isHomeBase3(device)) return true;
+  if (!isDiscoveredHomeBase(device) || !device.firmware) return false;
+  return compareFirmware(device.firmware, [2, 0, 7, 9]) >= 0;
+}
+
 /** Build inventory-owned station state without inferring an unverified command protocol. */
 export function initialHomeBaseState(device: MegaInventoryDevice, dskReady: boolean): HomeBaseState {
   const controlsSupported = isHomeBase3(device);
@@ -1178,6 +1194,7 @@ export function initialHomeBaseState(device: MegaInventoryDevice, dskReady: bool
     available: true,
     cameraRouteReady: Boolean(device.p2pDid && device.p2pConnection && dskReady),
     controlsSupported,
+    guardModeControlSupported: supportsHomeBaseGuardMode(device),
     stateReadSupported: controlsSupported,
     homeBaseSirenControlSupported: isDiscoveredHomeBase(device),
     connected: false,
@@ -1208,6 +1225,18 @@ function mergeHomeBaseState(existing: HomeBaseState, observed: HomeBasePpcsState
 
 function validGuardMode(value: number | null): value is number {
   return value !== null && [0, 1, 2, 3, 4, 5, 47, 63].includes(value);
+}
+
+type StationAccess = "discovered" | "guard-mode" | "managed";
+
+function compareFirmware(value: string, minimum: readonly number[]): number {
+  const parts = value.match(/\d+/g)?.slice(0, minimum.length).map(Number) ?? [];
+  if (parts.length < minimum.length) return -1;
+  for (let index = 0; index < minimum.length; index++) {
+    const difference = parts[index]! - minimum[index]!;
+    if (difference !== 0) return difference;
+  }
+  return 0;
 }
 
 /** Explain camera filtering decisions without exposing raw cloud payloads. */

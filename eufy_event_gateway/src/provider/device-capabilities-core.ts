@@ -26,6 +26,7 @@ export interface CapabilityInventoryRow {
 /** Route and admission facts already decided by the gateway provider. */
 export interface DeviceCapabilityOptions {
   readonly homeBaseSupported: boolean;
+  readonly homeBaseGuardModeSupported: boolean;
   readonly homeBaseRouteReady: boolean;
   readonly doorbellSupported: boolean;
   readonly cameraStreamSupported: boolean;
@@ -133,11 +134,21 @@ function describeHomeBaseFamily(
     options.homeBaseRouteReady,
   );
   if (options.homeBaseSupported) return manifest;
+  const homeBase2Capabilities = new Set([
+    "homebase.available",
+    "homebase.camera_route",
+    "homebase.guard_mode",
+    "homebase.guard_mode_write",
+    "homebase.effective_mode",
+  ]);
   return {
     ...manifest,
     matrix: manifest.matrix.map((row) => ({
       ...row,
-      offerable: discovered && ["homebase.available", "homebase.camera_route"].includes(row.id)
+      offerable: discovered
+        && (options.homeBaseGuardModeSupported
+          ? homeBase2Capabilities.has(row.id)
+          : ["homebase.available", "homebase.camera_route"].includes(row.id))
         && row.offerable,
     })),
   };
