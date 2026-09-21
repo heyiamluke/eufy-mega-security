@@ -77,7 +77,9 @@ capabilities:
         T8010:
           status: unknown
         T8030:
-          status: declared
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
       read:
         parameter: 1035
       write:
@@ -105,7 +107,9 @@ capabilities:
         T8010:
           status: declared
         T8030:
-          status: declared
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
       read:
         parameter: 1277
       write:

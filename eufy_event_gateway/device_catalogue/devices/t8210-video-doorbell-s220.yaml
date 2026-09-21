@@ -93,7 +93,9 @@ capabilities:
         T8010:
           status: unknown
         T8030:
-          status: declared
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: unknown
       read:
@@ -125,7 +127,9 @@ capabilities:
         T8010:
           status: unknown
         T8030:
-          status: reported
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: unsupported
       read:
@@ -135,6 +139,25 @@ capabilities:
       values:
         "0": "Off"
         "1": "On"
+    siren:
+      connections:
+        T8010:
+          status: unknown
+        T8030:
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
+        direct:
+          status: unknown
+      requires_parameter: 1015
+      write:
+        command: 1202
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+      notes: A duration of 0 stops the siren.
   media:
     live_view:
       connections:
@@ -144,7 +167,9 @@ capabilities:
           notes: One HomeBase 2 setup works after a restart, while other confirmed setups remain blank or
             fail.
         T8030:
-          status: unknown
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: tested
           tested_by: mscodemonkey
@@ -156,7 +181,9 @@ capabilities:
           notes: One HomeBase 2 setup works after a restart, while other confirmed setups cannot capture a
             usable image.
         T8030:
-          status: unknown
+          status: tested
+          tested_on: 2026-09-21
+          tested_by: mscodemonkey
         direct:
           status: tested
           tested_by: mscodemonkey
