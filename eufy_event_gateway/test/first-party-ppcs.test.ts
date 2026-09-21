@@ -10,12 +10,9 @@ import test from "node:test";
 
 import {
   buildCameraEnableBody,
-  buildLegacyAttachedLiveStartPayload,
   buildNightVisionBody,
   acceptsAttachedCameraMedia,
   buildPpcsCloudLookup,
-  buildPpcsRelayCheck,
-  buildPpcsTurnLookup,
   buildStandaloneLiveStartPayload,
   decodePpcsVideoFrame,
   isPpcsCameraIdentity,
@@ -27,10 +24,8 @@ import {
   ppcsCommandMagicOffset,
   ppcsFrameChannel,
   ppcsLookupCandidate,
-  ppcsRelayCandidate,
   ppcsPartialCommandPrefix,
   ppcsSequenceDisposition,
-  usesLegacyAttachedMediaStart,
 } from "../src/stream/first-party-ppcs.js";
 
 test("builds the two PPCS cloud lookup variants", () => {
@@ -78,72 +73,18 @@ test("reissues a standalone start only while codec headers are missing", () => {
   assert.equal(needsStandaloneMediaReassert(true, "unknown"), false);
 });
 
-test("selects the direct attached-media command only for known older firmware", () => {
-  assert.equal(usesLegacyAttachedMediaStart("2.0.9.6"), true);
-  assert.equal(usesLegacyAttachedMediaStart("1.9.9.99h"), true);
-  assert.equal(usesLegacyAttachedMediaStart("2.0.9.7"), false);
-  assert.equal(usesLegacyAttachedMediaStart("3.4.2.6h"), false);
-  assert.equal(usesLegacyAttachedMediaStart("unknown"), false);
-  assert.equal(usesLegacyAttachedMediaStart(null), false);
-});
-
-test("builds the older HomeBase direct live-start body", () => {
-  const publicKey = "ab".repeat(128);
-  const payload = buildLegacyAttachedLiveStartPayload(4, publicKey);
-
-  assert.equal(payload.readUInt16LE(0), payload.length - 10);
-  assert.deepEqual(payload.subarray(4, 10), Buffer.from([1, 0, 4, 0, 0, 0]));
-  assert.equal(payload.readUInt32LE(10), 4);
-  assert.equal(payload.subarray(14, 14 + publicKey.length).toString("ascii"), publicKey);
-  assert.ok(payload.subarray(14 + publicKey.length).every((value) => value === 0));
-});
-
-test("accepts a direct PPCS discovery response", () => {
-  const response = Buffer.alloc(12);
-  response.set([0xf1, 0x40], 0);
-  response.writeUInt16LE(32_108, 6);
-  response.set([9, 2, 0, 192], 8);
-
-  assert.deepEqual(ppcsLookupCandidate(response), { host: "192.0.2.9", port: 32_108 });
-  assert.equal(ppcsRelayCandidate(response), null);
+test("accepts both PPCS cloud candidate response forms", () => {
+  for (const header of [[0xf1, 0x40], [0xf1, 0x82]]) {
+    const response = Buffer.alloc(24);
+    response.set(header, 0);
+    response.writeUInt16LE(32_108, 6);
+    response.set([9, 2, 0, 192], 8);
+    assert.deepEqual(ppcsLookupCandidate(response), { host: "192.0.2.9", port: 32_108 });
+  }
   assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x42])), true);
   assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x84])), true);
   assert.equal(isPpcsCameraIdentity(Buffer.from([0xf1, 0x40])), false);
   assert.deepEqual(ppcsCandidatePorts(32_108), [32_105, 32_106, 32_107, 32_108, 32_109, 32_110, 32_111]);
-});
-
-test("builds the challenge-bearing PPCS relay handshake", () => {
-  const response = Buffer.alloc(24);
-  response.set([0xf1, 0x82], 0);
-  response.writeUInt16LE(32_108, 6);
-  response.set([9, 2, 0, 192], 8);
-  response.set([1, 2, 3, 4], 20);
-  const candidate = ppcsRelayCandidate(response);
-
-  assert.deepEqual(candidate, {
-    host: "192.0.2.9",
-    port: 32_108,
-    challenge: Buffer.from([1, 2, 3, 4]),
-  });
-  assert.equal(ppcsLookupCandidate(response), null);
-  const check = buildPpcsRelayCheck("EUPRCAM-000000-XXXXX", candidate!.challenge);
-  assert.deepEqual(check.subarray(0, 4), Buffer.from([1, 2, 3, 4]));
-  assert.equal(check.subarray(4, 11).toString("ascii"), "EUPRCAM");
-  assert.equal(check[11], 0);
-  assert.equal(check.readUInt32BE(12), 0);
-  assert.equal(check.subarray(16, 21).toString("ascii"), "XXXXX");
-  assert.deepEqual(check.subarray(21, 24), Buffer.alloc(3));
-  assert.deepEqual(check.subarray(24), Buffer.alloc(4));
-});
-
-test("builds the cloud association for a confirmed TURN relay", () => {
-  const token = Buffer.from([1, 2, 3, 4]);
-  const lookup = buildPpcsTurnLookup("EUPRCAM-000000-XXXXX", { host: "192.0.2.9", port: 32_108 }, token);
-
-  assert.equal(lookup.length, 40);
-  assert.deepEqual(lookup.subarray(20, 28), Buffer.from([0, 2, 0x6c, 0x7d, 9, 2, 0, 192]));
-  assert.deepEqual(lookup.subarray(28, 36), Buffer.alloc(8));
-  assert.deepEqual(lookup.subarray(36), token);
 });
 
 test("labels a standalone live start as level-one frame type 11", () => {

@@ -2,7 +2,7 @@
  * Implements one first-party Eufy PPCS UDP camera session.
  *
  * PPCS is Eufy's peer-to-peer camera transport, not RTSP and not a Home
- * Assistant protocol. This class performs LAN, cloud, and TURN lookup, `CAM_CHECK`,
+ * Assistant protocol. This class performs LAN and cloud lookup, `CAM_CHECK`,
  * command-frame reassembly, HomeBase gateway-info decryption, level-two key
  * setup, heartbeat, video-key exchange, H.264 or H.265 Annex-B media output,
  * and bounded camera control writes. It consumes
@@ -22,10 +22,6 @@ const MAGIC = Buffer.from("XZYH", "ascii");
 const REQ = {
   lookup: Buffer.from([0xf1, 0x26]),
   lookup2: Buffer.from([0xf1, 0x6a]),
-  turnLookup: Buffer.from([0xf1, 0x80]),
-  turnServerInit: Buffer.from([0xf1, 0x70]),
-  turnClientOk: Buffer.from([0xf1, 0x72]),
-  check2: Buffer.from([0xf1, 0x83]),
   localLookup: Buffer.from([0xf1, 0x30]),
   check: Buffer.from([0xf1, 0x41]),
   ping: Buffer.from([0xf1, 0xe0]),
@@ -36,8 +32,6 @@ const REQ = {
 const RESP = {
   lookupAddr: Buffer.from([0xf1, 0x40]),
   lookupAddr2: Buffer.from([0xf1, 0x82]),
-  turnServerOk: Buffer.from([0xf1, 0x71]),
-  turnServerToken: Buffer.from([0xf1, 0x73]),
   localLookup: Buffer.from([0xf1, 0x41]),
   camId: Buffer.from([0xf1, 0x42]),
   turnServerCamId: Buffer.from([0xf1, 0x84]),
@@ -77,20 +71,6 @@ export function needsStandaloneMediaReassert(
   codec: "h264" | "h265" | "unknown",
 ): boolean {
   return !homeBaseAttached && codec === "unknown";
-}
-
-/** Decide whether an attached camera needs the pre-2.0.9.7 direct live-start command. */
-export function usesLegacyAttachedMediaStart(stationFirmware: string | null | undefined): boolean {
-  if (!stationFirmware) return false;
-  const parts = stationFirmware.match(/\d+/g)?.slice(0, 4).map(Number);
-  if (!parts || parts.length < 4) return false;
-  const minimum = [2, 0, 9, 7];
-  for (let index = 0; index < minimum.length; index += 1) {
-    const current = parts[index] ?? 0;
-    const required = minimum[index] ?? 0;
-    if (current !== required) return current < required;
-  }
-  return false;
 }
 
 /**
@@ -312,52 +292,13 @@ export function buildPpcsCloudLookup(
   };
 }
 
-/** Read a direct peer candidate from the classic PPCS cloud lookup response. */
+/** Read a peer candidate from either PPCS cloud lookup response form. */
 export function ppcsLookupCandidate(message: Buffer): { readonly host: string; readonly port: number } | null {
-  if (!has(message, RESP.lookupAddr) || message.length < 12) return null;
+  if ((!has(message, RESP.lookupAddr) && !has(message, RESP.lookupAddr2)) || message.length < 12) return null;
   return {
     port: message.readUInt16LE(6),
     host: `${message[11]}.${message[10]}.${message[9]}.${message[8]}`,
   };
-}
-
-/** Read the relay address and four-byte challenge from a LOOKUP_ADDR2 response. */
-export function ppcsRelayCandidate(
-  message: Buffer,
-): { readonly host: string; readonly port: number; readonly challenge: Buffer } | null {
-  if (!has(message, RESP.lookupAddr2) || message.length < 24) return null;
-  return {
-    port: message.readUInt16LE(6),
-    host: `${message[11]}.${message[10]}.${message[9]}.${message[8]}`,
-    challenge: Buffer.from(message.subarray(20, 24)),
-  };
-}
-
-/** Build the challenge-bearing camera check required by a PPCS relay. */
-export function buildPpcsRelayCheck(p2pDid: string, challenge: Buffer): Buffer {
-  if (challenge.length !== 4) throw new Error("PPCS relay check requires a four-byte challenge");
-  return Buffer.concat([challenge, encodeDid(p2pDid), Buffer.alloc(4)]);
-}
-
-/** Build the cloud lookup that associates a confirmed TURN relay with this peer. */
-export function buildPpcsTurnLookup(
-  p2pDid: string,
-  relay: { readonly host: string; readonly port: number },
-  token: Buffer,
-): Buffer {
-  if (token.length !== 4) throw new Error("PPCS TURN lookup requires a four-byte token");
-  if (!Number.isSafeInteger(relay.port) || relay.port <= 0 || relay.port > 65_535) {
-    throw new Error("PPCS TURN lookup requires a valid relay port");
-  }
-  const octets = relay.host.split(".").map(Number);
-  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) {
-    throw new Error("PPCS TURN lookup requires an IPv4 relay address");
-  }
-  const address = Buffer.alloc(8);
-  address.writeUInt16BE(2, 0);
-  address.writeUInt16LE(relay.port, 2);
-  address.set([...octets].reverse(), 4);
-  return Buffer.concat([encodeDid(p2pDid), address, Buffer.alloc(8), token]);
 }
 
 /** Return whether a PPCS response completes either a direct or relay peer handshake. */
@@ -514,7 +455,6 @@ interface PendingPpcsFrame {
 /** Peer and camera values required to establish one PPCS media session. */
 export interface PpcsCameraOptions {
   readonly stationSerial: string;
-  readonly stationFirmware?: string | null;
   readonly p2pDid: string;
   readonly appConnection: string;
   readonly dskKey: string;
@@ -567,8 +507,7 @@ export class FirstPartyPpcsSession {
   readonly stats = {
     camId: 0,
     directLookupCandidates: 0,
-    relayLookupCandidates: 0,
-    turnTokens: 0,
+    alternateLookupCandidates: 0,
     dataDatagrams: 0,
     frameHeaders: 0,
     gatewayInfo: 0,
@@ -631,7 +570,6 @@ export class FirstPartyPpcsSession {
   #lookupTimer: ReturnType<typeof setInterval> | null = null;
   #selfAddress: { host: string; port: number } | null = null;
   #pendingControl: PendingControl | null = null;
-  readonly #turnHandshakes = new Set<string>();
 
   /** Return the codec declared by received PPCS frame metadata, when known. */
   get videoCodec(): VideoCodec | null {
@@ -700,7 +638,7 @@ export class FirstPartyPpcsSession {
       if (this.#options.purpose === "control") return;
       if (
         this.#options.homeBaseAttached
-        && (this.#level2Key || usesLegacyAttachedMediaStart(this.#options.stationFirmware))
+        && this.#level2Key
         && needsAttachedMediaReassert(this.#lastAttachedMediaFrameAt, Date.now())
       ) {
         this.#startAttachedMedia();
@@ -841,38 +779,11 @@ export class FirstPartyPpcsSession {
       if (did === this.#options.p2pDid) this.#checkCandidate({ host: info.address, port: info.port });
       return false;
     }
-    const relayCandidate = ppcsRelayCandidate(message);
-    if (relayCandidate) {
-      this.stats.relayLookupCandidates++;
-      const payload = buildPpcsRelayCheck(this.#options.p2pDid, relayCandidate.challenge);
-      for (let attempt = 0; attempt < 4; attempt += 1) this.#send(REQ.check2, payload, relayCandidate);
-      const key = `${relayCandidate.host}:${relayCandidate.port}`;
-      if (!this.#turnHandshakes.has(key)) {
-        this.#turnHandshakes.add(key);
-        this.#send(REQ.turnServerInit, Buffer.alloc(0), relayCandidate);
-      }
-      return false;
-    }
-    const directCandidate = ppcsLookupCandidate(message);
-    if (directCandidate) {
-      this.stats.directLookupCandidates++;
-      if (directCandidate.host !== "0.0.0.0") this.#checkCandidate(directCandidate);
-      return false;
-    }
-    if (has(message, RESP.turnServerOk)) {
-      this.#send(REQ.turnClientOk, Buffer.alloc(0), { host: info.address, port: info.port });
-      return false;
-    }
-    if (has(message, RESP.turnServerToken) && message.length >= 10) {
-      this.stats.turnTokens++;
-      const token = Buffer.from(message.subarray(4, 8));
-      const relay = { host: info.address, port: message.readUInt16BE(8) };
-      const payload = buildPpcsRelayCheck(this.#options.p2pDid, token);
-      for (let attempt = 0; attempt < 4; attempt += 1) this.#send(REQ.check2, payload, relay);
-      const lookup = buildPpcsTurnLookup(this.#options.p2pDid, relay, token);
-      for (const address of decodeCloudAddresses(this.#options.appConnection)) {
-        this.#send(REQ.turnLookup, lookup, address);
-      }
+    const candidate = ppcsLookupCandidate(message);
+    if (candidate) {
+      if (has(message, RESP.lookupAddr2)) this.stats.alternateLookupCandidates++;
+      else this.stats.directLookupCandidates++;
+      if (candidate.host !== "0.0.0.0") this.#checkCandidate(candidate);
       return false;
     }
     if (isPpcsCameraIdentity(message)) {
@@ -882,13 +793,7 @@ export class FirstPartyPpcsSession {
       this.#remote = { host: info.address, port: info.port };
       this.#send(REQ.ping, Buffer.alloc(0), this.#remote);
       this.#sendCommand(1100, voidPayload(255));
-      if (this.#options.purpose !== "control") {
-        if (this.#options.homeBaseAttached && usesLegacyAttachedMediaStart(this.#options.stationFirmware)) {
-          this.#startAttachedMedia();
-        } else if (!this.#options.homeBaseAttached) {
-          this.#startOwnMedia();
-        }
-      }
+      if (!this.#options.homeBaseAttached && this.#options.purpose !== "control") this.#startOwnMedia();
       return true;
     }
     if (has(message, RESP.pong)) return false;
@@ -1135,13 +1040,8 @@ export class FirstPartyPpcsSession {
   }
 
   #startAttachedMedia(): void {
-    if (!this.#remote) return;
+    if (!this.#remote || !this.#level2Key) return;
     const key = publicModulus(this.#rsa.publicKey);
-    if (usesLegacyAttachedMediaStart(this.#options.stationFirmware)) {
-      this.#sendCommand(1003, buildLegacyAttachedLiveStartPayload(this.#options.channel, key));
-      return;
-    }
-    if (!this.#level2Key) return;
     const value = JSON.stringify({
       account_id: this.#options.accountId ?? "",
       cmd: 1003,
@@ -1206,20 +1106,6 @@ function rawPayload(data: Buffer, channel: number, signCode: number, magic: read
   result.writeUInt16LE(data.length, 0); result[4] = magic[0]; result[5] = magic[1];
   result[6] = channel & 0xff; result[7] = signCode & 0xff; result[8] = streamId & 0xff;
   data.copy(result, 10); return result;
-}
-
-/** Build the direct live-start body used by older HomeBase firmware. */
-export function buildLegacyAttachedLiveStartPayload(channel: number, publicKey: string): Buffer {
-  if (!Number.isSafeInteger(channel) || channel < 0 || channel > 255) {
-    throw new Error("Legacy attached live start requires a valid camera channel");
-  }
-  if (!publicKey) throw new Error("Legacy attached live start requires a public key");
-  const value = Buffer.alloc(4);
-  value.writeUInt32LE(channel, 0);
-  const keyBytes = Buffer.from(publicKey, "ascii");
-  const paddedKey = Buffer.alloc(Math.ceil(Math.max(keyBytes.length, 128) / 128) * 128);
-  keyBytes.copy(paddedKey);
-  return rawPayload(Buffer.concat([value, paddedKey]), channel, 0, [1, 0], 0);
 }
 
 function buildIntStringCommandBody(value: number, valueSub: number, accountId: string, key: Buffer): Buffer {
