@@ -1,0 +1,241 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t85l0
+name: "Lever Smart Lock C33"
+category: smart_lock
+aliases:
+  - "Smart Lock C33"
+  - "Smart Lever Lock C33"
+models:
+  - T85L0
+  - T85L0111
+device_type: 201
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6001
+    lock_event_origin:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "lock_event_origin"
+      values:
+        "0": "None"
+        "1": "Automatic"
+        "2": "Manual"
+        "3": "App"
+        "4": "Password"
+        "5": "Fingerprint"
+        "6": "Temporary Password"
+        "7": "Keypad"
+    lock_status:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6000
+      values:
+        "1": "1"
+        "2": "2"
+        "3": "Unlocked"
+        "4": "Locked"
+        "5": "Mechanical anomaly"
+        "6": "6"
+        "7": "7"
+    locked:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "locked"
+    low_battery_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "low_battery_alert"
+    person_name:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "person_name"
+  controls:
+    add_user:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: add_user
+    auto_lock:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6500
+      write:
+        command: 6500
+    auto_lock_schedule:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6501
+      write:
+        command: 6501
+    auto_lock_schedule_end_time:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6602
+      write:
+        command: 6602
+    auto_lock_schedule_start_time:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6601
+      write:
+        command: 6601
+    auto_lock_timer:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6600
+      write:
+        command: 6600
+      values:
+        "1": "1 sec."
+        "30": "30 sec."
+        "60": "1 min."
+        "90": "1,5 min."
+        "120": "2 min."
+        "150": "2,5 min."
+        "180": "3 min."
+    delete_user:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: delete_user
+    lock_calibration:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: lock_calibration
+    notification:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1919
+      write:
+        command: 1919
+    notification_locked:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1919
+      write:
+        command: 1919
+    notification_unlocked:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1919
+      write:
+        command: 1919
+    one_touch_locking:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6502
+      write:
+        command: 6502
+    scramble_passcode:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6504
+      write:
+        command: 6504
+    sound:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6505
+      write:
+        command: 6505
+      values:
+        "0": "Off"
+        "1": "Low"
+        "2": "Medium"
+        "3": "High"
+    update_user_passcode:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: update_user_passcode
+    update_user_schedule:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: update_user_schedule
+    update_username:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: update_username
+    wrong_try_attempts:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6603
+      write:
+        command: 6603
+        input:
+          name: wrong_try_attempts
+          type: integer
+          minimum: 3
+          maximum: 10
+    wrong_try_lockdown_time:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6604
+      write:
+        command: 6604
+      values:
+        "60": "1 min."
+        "120": "2 min."
+        "180": "3 min."
+        "240": "4 min."
+        "300": "5 min."
+    wrong_try_protection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 6503
+      write:
+        command: 6503

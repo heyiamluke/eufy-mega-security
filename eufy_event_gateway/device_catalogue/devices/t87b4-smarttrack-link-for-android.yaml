@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t87b4
+name: "SmartTrack Link for Android"
+category: tracker
+models:
+  - T87B4
+  - T87B4N11
+device_type: null
+notes: "The numeric device type mapping is unconfirmed, so device_type remains null. No integration-usable properties or controls are confirmed yet."
+capabilities: {}

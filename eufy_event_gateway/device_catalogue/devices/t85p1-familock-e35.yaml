@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t85p1
+name: "FamiLock E35"
+category: smart_lock
+aliases:
+  - "E35"
+models:
+  - T85P1
+  - T85P1J11
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

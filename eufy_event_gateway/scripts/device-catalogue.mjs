@@ -91,7 +91,11 @@ function validateSimplifiedDevice(file, record) {
   }
   if (typeof record.name !== "string" || record.name.length === 0) errors.push(`${file}: missing name`);
   if (record.category !== undefined
-    && !["camera", "doorbell", "homebase", "hub_adjacent", "nvr", "smart_lock"].includes(record.category)) {
+    && ![
+      "camera", "doorbell", "homebase", "hub_adjacent", "nvr", "smart_lock",
+      "security_sensor", "siren", "keypad", "remote", "smart_drop", "smart_safe",
+      "tracker", "chime", "passive_accessory",
+    ].includes(record.category)) {
     errors.push(`${file}: category is invalid`);
   }
   if (record.aliases !== undefined
@@ -163,8 +167,16 @@ function validateSimplifiedDevice(file, record) {
         && (!Number.isSafeInteger(capability.requires_parameter) || capability.requires_parameter < 1)) {
         errors.push(`${file}: ${group}.${name} requires_parameter must be a positive integer`);
       }
-      if (capability.write && (!Number.isSafeInteger(capability.write.command) || capability.write.command < 1)) {
-        errors.push(`${file}: ${group}.${name} write command must be a positive integer`);
+      if (capability.write) {
+        const hasCommand = capability.write.command !== undefined;
+        const hasAction = capability.write.action !== undefined;
+        if (hasCommand === hasAction) errors.push(`${file}: ${group}.${name} write must define exactly one command or action`);
+        if (hasCommand && (!Number.isSafeInteger(capability.write.command) || capability.write.command < 1)) {
+          errors.push(`${file}: ${group}.${name} write command must be a positive integer`);
+        }
+        if (hasAction && !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(capability.write.action)) {
+          errors.push(`${file}: ${group}.${name} write action must use snake case`);
+        }
       }
       const input = capability.write?.input;
       if (input !== undefined) {

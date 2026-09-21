@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t87b2
+name: "SmartTrack Card"
+category: tracker
+models:
+  - T87B2
+  - T87B2011
+device_type: 159
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1003
+    location_address:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1009
+    location_coordinates:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1008
+    location_last_update:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1008
+  controls:
+    find_phone:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1000
+      write:
+        command: 1000
+    left_behind_alarm:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1001
+      write:
+        command: 1001
+    tracker_type:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1005
+      write:
+        command: 1005
+      values:
+        "0": "Tracker"
+        "1": "Key"
+        "2": "Wallet"
+        "3": "Bag"
+        "4": "Remote"
+        "5": "Camera"
+        "6": "Headphones"
+        "7": "Toy"
+        "8": "Suitcase"
+        "9": "Handbag"

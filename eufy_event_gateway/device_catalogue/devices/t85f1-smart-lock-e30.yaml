@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t85f1
+name: "Smart Lock E30"
+category: smart_lock
+aliases:
+  - "E30"
+models:
+  - T85F1
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

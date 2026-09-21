@@ -6,7 +6,7 @@ schema: 1
 # Keep the ID stable. Use the lowercase primary model code when it is unique.
 id: t1234
 name: Camera name
-# Optional. Use a simple product role such as camera, doorbell, homebase, hub_adjacent, nvr, or smart_lock.
+# Optional. Use a simple product role such as camera, doorbell, homebase, smart_lock, security_sensor, or siren.
 # category: camera
 # Optional alternate product names. Keep model and product codes under models.
 # aliases:
@@ -60,6 +60,14 @@ capabilities:
           type: integer
           minimum: 0
           maximum: 900
+
+    # Use a named action when the operation is known but no safe numeric command is available.
+    example_named_action:
+      connections:
+        direct:
+          status: unknown
+      write:
+        action: example_action
 
   media:
     live_view:

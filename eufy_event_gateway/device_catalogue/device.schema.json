@@ -31,7 +31,16 @@
         "homebase",
         "hub_adjacent",
         "nvr",
-        "smart_lock"
+        "smart_lock",
+        "security_sensor",
+        "siren",
+        "keypad",
+        "remote",
+        "smart_drop",
+        "smart_safe",
+        "tracker",
+        "chime",
+        "passive_accessory"
       ]
     },
     "aliases": {
@@ -169,14 +178,27 @@
         },
         "write": {
           "type": "object",
-          "required": [
-            "command"
-          ],
           "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "command"
+              ]
+            },
+            {
+              "required": [
+                "action"
+              ]
+            }
+          ],
           "properties": {
             "command": {
               "type": "integer",
               "minimum": 1
+            },
+            "action": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
             },
             "input": {
               "$ref": "#/$defs/writeInput"

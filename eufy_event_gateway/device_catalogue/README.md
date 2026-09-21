@@ -8,9 +8,10 @@ Every device record uses the same compact YAML format and is validated by the
 catalogue check.
 
 Use `category` when it helps distinguish cameras, doorbells, HomeBases, NVRs,
-and hub-adjacent accessories. Put alternate product names under `aliases` and
-model or product codes under `models`. A short top-level `notes` value can hold
-a device-wide caveat so it does not need to be repeated on every capability.
+locks, sensors, sirens, keypads, remotes, safes, trackers, chimes, and other
+accessories. Put alternate product names under `aliases` and model or product
+codes under `models`. A short top-level `notes` value can hold a device-wide
+caveat so it does not need to be repeated on every capability.
 
 Each filename combines the primary model code and readable display name, such
 as `t8170-solocam-s340.yaml`. The `id` stays minimal and stable, so that record
@@ -45,6 +46,11 @@ consistent and prevents YAML from interpreting labels such as `On`, `Off`,
 For a command that accepts a numeric range, describe its argument under
 `write.input` with a name, type, minimum, and maximum. Do not leave the range
 only in prose.
+
+Use numeric `write.command` when the command identifier is known. Use a
+plain-language `write.action` such as `lock`, `unlock`, or `verify_pin` when the
+device action is known but a safe numeric identifier is not. Never invent a
+command number to satisfy the schema.
 
 Use `requires_parameter` when the device must report a capability parameter
 before a control can be exposed. A non-numeric cloud field belongs under

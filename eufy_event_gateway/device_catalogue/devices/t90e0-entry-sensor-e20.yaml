@@ -1,0 +1,245 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t90e0
+name: "Entry Sensor E20"
+category: security_sensor
+models:
+  - T90E0
+  - T90E0121
+device_type: 126
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1101
+    battery_low:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1552
+    contact_open:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1550
+    last_seen:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1551
+    snooze:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1271
+    state:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1131
+      values:
+        "0": "Offline"
+        "1": "Online"
+        "2": "Manually disabled"
+        "3": "Offline low battery"
+        "4": "Remove and readd"
+        "5": "Reset and readd"
+    wifi_rssi:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1141
+  controls:
+    chirp_tone:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1507
+      write:
+        command: 1507
+      values:
+        "0": "None"
+        "1": "Water"
+        "2": "Classic"
+        "3": "Light"
+        "4": "Ding"
+    chirp_volume:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1508
+      write:
+        command: 1508
+        input:
+          name: chirp_volume
+          type: integer
+          minimum: 1
+          maximum: 26
+    motion_detection_test_mode:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      read:
+        parameter: 1243
+      write:
+        command: 1243
+    snooze:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      write:
+        action: snooze
+    station_trigger_alarm_sound:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      write:
+        action: station_trigger_alarm_sound
+    trigger_alarm_sound:
+      connections:
+        T8010:
+          status: declared
+          notes: "Requires HomeBase 2 v3.4.1.2 or above (\"released after 2021\")"
+        T8025:
+          status: declared
+          notes: "Requires HomeBase Mini v4.0.5.2 or above"
+        T8030:
+          status: declared
+          notes: "Requires HomeBase 3 v3.7.2.6 or above"
+        T9000:
+          status: declared
+          notes: "Requires HomeBase Pro v4.1.4.3 or above"
+      write:
+        action: trigger_alarm_sound

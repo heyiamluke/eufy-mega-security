@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8026
+name: "Video Doorbell Chime 2"
+category: chime
+aliases:
+  - "Doorbell Chime 2"
+models:
+  - T8026
+  - T8026120
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

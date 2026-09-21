@@ -1,0 +1,332 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t7402
+name: "Smart Safe T7402"
+category: smart_safe
+models:
+  - T7402
+device_type: null
+notes: "The numeric device type mapping is unconfirmed, so device_type remains null."
+capabilities:
+  readable:
+    battery_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1101
+    emergency_911_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "emergency_911_alert"
+    emergency_911_alert_event:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "emergency_911_alert_event"
+      values:
+        "0": "Cancel Alarm"
+        "1": "Alarm"
+        "2": "Alarm Success"
+        "3": "Alarm Not Open"
+        "4": "Alarm Open Failed"
+    jammed_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "jammed_alert"
+    locked:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165260
+    long_time_not_close_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "long_time_not_close_alert"
+    low_battery_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "low_battery_alert"
+    notification_jammed:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+    shake_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "shake_alert"
+    shake_alert_event:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "shake_alert_event"
+      values:
+        "0": "Cancel Alarm"
+        "1": "Alarm"
+    wifi_rssi:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165259
+    wifi_signal_level:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "wifi_signal_level"
+      values:
+        "0": "No signal"
+        "1": "Weak"
+        "2": "Normal"
+        "3": "Strong"
+        "4": "Full"
+    wrong_try_protect_alert:
+      connections:
+        direct:
+          status: declared
+      read:
+        field: "wrong_try_protect_alert"
+  controls:
+    alarm_volume:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165264
+      write:
+        command: 1946165264
+      values:
+        "0": "Low"
+        "1": "Medium"
+        "2": "High"
+    dual_unlock:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165256
+      write:
+        command: 1946165256
+    interior_brightness:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165250
+      write:
+        command: 1946165250
+      values:
+        "0": "Off"
+        "25": "Low"
+        "60": "Mid"
+        "100": "High"
+    interior_brightness_duration:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165261
+      write:
+        command: 1946165261
+        input:
+          name: interior_brightness_duration
+          type: integer
+          minimum: 5
+          maximum: 60
+    left_open_alarm:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165262
+      write:
+        command: 1946165262
+    left_open_alarm_duration:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165263
+      write:
+        command: 1946165263
+      values:
+        "30": "30 sec."
+        "60": "60 sec."
+        "90": "90 sec."
+        "120": "120 sec."
+    notification_dual_lock:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    notification_dual_unlock:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    notification_unlock_by_app:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    notification_unlock_by_fingerprint:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    notification_unlock_by_key:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    notification_unlock_by_pin:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    notification_wrong_try_protect:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165265
+      write:
+        command: 1946165265
+    power_save:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165267
+      write:
+        command: 1946165267
+    prompt_volume:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165249
+      write:
+        command: 1946165249
+      values:
+        "0": "Mute"
+        "1": "Soft"
+        "2": "Max"
+    remote_unlock:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165266
+      write:
+        command: 1946165266
+    remote_unlock_master_pin:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165266
+      write:
+        command: 1946165266
+    scramble_passcode:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165257
+      write:
+        command: 1946165257
+    tamper_alarm:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165255
+      write:
+        command: 1946165255
+      values:
+        "0": "Off"
+        "2": "Tamper Alarm"
+        "3": "Move Alarm"
+    unlock:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: unlock
+    verify_pin:
+      connections:
+        direct:
+          status: declared
+      write:
+        action: verify_pin
+    wrong_try_attempts:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165252
+      write:
+        command: 1946165252
+        input:
+          name: wrong_try_attempts
+          type: integer
+          minimum: 5
+          maximum: 10
+    wrong_try_lockdown_time:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165253
+      write:
+        command: 1946165253
+      values:
+        "60": "1 min."
+        "120": "2 min."
+        "180": "3 min."
+        "240": "4 min."
+        "300": "5 min."
+    wrong_try_protection:
+      connections:
+        direct:
+          status: declared
+      read:
+        parameter: 1946165251
+      write:
+        command: 1946165251

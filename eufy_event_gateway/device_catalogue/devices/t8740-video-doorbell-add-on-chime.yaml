@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8740
+name: "Video Doorbell Add-On Chime"
+category: chime
+aliases:
+  - "eufy Doorbell Chime"
+  - "Indoor Chime for 2K battery doorbell"
+models:
+  - T8740
+  - T8741
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

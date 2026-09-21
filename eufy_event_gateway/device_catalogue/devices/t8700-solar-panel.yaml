@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t8700
+name: "Solar Panel"
+category: passive_accessory
+aliases:
+  - "eufyCam Solar Panel"
+models:
+  - T8700
+  - T8703
+  - T8700011
+  - T8700021
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}

@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../device.schema.json
+
+schema: 1
+id: t90k0
+name: "Key Fob E10"
+category: remote
+models:
+  - T90K0
+  - T90K0121
+device_type: null
+notes: "No integration-usable properties or controls are confirmed yet."
+capabilities: {}
