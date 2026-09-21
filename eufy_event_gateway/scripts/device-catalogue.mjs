@@ -146,6 +146,20 @@ function validateSimplifiedDevice(file, record) {
       if (capability.write && (!Number.isSafeInteger(capability.write.command) || capability.write.command < 1)) {
         errors.push(`${file}: ${group}.${name} write command must be a positive integer`);
       }
+      const input = capability.write?.input;
+      if (input !== undefined) {
+        if (!input || typeof input !== "object" || Array.isArray(input)) {
+          errors.push(`${file}: ${group}.${name} write input must be a map`);
+        } else {
+          if (!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(input.name ?? "")) {
+            errors.push(`${file}: ${group}.${name} write input name must use snake case`);
+          }
+          if (input.type !== "integer") errors.push(`${file}: ${group}.${name} write input type must be integer`);
+          if (!Number.isSafeInteger(input.minimum) || !Number.isSafeInteger(input.maximum) || input.minimum > input.maximum) {
+            errors.push(`${file}: ${group}.${name} write input must have a valid integer range`);
+          }
+        }
+      }
       if (capability.values !== undefined && (!capability.values || typeof capability.values !== "object" || Array.isArray(capability.values))) {
         errors.push(`${file}: ${group}.${name} values must be a map`);
       }

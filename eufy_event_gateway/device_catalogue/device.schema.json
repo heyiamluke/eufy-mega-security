@@ -141,6 +141,9 @@
             "command": {
               "type": "integer",
               "minimum": 1
+            },
+            "input": {
+              "$ref": "#/$defs/writeInput"
             }
           }
         },
@@ -155,6 +158,31 @@
         },
         "source": {
           "type": "string"
+        }
+      }
+    },
+    "writeInput": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "minimum",
+        "maximum"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+        },
+        "type": {
+          "const": "integer"
+        },
+        "minimum": {
+          "type": "integer"
+        },
+        "maximum": {
+          "type": "integer"
         }
       }
     }

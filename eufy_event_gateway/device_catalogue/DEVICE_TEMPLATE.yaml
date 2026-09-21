@@ -38,6 +38,18 @@ capabilities:
         0: "First option"
         1: "Second option"
 
+    # Use write.input instead of values when a command accepts a numeric range.
+    example_timed_action:
+      status: unknown
+      requires: homebase3
+      write:
+        command: 0
+        input:
+          name: duration_seconds
+          type: integer
+          minimum: 0
+          maximum: 900
+
   media:
     live_view:
       status: unknown

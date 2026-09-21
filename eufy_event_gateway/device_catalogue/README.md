@@ -30,6 +30,10 @@ Always quote human-facing labels under `values`. This keeps formatting
 consistent and prevents YAML from interpreting labels such as `On`, `Off`,
 `Yes`, or `No` as another data type.
 
+For a command that accepts a numeric range, describe its argument under
+`write.input` with a name, type, minimum, and maximum. Do not leave the range
+only in prose.
+
 ## Evidence boundary
 
 Each connection and capability uses one support level:
