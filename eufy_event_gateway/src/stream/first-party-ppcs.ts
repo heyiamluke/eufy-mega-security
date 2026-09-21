@@ -348,9 +348,8 @@ export class PpcsVideoStreamNormalizer {
     return this.#mode;
   }
 
-  /** Return the codec announced by parameter-set NAL units, when observed. */
+  /** Return the codec proven by decoder setup, falling back to the PPCS frame marker. */
   get codec(): "h264" | "h265" | "unknown" {
-    if (this.#declaredCodec) return this.#declaredCodec;
     if (this.#nalHeaderBytes.some((byte) => {
       const type = (byte >> 1) & 0x3f;
       return type === 32 || type === 33 || type === 34;
@@ -359,7 +358,7 @@ export class PpcsVideoStreamNormalizer {
       const type = byte & 0x1f;
       return type === 7 || type === 8;
     })) return "h264";
-    return "unknown";
+    return this.#declaredCodec ?? "unknown";
   }
 
   /** Return distinct codec-specific NAL types without retaining their payloads. */
