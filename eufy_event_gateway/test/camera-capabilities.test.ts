@@ -148,11 +148,14 @@ test("admits the EufyCam E40 camera type", () => {
   assert.equal(manifest.capabilities.some(({ id }) => id === "liveVideo"), true);
 });
 
-test("admits reported standalone SoloCams without claiming hardware support", () => {
+test("admits reported cameras with ready routes without claiming hardware support", () => {
   const reportedModels = [
+    { model: "T8123", deviceType: 61 },
     { model: "T8130", deviceType: 32 },
     { model: "T8131", deviceType: 33 },
     { model: "T8B00", deviceType: 64 },
+    { model: "T8420", deviceType: 3 },
+    { model: "T8441", deviceType: 45 },
   ] as const;
 
   for (const { model, deviceType } of reportedModels) {

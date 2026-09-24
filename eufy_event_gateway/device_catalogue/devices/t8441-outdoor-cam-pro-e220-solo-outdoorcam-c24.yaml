@@ -5,7 +5,8 @@ id: t8441
 name: Outdoor Cam Pro / E220 (Solo OutdoorCam C24)
 category: camera
 integration:
-  status: recognised
+  status: ready_to_test
+  handler: camera
 models:
   - T8441
 device_type: 45

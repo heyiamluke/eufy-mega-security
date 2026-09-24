@@ -5,7 +5,8 @@ id: t8123
 name: SoloCam L40
 category: camera
 integration:
-  status: recognised
+  status: ready_to_test
+  handler: camera
 models:
   - T8123
 device_type: 61
