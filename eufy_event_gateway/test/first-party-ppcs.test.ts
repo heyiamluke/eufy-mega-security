@@ -339,6 +339,35 @@ test("accepts standalone encrypted media whose declared length covers the comple
   );
 });
 
+test("accepts standalone encrypted media whose declared length follows only the video-frame header", () => {
+  const key = Buffer.alloc(16, 7);
+  const clear = Buffer.concat([Buffer.from([0, 0, 0, 1, 0x40]), Buffer.alloc(123, 3)]);
+  const cipher = createCipheriv("aes-128-ecb", key, null);
+  cipher.setAutoPadding(false);
+  const encrypted = Buffer.concat([cipher.update(clear), cipher.final()]);
+  const tail = Buffer.alloc(50, 4);
+  const frame = Buffer.alloc(151 + encrypted.length + tail.length);
+  frame.writeUInt32LE(frame.length - 22, 0);
+  Buffer.alloc(128, 8).copy(frame, 22);
+  encrypted.copy(frame, 151);
+  tail.copy(frame, 151 + encrypted.length);
+
+  assert.deepEqual(
+    new PpcsVideoFrameDecoder(() => key).decode(frame, 1),
+    { data: Buffer.concat([clear, tail]), protection: "rsa-ecb" },
+  );
+});
+
+test("rejects a header-relative declared length too short to carry the encrypted envelope", () => {
+  const frame = Buffer.alloc(194);
+  frame.writeUInt32LE(frame.length - 22, 0);
+
+  const decoder = new PpcsVideoFrameDecoder(() => Buffer.alloc(16, 7));
+  assert.equal(decoder.decode(frame, 1), undefined);
+  assert.equal(decoder.lastFailure, "legacy-length");
+  assert.deepEqual(decoder.lastFailureLengthDetail, { declaredLength: frame.length - 22, frameLength: frame.length });
+});
+
 test("classifies a failed legacy key unwrap without exposing frame data", () => {
   const frame = Buffer.alloc(151 + 128);
   frame.writeUInt32LE(128, 0);
