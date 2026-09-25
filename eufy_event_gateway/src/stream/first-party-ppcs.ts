@@ -218,6 +218,8 @@ export type PpcsVideoFrameDecodeFailure =
 interface LegacyPpcsVideoFrameDecodeResult {
   readonly data?: Buffer;
   readonly failure?: PpcsVideoFrameDecodeFailure;
+  /** The declared and actual byte counts behind a length-boundary failure, for diagnosing a new declaration convention. */
+  readonly lengthDetail?: { readonly declaredLength: number; readonly frameLength: number };
 }
 
 /** Decode legacy media while retaining only a bounded structural failure reason. */
@@ -229,7 +231,9 @@ function decodeLegacyPpcsVideoFrame(
   if (frame.length < 22) return { failure: "short-frame" };
   const length = frame.readUInt32LE(0);
   if (signCode <= 0 || length < 128) {
-    if (frame.length < 22 + length) return { failure: "clear-length" };
+    if (frame.length < 22 + length) {
+      return { failure: "clear-length", lengthDetail: { declaredLength: length, frameLength: frame.length } };
+    }
     return { data: frame.subarray(22, 22 + length) };
   }
 
@@ -245,7 +249,9 @@ function decodeLegacyPpcsVideoFrame(
       : frame.length === length && frame.length >= 151 + 128
         ? frame.length
       : undefined;
-  if (mediaEnd === undefined) return { failure: "legacy-length" };
+  if (mediaEnd === undefined) {
+    return { failure: "legacy-length", lengthDetail: { declaredLength: length, frameLength: frame.length } };
+  }
   let key: Buffer | undefined;
   try {
     key = unwrapKey(frame.subarray(22, 150));
@@ -281,6 +287,7 @@ export class PpcsVideoFrameDecoder {
   #eccPrivateKey: Buffer | null = null;
   #mediaKey: Buffer | null = null;
   #lastFailure: PpcsVideoFrameDecodeFailure | null = null;
+  #lastFailureLengthDetail: { readonly declaredLength: number; readonly frameLength: number } | null = null;
 
   /** Create a decoder around the session's legacy RSA unwrap operation. */
   constructor(private readonly unwrapLegacyKey: (wrapped: Buffer) => Buffer | undefined) {}
@@ -288,6 +295,11 @@ export class PpcsVideoFrameDecoder {
   /** Return the structural reason the most recent decode failed, without media or key data. */
   get lastFailure(): PpcsVideoFrameDecodeFailure | null {
     return this.#lastFailure;
+  }
+
+  /** Return the declared and actual byte counts behind a length-boundary failure, if that was the reason. */
+  get lastFailureLengthDetail(): { readonly declaredLength: number; readonly frameLength: number } | null {
+    return this.#lastFailureLengthDetail;
   }
 
   /** Replace the camera key used for authenticated media and forget any prior stream key. */
@@ -307,9 +319,11 @@ export class PpcsVideoFrameDecoder {
    */
   decode(frame: Buffer, signCode: number): DecodedPpcsVideoFrame | undefined {
     this.#lastFailure = null;
+    this.#lastFailureLengthDetail = null;
     if (signCode <= 0) {
       const result = decodeLegacyPpcsVideoFrame(frame, signCode, this.unwrapLegacyKey);
       this.#lastFailure = result.failure ?? null;
+      this.#lastFailureLengthDetail = result.lengthDetail ?? null;
       return result.data ? { data: result.data, protection: "clear" } : undefined;
     }
 
@@ -324,6 +338,7 @@ export class PpcsVideoFrameDecoder {
     }
     const legacy = decodeLegacyPpcsVideoFrame(frame, signCode, this.unwrapLegacyKey);
     this.#lastFailure = legacy.failure ?? null;
+    this.#lastFailureLengthDetail = legacy.lengthDetail ?? null;
     return legacy.data ? { data: legacy.data, protection: "rsa-ecb" } : undefined;
   }
 
@@ -1365,7 +1380,9 @@ export class FirstPartyPpcsSession {
     });
     if (!decoded?.data.length) {
       const failure = this.#videoDecoder.lastFailure ?? "unknown";
-      this.#recordVideoResult(signCode > 0 ? `encrypted-frame-rejected-${failure}` : `plaintext-frame-rejected-${failure}`);
+      const detail = this.#videoDecoder.lastFailureLengthDetail;
+      const label = signCode > 0 ? `encrypted-frame-rejected-${failure}` : `plaintext-frame-rejected-${failure}`;
+      this.#recordVideoResult(detail ? `${label}-declared${detail.declaredLength}-frame${detail.frameLength}` : label);
       return false;
     }
     let wrote = false;

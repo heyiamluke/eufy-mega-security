@@ -152,6 +152,7 @@ test("admits catalogued cameras with ready routes at their evidence status", () 
   const reportedModels = [
     { model: "T8123", deviceType: 61, status: "supported" },
     { model: "T8130", deviceType: 32, status: "ready_to_test" },
+    { model: "T8223", deviceType: 95, status: "ready_to_test" },
     { model: "T8131", deviceType: 33, status: "ready_to_test" },
     { model: "T8B00", deviceType: 64, status: "ready_to_test" },
     { model: "T8420", deviceType: 3, status: "ready_to_test" },
@@ -173,7 +174,8 @@ test("admits catalogued cameras with ready routes at their evidence status", () 
 test("offers compatibility feedback only for the exact ready-to-test model", () => {
   assert.equal(catalogueIntegrationStatus("T8140-R", 14), "ready_to_test");
   assert.equal(catalogueIntegrationStatus("T8224", 96), "supported");
-  assert.equal(catalogueIntegrationStatus("T8223", 96), "ready_to_test");
+  assert.equal(catalogueIntegrationStatus("T8223", 95), "ready_to_test");
+  assert.equal(catalogueIntegrationStatus("T8223", 96), "recognised");
   assert.equal(catalogueIntegrationStatus("unknown", 96), null);
   assert.equal(catalogueIntegrationStatus("T9999", 65_000), null);
 });
@@ -229,9 +231,9 @@ test("admits the reported T8110 through its existing camera handler", () => {
   );
 });
 
-test("keeps a declared alternate camera type diagnostic-only", () => {
-  assert.equal(KNOWN_CAMERA_DEVICE_TYPES.has(95), true);
-  assert.equal(CAMERA_DEVICE_TYPES.has(95), false);
+test("keeps a recognised-only doorbell type diagnostic-only", () => {
+  assert.equal(KNOWN_CAMERA_DEVICE_TYPES.has(16), true);
+  assert.equal(CAMERA_DEVICE_TYPES.has(16), false);
 });
 
 test("groups camera capability logs without device identifiers or parameter values", () => {

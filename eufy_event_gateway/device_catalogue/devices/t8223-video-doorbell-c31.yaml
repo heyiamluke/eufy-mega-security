@@ -9,7 +9,12 @@ integration:
   handler: camera
 models:
   - T8223
-device_type: 96
+device_type: 95
+alternate_device_types:
+  - value: 96
+    status: declared
+    notes: Imported device declaration data associates this model with type 96, while gateway-reported inventory shows type 95.
+notes: Gateway-reported inventory shows type 95, while imported device declaration data associates this model with type 96. The mapping may vary by hardware revision.
 capabilities:
   readable:
     battery_level:
